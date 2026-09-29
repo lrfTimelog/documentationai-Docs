@@ -1,0 +1,163 @@
+---
+title: Integrations
+description: Connect TimeLog seamlessly with financial systems, payroll, BI tools, and other third-party services.
+---
+
+## Overview
+
+TimeLog integrates with popular financial systems, payroll providers, business intelligence tools, and custom services via webhooks. These connections enable automated data flow for invoicing, reporting, and resource management. Start by reviewing available partners, then follow setup guides for each category.
+
+<Columns cols={2}>
+  <Card title="Financial & Payroll" icon="receipt" href="#financial-payroll">
+    Sync time entries and invoices with QuickBooks, Xero, and payroll systems like ADP.
+  </Card>
+  <Card title="BI Connections" icon="bar-chart-3" href="#bi-connections">
+    Export data to Power BI, Tableau, or Google Data Studio for advanced analytics.
+  </Card>
+  <Card title="Webhooks" icon="zap" href="#webhooks">
+    Receive real-time events for custom automations.
+  </Card>
+  <Card title="Partner Add-ons" icon="package" href="#partners">
+    Explore marketplace apps from certified partners.
+  </Card>
+</Columns>
+
+## Financial and Payroll Integrations
+
+Connect TimeLog to accounting and payroll systems to automate invoice generation and salary processing.
+
+<Tabs>
+  <Tab title="QuickBooks" icon="database">
+    Use the native QuickBooks integration to push approved time entries as invoices.
+
+    <CodeGroup tabs="JavaScript,Python">
+      ```javascript
+      const QuickBooks = require('node-quickbooks');
+      const qbo = new QuickBooks(/* init options */);
+      
+      const timeEntries = await fetchTimeEntries();
+      timeEntries.forEach(async (entry) => {
+        await qbo.createInvoice({
+          CustomerRef: entry.clientId,
+          Line: [{ Amount: entry.hours * entry.rate }]
+        });
+      });
+      ```
+      ```python
+      import quickbooks
+      from timelog import fetch_time_entries
+      
+      client = quickbooks.QuickBooks(/* sandbox=True */)
+      entries = fetch_time_entries()
+      
+      for entry in entries:
+          client.create_invoice(
+              customer_ref=entry['client_id'],
+              line=[{'Amount': entry['hours'] * entry['rate']}]
+          )
+      ```
+    </CodeGroup>
+  </Tab>
+  <Tab title="Xero" icon="shield">
+    Map projects to Xero contacts for seamless billing.
+  </Tab>
+</Tabs>
+
+<Callout kind="tip">
+  Always test integrations in sandbox mode before going live to avoid data discrepancies.
+</Callout>
+
+## Business Intelligence Connections
+
+Export TimeLog data to BI tools for custom dashboards and insights.
+
+Use native connectors or CSV exports scheduled via API. Common setups include:
+
+| Tool       | Connector Type | Frequency |
+|------------|----------------|-----------|
+| Power BI  | OData Feed     | Real-time |
+| Tableau   | REST API       | Hourly    |
+| Google BI | Google Sheets  | Daily     |
+
+<ParamField query="start_date" param-type="date" required="true">
+  Filter exports by start date (YYYY-MM-DD).
+</ParamField>
+
+<ParamField query="project_ids[]" param-type="array" required="false">
+  Optional project IDs to include.
+</ParamField>
+
+## Webhook Setup Guide
+
+Set up webhooks to receive TimeLog events like time entry approvals or invoice status changes.
+
+<Steps>
+  <Step title="Create Webhook" icon="plus">
+    Navigate to Settings > Integrations > Webhooks and click "New Webhook".
+  </Step>
+  <Step title="Configure Endpoint" icon="link">
+    Enter your endpoint URL, e.g., `https://your-webhook-url.com/timelog`.
+    
+    Select events: `time_entry.approved`, `invoice.sent`.
+  </Step>
+  <Step title="Verify Payload" icon="check-circle">
+    TimeLog sends a POST request with JSON payload.
+    
+    <Request tabs="cURL" show-lines="true">
+      ```bash
+      curl -X POST https://your-webhook-url.com/timelog \
+        -H "Content-Type: application/json" \
+        -H "TimeLog-Signature: {signature}" \
+        -d '{
+          "event": "time_entry.approved",
+          "data": {
+            "id": 12345,
+            "hours": 8.5,
+            "user_id": 678
+          }
+        }'
+      ```
+    </Request>
+  </Step>
+  <Step title="Handle Signature" icon="shield">
+    Verify the `TimeLog-Signature` header using HMAC SHA256 with your secret.
+  </Step>
+</Steps>
+
+<ResponseField name="event" field-type="string">
+  Type of event triggered.
+</ResponseField>
+
+<ResponseField name="data" field-type="object">
+  Event-specific payload.
+</ResponseField>
+
+## Managing Partner Add-ons
+
+Browse and manage third-party add-ons from the TimeLog marketplace.
+
+<Board title="Partner Integrations">
+  <BoardColumn title="Available" color="0" icon="package">
+    <BoardCard title="Zapier Connector" description="Automate workflows with 5000+ apps" icon="zap" />
+    <BoardCard title="Slack Notifications" description="Real-time project updates" icon="message-circle" />
+  </BoardColumn>
+  <BoardColumn title="Installed" color="1" icon="check-circle">
+    <BoardCard title="Google Workspace" description="Sync calendars and tasks" icon="calendar" dueDate="2024-12-31" />
+  </BoardColumn>
+  <BoardColumn title="Pending Review" color="3" icon="loader-2">
+    <BoardCard title="Custom BI Dashboard" author="Partner Team" />
+  </BoardColumn>
+</Board>
+
+<Expandable title="Advanced Configuration" default-open="false">
+  For custom integrations, use the TimeLog API at `https://api.timelog.com/v1`. Generate an API key from your account settings.
+
+  ```bash
+  curl -H "Authorization: Bearer YOUR_API_KEY" \
+       https://api.timelog.com/v1/integrations
+  ```
+</Expandable>
+
+<Callout kind="info">
+  Contact support for enterprise-grade integrations or custom development needs.
+</Callout>

@@ -1,0 +1,107 @@
+---
+title: Changelog
+description: Version history with 2-3 recent updates.
+---
+
+## Recent Updates
+
+<Callout kind="info">
+  Track the latest improvements, new features, and fixes in Timelog. Check here for release notes before updating your instance.
+</Callout>
+
+<Update label="2024-10-15" description="v2.5.0" tags={["feature", "improvement"]}>
+## New Features
+
+- Added real-time time tracking dashboard with live updates for teams.
+- Introduced automated invoice generation from project time entries.
+- New resource allocation calendar view for better project staffing.
+
+## Improvements
+
+- Enhanced reporting with customizable widgets and export to PDF/Excel.
+- Optimized mobile app performance for faster time entry on iOS and Android.
+
+## Bug Fixes
+
+- Fixed sync issues between web and mobile time logs.
+- Resolved invoicing calculation errors for multi-currency projects.
+</Update>
+
+<Update label="2024-09-20" description="v2.4.0" tags={["feature", "bugfix"]}>
+## New Features
+
+- Integrated AI-powered insights for profitability analysis per project.
+- Added staff scheduling module with conflict detection.
+
+## Improvements
+
+- Upgraded project management Gantt charts with drag-and-drop rescheduling.
+- Better integration with external calendars like Google Workspace.
+
+## Bug Fixes
+
+- Corrected permission issues in resource management views.
+- Fixed export failures for large reporting datasets.
+</Update>
+
+<Update label="2024-08-10" description="v2.3.0" tags={["improvement", "bugfix"]}>
+## New Features
+
+- Launched webhook support for custom integrations with third-party tools.
+
+## Improvements
+
+- Streamlined invoicing workflow with one-click approvals.
+- Improved search functionality across time logs and projects.
+
+## Bug Fixes
+
+- Patched security vulnerability in API authentication endpoints.
+- Resolved UI glitches in the insights dashboard on smaller screens.
+</Update>
+
+## Upcoming Roadmap
+
+<Board title="Q4 2024 Roadmap">
+  <BoardColumn title="Planned" color="0" icon="calendar">
+    <BoardCard title="Advanced Reporting API" description="RESTful endpoints for custom dashboards" icon="bar-chart-3" dueDate="2024-12-15" />
+    <BoardCard title="Multi-company Support" description="Manage multiple orgs from one account" icon="building-2" />
+  </BoardColumn>
+  <BoardColumn title="In Progress" color="1" icon="loader-2">
+    <BoardCard title="Mobile Offline Mode" description="Sync time entries when back online" icon="phone" author="Engineering" />
+  </BoardColumn>
+  <BoardColumn title="Completed" color="2" icon="check-circle">
+    <BoardCard title="v2.5.0 Release" description="Invoicing and dashboard enhancements" createdAt="2024-10-15" />
+  </BoardColumn>
+</Board>
+
+## How to Update
+
+<Steps>
+  <Step title="Check Compatibility" icon="check-circle">
+    Review the [release notes](https://docs.timelog.com/changelog) for breaking changes.
+  </Step>
+  <Step title="Backup Data" icon="database">
+    Export your projects and time logs via the admin panel.
+  </Step>
+  <Step title="Run Update" icon="download-cloud">
+    
+````bash
+docker-compose pull
+docker-compose up -d
+````
+    
+  </Step>
+  <Step title="Verify" icon="search">
+    Test key features like time entry and reporting.
+  </Step>
+</Steps>
+
+<Columns cols={2}>
+  <Card title="Quickstart" icon="book-open" href="/quickstart">
+    Get started with the latest version.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference" horizontal>
+    Explore integration options.
+  </Card>
+</Columns>

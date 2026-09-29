@@ -1,0 +1,168 @@
+---
+title: Quickstart
+description: Set up your TimeLog account and complete your first time tracking in under 5 minutes.
+---
+
+## Get started in under 5 minutes
+
+TimeLog makes time tracking simple and powerful. Follow these steps to create your account, access the dashboard, set up your first project, and log an initial time entry. No credit card required to begin.
+
+## Prerequisites
+
+<Callout kind="info">
+
+Before starting, ensure you have:
+- A modern web browser like Chrome or Firefox
+- A valid email address for account verification
+- About 5 minutes of time
+
+</Callout>
+
+## Account setup and first time entry
+
+<Steps>
+  <Step title="Create and verify your account" icon="user-plus">
+
+    Visit `https://app.timelog.com/signup` and fill out the registration form with your email, name, and company details.
+
+    Check your inbox (and spam folder) for a verification email from `noreply@timelog.com`. Click the verification link to activate your account.
+
+  </Step>
+
+  <Step title="Access the TimeLog dashboard" icon="layout-dashboard">
+
+    Return to `https://app.timelog.com/login` and sign in with your verified credentials.
+
+    You'll land on the main dashboard, showing an overview of projects, recent time entries, and quick actions.
+
+  </Step>
+
+  <Step title="Set up your first project" icon="folder-plus">
+
+    Click the `New Project` button in the top-right corner.
+
+    Enter details:
+    - Project name: `My First Project`
+    - Client: `Internal` (or your first client)
+    - Description: `Initial project for time tracking setup`
+    - Budget: Leave blank for now
+
+    Click `Create Project` to save.
+
+  </Step>
+
+  <Step title="Log your initial time entry" icon="clock">
+
+    Navigate to your new project by clicking it from the dashboard.
+
+    Select `Log Time` from the project menu.
+
+    Fill in:
+    - Date: Today
+    - Duration: `1h 30m`
+    - Description: `Set up TimeLog account and first project`
+    - Task: `Onboarding`
+
+    Click `Save` to record your entry. View it in the project timeline.
+
+  </Step>
+</Steps>
+
+<Callout kind="success">
+  Success! You've completed your first time entry. TimeLog automatically calculates billable hours and provides insights.
+</Callout>
+
+## Log time on any platform
+
+<Tabs>
+  <Tab title="Web Dashboard" icon="globe">
+
+    Use the full-featured dashboard at `https://app.timelog.com` for desktop tracking. Supports timers, manual entries, and bulk editing.
+
+  </Tab>
+
+  <Tab title="Mobile App" icon="smartphone">
+
+    Download the TimeLog mobile app from the App Store (iOS) or Google Play (Android). Start/stop timers on the go and sync instantly.
+
+  </Tab>
+
+  <Tab title="Desktop App" icon="monitor">
+
+    Install the native desktop app for Windows or macOS from `https://timelog.com/download`. Features always-on timer in your system tray.
+
+  </Tab>
+</Tabs>
+
+## Integrate via API (optional)
+
+For programmatic time logging, use TimeLog's REST API.
+
+<CodeGroup tabs="JavaScript,cURL">
+  ```javascript
+  const response = await fetch('https://api.example.com/v1/time-entries', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer YOUR_API_TOKEN',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      projectId: 'proj_123',
+      duration: 5400, // seconds
+      description: 'API test entry'
+    })
+  });
+  ```
+  ```bash
+  curl -X POST https://api.example.com/v1/time-entries \
+    -H "Authorization: Bearer YOUR_API_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "projectId": "proj_123",
+      "duration": 5400,
+      "description": "API test entry"
+    }'
+  ```
+</CodeGroup>
+
+<ParamField path="projectId" param-type="string" required="true">
+  The ID of the project from your dashboard.
+</ParamField>
+
+<ParamField header="Authorization" param-type="string" required="true">
+  Bearer token obtained from account settings.
+</ParamField>
+
+## Next steps
+
+<Columns cols={2}>
+  <Card title="Project Management" icon="calendar" href="/project-management">
+    Organize tasks, assign resources, and track profitability.
+  </Card>
+
+  <Card title="Invoicing" icon="receipt" href="/invoicing" horizontal>
+    Generate invoices from time entries automatically.
+  </Card>
+
+  <Card title="Reporting" icon="bar-chart-3" href="/reporting">
+    Unlock insights with customizable reports and dashboards.
+  </Card>
+
+  <Card title="Integrations" icon="plug" href="/integrations" horizontal>
+    Connect TimeLog to your favorite tools like Slack or QuickBooks.
+  </Card>
+</Columns>
+
+<Expandable title="Troubleshooting common issues" default-open="false">
+
+- **Email not received?** Check spam/junk and add `noreply@timelog.com` to safe senders.
+- **Dashboard loading slowly?** Clear browser cache or try incognito mode.
+- **Project not visible?** Ensure it's not archived; check the projects filter.
+
+For more help, visit the [Help Center](https://help.timelog.com).
+
+</Expandable>
+
+<Callout kind="tip">
+  This quickstart uses sample data. Customize projects and settings to match your workflow. Explore the full TimeLog PSA suite for spotless invoicing and business insights.
+</Callout>

@@ -1,0 +1,128 @@
+---
+title: Features
+description: Dive into TimeLog's core capabilities for time tracking, project management, and business insights.
+---
+
+## Overview
+
+TimeLog provides essential tools for managing your projects efficiently. You get spotless invoicing and deep business insights through easy time tracking, project planning, resource allocation, reporting, and automated invoicing. Start by exploring the core features below to build your workflow.
+
+<Columns cols={3}>
+  <Card title="Time Tracking" icon="clock" href="/quickstart">
+    Log hours accurately across tasks and clients for precise billing.
+  </Card>
+  <Card title="Project Management" icon="calendar" href="/guides/project-management">
+    Plan, track, and deliver projects on time and within budget.
+  </Card>
+  <Card title="Resource Management" icon="users" href="/guides/resource-planning">
+    Allocate team members optimally to maximize productivity.
+  </Card>
+</Columns>
+
+<Columns cols={2}>
+  <Card title="Insights & Reporting" icon="bar-chart-3" href="/guides/reporting">
+    Generate custom reports to uncover actionable business intelligence.
+  </Card>
+  <Card title="Invoicing" icon="file-text" href="/guides/invoicing">
+    Automate billing based on tracked time and project milestones.
+  </Card>
+</Columns>
+
+## Time Tracking Workflows
+
+Set up time tracking in minutes. You assign tasks to projects, log hours via timer or manual entry, and review entries for accuracy.
+
+<Steps>
+  <Step title="Create a Project" icon="plus">
+    Navigate to the Projects dashboard and click New Project. Enter details like client name, start date, and budget.
+  </Step>
+  <Step title="Start Timer" icon="play">
+    Select a task within the project. Click the timer to begin tracking time automatically.
+  </Step>
+  <Step title="Log and Review" icon="check-circle">
+    Stop the timer and add notes. Review daily logs to ensure completeness.
+  </Step>
+</Steps>
+
+<Callout kind="tip">
+  Enable mobile app sync for on-the-go tracking. Use tags like `urgent` or `billable` for better categorization.
+</Callout>
+
+## Project and Resource Planning
+
+Manage projects and resources in one place. Plan timelines, assign tasks, and balance workloads.
+
+<Tabs>
+  <Tab title="Project Planning" icon="calendar">
+    Use Gantt charts to visualize timelines.
+
+    ```mermaid
+    graph TD
+        A[Project Start] --> B[Task 1: Design]
+        B --> C[Task 2: Develop]
+        C --> D[Task 3: Review]
+        D --> E[Project End]
+    ```
+  </Tab>
+  <Tab title="Resource Allocation" icon="users">
+    View availability and assign skills-based matching.
+
+    <Board title="Team Allocation">
+      <BoardColumn title="Available" color="0" icon="circle">
+        <BoardCard title="John Doe" description="Frontend Expert" icon="code" />
+        <BoardCard title="Jane Smith" description="Designer" icon="monitor" />
+      </BoardColumn>
+      <BoardColumn title="Assigned" color="1" icon="loader">
+        <BoardCard title="API Integration" description="Backend tasks" dueDate="2024-12-15" author="Dev Team" />
+      </BoardColumn>
+      <BoardColumn title="Completed" color="2" icon="check-circle">
+        <BoardCard title="UI Mockups" createdAt="2024-12-01" />
+      </BoardColumn>
+    </Board>
+  </Tab>
+</Tabs>
+
+## Reporting and Analytics
+
+Unlock insights with customizable dashboards. Filter data by project, client, or time period to spot trends.
+
+<CodeGroup tabs="SQL,API">
+  ```sql
+  SELECT 
+    project.name,
+    SUM(time_entries.hours) as total_hours,
+    AVG(time_entries.rate) as avg_rate
+  FROM time_entries
+  JOIN project ON time_entries.project_id = project.id
+  GROUP BY project.name
+  ORDER BY total_hours DESC;
+  ```
+  ```javascript
+  const response = await fetch('https://api.example.com/reports/hours', {
+    headers: { 'Authorization': 'Bearer YOUR_TOKEN' }
+  });
+  const data = await response.json();
+  console.log(data.projects);
+  ```
+</CodeGroup>
+
+<Expandable title="Advanced Filters" default-open="false">
+  Combine dimensions like employee role and client type for deeper analysis. Export to PDF or CSV for sharing.
+</Expandable>
+
+## Invoicing Processes
+
+Streamline billing from tracked time. Generate invoices automatically and track payments.
+
+| Step | Action | Details |
+|------|--------|---------|
+| 1 | Review Time Logs | Approve billable hours per project. |
+| 2 | Generate Draft | Select projects and apply rates. |
+| 3 | Customize & Send | Add terms, discounts, then email clients. |
+| 4 | Track Payments | Monitor status and send reminders. |
+
+<Callout kind="success">
+  Integrate with `https://api.example.com` for seamless payment processing.
+</Callout>
+
+Ready to implement? Check the [quickstart](/quickstart) for hands-on setup.
