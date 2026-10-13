@@ -1,0 +1,289 @@
+---
+title: Pagination
+description: How paged lists work in the TimeLog REST API, which list operations are paged, and how to walk every page safely.
+---
+
+## Overview
+
+Some list operations return one page at a time. Others return the complete list in one response.
+You cannot tell the two apart from the URL, so this page lists every published list operation and says which kind it is.
+
+On a paged operation you choose the page with two query parameters, and the response tells you how many pages there are.
+The rules are the same in v1 and v2. The difference is that far fewer v2 list operations are paged.
+
+## Query parameters
+
+| Parameter | Default | Meaning |
+|---|---|---|
+| `$page` | `1` | The page to return. The first page is `1`. |
+| `$pagesize` | `10` | The number of items per page. |
+
+```text
+GET https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/project/get-all?$page=2&$pagesize=50
+```
+
+Things to know about these parameters:
+
+- **The default page size is small.** If you send neither parameter, a paged operation returns only the first 10 items. A client that reads one response and stops will miss data.
+- **There is no documented maximum page size.** The API layer does not enforce one. Larger pages mean larger and slower responses; for example, large pages of the currency list can be slow. Choose a size that suits your client.
+- **Both values must be numbers.** A non-numeric `$page` or `$pagesize` fails with `500`. See [Errors](/rest/errors).
+- **There are no generic sort or filter parameters.** Each operation has its own fixed order and its own filter parameters, if it has any. The operation's reference page documents both.
+- **Only paged operations use them.** Sending `$page` or `$pagesize` to an operation that is not paged does not page its response.
+
+## Paging values in the response
+
+A paged operation returns three list-level values in `Properties`, next to `Entities`:
+
+| Property | Meaning |
+|---|---|
+| `TotalRecord` | Total number of items across all pages. |
+| `TotalPage` | Total number of pages at the page size you asked for. |
+| `PageNumber` | The page in this response. |
+
+**All three are strings, not numbers.** Parse them before you compare or calculate with them.
+
+Example: `GET /v1/country/get-all` with the default page size (three of the ten entities shown).
+
+```json
+{
+  "Properties": { "TotalRecord": "244", "TotalPage": "25", "PageNumber": "1" },
+  "Entities": [
+    { "Properties": { "CountryID": 1, "Country": "Afghanistan", "ISO": "AF", "DefaultCurrencyID": 0 } },
+    { "Properties": { "CountryID": 2, "Country": "Albanien", "ISO": "AL", "DefaultCurrencyID": 0 } },
+    { "Properties": { "CountryID": 53, "Country": "Amerikanske Jomfruøer", "ISO": "VI", "DefaultCurrencyID": 31 } }
+  ],
+  "Links": [
+    { "Href": "https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/country/get-all", "Rel": "self" }
+  ]
+}
+```
+
+244 countries at 10 per page gives 25 pages.
+
+A list that is not paged has no `TotalRecord`, `TotalPage` or `PageNumber`. It returns every item in `Entities`.
+For the general list shape, and for what an empty paged list looks like, see [Response envelope](/rest/conventions/response-envelope).
+
+## Walking all pages
+
+Use the following loop for any operation in the [paged](#paged-operations) table:
+
+1. Request `$page=1` with the page size you want.
+2. Read the items from `Entities`. If `Entities` is missing, the page is empty: stop.
+3. Parse `PageNumber` and `TotalPage` as integers. If `PageNumber` is greater than or equal to `TotalPage`, stop.
+4. Otherwise, request the next page and go back to step 2.
+
+Keep both stop conditions. On some operations `TotalPage` is higher than the real number of pages, and the last pages come back empty. The empty-page check stops the loop there.
+An empty result also returns `"TotalPage": "0"`, so step 3 stops it as well.
+
+A generic sketch in JavaScript:
+
+```javascript
+// Fetches every item of a paged list operation.
+// `url` is the operation URL without $page / $pagesize; `headers` carries your Authorization header.
+async function fetchAllPages(url, headers, pageSize = 100) {
+  const items = [];
+  const separator = url.includes("?") ? "&" : "?";
+
+  for (let page = 1; ; page++) {
+    const response = await fetch(`${url}${separator}$page=${page}&$pagesize=${pageSize}`, { headers });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const body = await response.json();
+
+    // A missing Entities member means an empty page.
+    if (!body || !body.Entities) break;
+    items.push(...body.Entities.map((entity) => entity.Properties));
+
+    // Paging values are strings.
+    const pageNumber = parseInt(body.Properties?.PageNumber ?? "0", 10);
+    const totalPage = parseInt(body.Properties?.TotalPage ?? "0", 10);
+    if (pageNumber >= totalPage) break;
+  }
+
+  return items;
+}
+```
+
+The sketch has no retry or rate-limit handling. Add those for production use.
+
+## Which list operations are paged
+
+The tables below cover every published list operation. Use them to decide whether you need the paging loop.
+
+<Callout kind="tip">
+Do not decide from the presence of `TotalRecord` alone. A few operations that are not paged still return a count, and one returns `"0"` while sending every item.
+</Callout>
+
+### Paged operations
+
+These operations accept `$page` and `$pagesize` (defaults `1` and `10`) and return `TotalRecord`, `TotalPage` and `PageNumber`.
+Unless a note says otherwise, a page counts items in `Entities`.
+
+| Operation | Notes |
+|---|---|
+| `GET /v1/ProjectCategory` |  |
+| `GET /v1/ProjectType` |  |
+| `GET /v1/TaskType` |  |
+| `GET /v1/absence-code/get-recently-registered` |  |
+| `GET /v1/absence-code/{status}` |  |
+| `GET /v1/address/search` | Paged only when you search with `addressPhrase`. The `projectId` variant is not paged. |
+| `GET /v1/allowance-legislation` |  |
+| `GET /v1/car` |  |
+| `GET /v1/contract` |  |
+| `GET /v1/contract-hourly-rate` |  |
+| `GET /v1/cost-price` |  |
+| `GET /v1/country/get-all` |  |
+| `GET /v1/currency/{status}` |  |
+| `GET /v1/customer` |  |
+| `GET /v1/customer/search-for-expense-travel-registration-order-by-recent-registration` |  |
+| `GET /v1/customer/search-for-time-tracking` |  |
+| `GET /v1/customer/search-for-time-tracking-order-by-recent-registration` |  |
+| `GET /v1/customerstatus` |  |
+| `GET /v1/department` |  |
+| `GET /v1/employee-expense` |  |
+| `GET /v1/employee-expense-financial-data/get-by-date-range` | Pages count calendar days in the range. `TotalRecord` is the number of days, not the number of expenses. |
+| `GET /v1/employee-projection/get-in-period` |  |
+| `GET /v1/expense-type/all/list` |  |
+| `GET /v1/expense-type/{status}` | `TotalRecord` and `TotalPage` can be higher than the real number of items, so the last pages can be empty. |
+| `GET /v1/external-systems` |  |
+| `GET /v1/holiday-calendar` |  |
+| `GET /v1/hourly-rate` |  |
+| `GET /v1/hourly-rate/default` |  |
+| `GET /v1/industry/get-all` |  |
+| `GET /v1/integration-conflicts` |  |
+| `GET /v1/legal-entity` |  |
+| `GET /v1/mileage-rate` |  |
+| `GET /v1/mileage-registration` |  |
+| `GET /v1/normal-working-time` |  |
+| `GET /v1/payment` |  |
+| `GET /v1/payment-method/{status}` |  |
+| `GET /v1/payment-term` |  |
+| `GET /v1/product` |  |
+| `GET /v1/project-expense` |  |
+| `GET /v1/project-header/search-for-expense-travel-registration-by-customer-id-order-by-recent-registration` |  |
+| `GET /v1/project-header/search-for-expense-travel-registration-order-by-recent-registration` |  |
+| `GET /v1/project-header/search-for-time-tracking` |  |
+| `GET /v1/project-header/search-for-time-tracking-by-customer-id` |  |
+| `GET /v1/project-header/search-for-time-tracking-by-customer-id-order-by-recent-registration` |  |
+| `GET /v1/project-header/search-for-time-tracking-order-by-recent-registration` |  |
+| `GET /v1/project-product` |  |
+| `GET /v1/project/get-all` |  |
+| `GET /v1/project/{projectID}/external-keys` | Paged when `externalSystemID` is not sent. With `externalSystemID` you get a single object. |
+| `GET /v1/role` |  |
+| `GET /v1/salary-account` |  |
+| `GET /v1/salary-account/{salaryAccountId}/aggregation` |  |
+| `GET /v1/salary-group` |  |
+| `GET /v1/task` |  |
+| `GET /v1/task/filter` |  |
+| `GET /v1/task/get-recently-registered` |  |
+| `GET /v1/task/search-by-customer` |  |
+| `GET /v1/task/search-by-project` |  |
+| `GET /v1/task/search-for-time-tracking` |  |
+| `GET /v1/task/search-for-time-tracking-by-customer-id` |  |
+| `GET /v1/task/search-for-time-tracking-by-customer-id-order-by-recent-registration` |  |
+| `GET /v1/task/search-for-time-tracking-by-project-id` |  |
+| `GET /v1/task/search-for-time-tracking-by-project-id-order-by-recent-registration` |  |
+| `GET /v1/task/search-for-time-tracking-by-project-id-order-by-travel-time-task` |  |
+| `GET /v1/task/search-for-time-tracking-order-by-recent-registration` |  |
+| `GET /v1/task/travel-time-task-for-time-tracking` |  |
+| `GET /v1/task/{taskID}/external-keys` | Paged when `externalSystemID` is not sent. With `externalSystemID` you get a single object. |
+| `GET /v1/time-registration-financial-data/get-by-date-range` | Pages count calendar days in the range. `TotalRecord` is the number of days. |
+| `GET /v1/time-registration-financial-data/get-status-by-date-range` | One item per calendar day. `TotalRecord` is the number of days. |
+| `GET /v1/time-registration/{timeRegistrationID}/external-keys` | Paged when `externalSystemID` is not sent. With `externalSystemID` you get a single object. |
+| `GET /v1/time-tracker` |  |
+| `GET /v1/time-tracking-item/get-by-date` |  |
+| `GET /v1/time-tracking-item/get-by-date-order-by-recent-registration` |  |
+| `GET /v1/timesheet-status/weekly` | Pages count employee-week rows, not employees. One employee can appear on two pages. |
+| `GET /v1/user` |  |
+| `GET /v2/employee-expense` |  |
+| `GET /v2/milestones/incomplete` | The names of the list-level paging properties are not yet documented for this operation. |
+
+### Paged with skip and take
+
+These v2 operations page with their own `skip` (items to skip) and `take` (items to return) query parameters instead of `$page` and `$pagesize`.
+They return **no** total count. Request the next block until a response has no `Entities`, or fewer than `take` items.
+
+Unless a note says otherwise, `skip` and `take` are required: leaving either one out returns `404`. No maximum is documented for `take`.
+
+| Operation | Notes |
+|---|---|
+| `GET /v2/filters/account-manager/content` |  |
+| `GET /v2/filters/approval-manager/content` |  |
+| `GET /v2/filters/contact/content` |  |
+| `GET /v2/filters/contract-model/content` |  |
+| `GET /v2/filters/contract-status/content` |  |
+| `GET /v2/filters/customer-owner/content` |  |
+| `GET /v2/filters/customer/content` | `skip` defaults to 0 and `take` to 50. |
+| `GET /v2/filters/employee-department/content` |  |
+| `GET /v2/filters/employee-type/content` |  |
+| `GET /v2/filters/employee/content` |  |
+| `GET /v2/filters/legal-entity-employee/content` |  |
+| `GET /v2/filters/legal-entity-project/content` |  |
+| `GET /v2/filters/partner/content` |  |
+| `GET /v2/filters/project-category/content` |  |
+| `GET /v2/filters/project-department/content` |  |
+| `GET /v2/filters/project-manager/content` |  |
+| `GET /v2/filters/project-stage/content` |  |
+| `GET /v2/filters/project-status/content` |  |
+| `GET /v2/filters/project-type/content` |  |
+| `GET /v2/filters/project/content` |  |
+
+### Not paged
+
+These operations return the complete list in one response. They do not page it, even if you send `$page` or `$pagesize`.
+Some return a fixed maximum number of items; the notes say where.
+
+| Operation | Notes |
+|---|---|
+| `GET /v1/ContractModel` |  |
+| `GET /v1/address/home-work` |  |
+| `GET /v1/approval/timesheets/get-status-by-dates` | `$page` and `$pagesize` page each day's `RejectedRegistrations` list, not the response. |
+| `GET /v1/approval/timesheets/get-status-range-by-nearby-week-of-year` | `$page` and `$pagesize` page each day's `RejectedRegistrations` list, not the response. |
+| `GET /v1/barrier` |  |
+| `GET /v1/customer/by-number/{customerNumber}` |  |
+| `GET /v1/employee-type` |  |
+| `GET /v1/privilege/user-privileges` |  |
+| `GET /v1/project-template/get-all` |  |
+| `GET /v1/task/{taskID}/allocation` |  |
+| `GET /v1/unit-type` |  |
+| `GET /v2/adjustments/move-hours` |  |
+| `GET /v2/adjustments/move-hours/projects` |  |
+| `GET /v2/adjustments/move-hours/projects/{projectId}/tasks` |  |
+| `GET /v2/bookmarks` |  |
+| `GET /v2/competence-groups` |  |
+| `GET /v2/competences` |  |
+| `GET /v2/competences/by-group` |  |
+| `GET /v2/contract-hourly-rates/dropdown-content` |  |
+| `GET /v2/employee-competences/available` |  |
+| `GET /v2/filter-view/{pageIdentifier}` |  |
+| `GET /v2/filters/competence/content` |  |
+| `GET /v2/filters/department/content` | Returns at most 50 departments per tree level. There is no parameter to fetch more. |
+| `GET /v2/filters/legal-entity/content` | Returns at most 50 legal entities. There is no parameter to fetch more. |
+| `GET /v2/filters/list/{pageIdentifier}` |  |
+| `GET /v2/filters/project-inactivity-period/content` | Requires `skip` and `take` (leaving either out returns `404`), but ignores them: all options are always returned. |
+| `GET /v2/filters/task-status/content` |  |
+| `GET /v2/filters/task-type/content` |  |
+| `GET /v2/filters/task/content` |  |
+| `GET /v2/menus/create` |  |
+| `GET /v2/menus/main` |  |
+| `GET /v2/menus/page-settings` |  |
+| `GET /v2/menus/personal-settings` |  |
+| `GET /v2/menus/system-administration` |  |
+| `GET /v2/pages/design-seven` |  |
+| `GET /v2/projects` | Returns a `ProjectsCount` total, but the list itself is complete. |
+| `GET /v2/projects/actions` |  |
+| `GET /v2/projects/{projectId}/employee-unallocated` |  |
+| `GET /v2/projects/{projectId}/tasks-unallocated` | Returns at most 30 tasks. |
+| `GET /v2/projects/{projectId}/time-registrations` |  |
+| `POST /v2/report-project/results/table` | Returns at most the first 100 rows. |
+| `GET /v2/search/categories` |  |
+
+### Not documented
+
+<Callout kind="alert">
+**Not yet documented.** Whether the operations in this table page their response is not yet established.
+</Callout>
+
+| Operation | Notes |
+|---|---|
+| `GET /v1/contact` | Without paging parameters it returns every contact, and `TotalRecord` / `TotalPage` read `"0"`. The effect of sending `$page` / `$pagesize` is not yet documented. |
+| `GET /v2/insights-service/hour-kpi-per-month-privilege` | Whether this list is paged is not yet documented. |

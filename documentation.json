@@ -78,6 +78,11 @@
                 "title": "Response envelope",
                 "path": "rest/conventions/response-envelope",
                 "icon": "package"
+              },
+              {
+                "title": "Pagination",
+                "path": "rest/conventions/pagination",
+                "icon": "list-ordered"
               }
             ]
           },
