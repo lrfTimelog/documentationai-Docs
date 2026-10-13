@@ -1,0 +1,604 @@
+openapi: 3.1.0
+info:
+  title: Roles and privileges — REST API v1
+  version: v1
+  description: |-
+    List roles, add or remove a privilege on a role, and read the calling user's data-scope privileges.
+
+    Enums are integers in v1.
+
+    **Conventions that apply to every operation in this file:**
+    - Property names are PascalCase.
+    - Successful bodies use the TAF envelope: one object in `Properties`, lists in `Entities[].Properties`.
+    - Some operations succeed without content: HTTP 200 with the literal body `null`, or HTTP 204.
+    - `PUT` replaces the whole object: omitted fields are reset.
+    - Treat error `Code` 102 as a business-rule violation, whether the HTTP status is 422 or 500.
+
+    > **Not yet documented:** rate limits.
+servers:
+- url: https://{your-timelog-host}/{tlp-virtual-directory}/api
+  description: Your TimeLog site.
+  variables:
+    your-timelog-host:
+      default: your-timelog-host
+      description: 'The host of your TimeLog site. Not yet documented: the production host pattern.'
+    tlp-virtual-directory:
+      default: your-virtual-directory
+      description: The virtual directory your TimeLog site is hosted under.
+security:
+- bearer: []
+tags:
+- name: Roles and privileges
+  description: List roles, add or remove a privilege on a role, and read the calling user's data-scope privileges.
+paths:
+  /v1/privilege/user-privileges:
+    get:
+      operationId: getPrivilegesForUser
+      summary: Get the caller's privilege packages
+      description: |-
+        Returns, for each data area, which scope privileges the calling user holds and the IDs those scopes are matched against.
+
+        Seven packages, one per area (customer, project, contract, invoice, time tracking, approval, employee). Each tells a client which records the caller may work with — e.g. "all projects" versus "projects where I am project manager" — so it can pre-filter pickers and hide actions the server would reject. It always describes the token's own user (for a client-credentials token: the system service user); no parameter selects another user.
+
+        **Use it to:**
+        - Decide at client start-up whether to show 'register for other employees' or approval features
+        - Pre-filter project / customer pickers to what the user may see
+
+        **Not for:**
+        - Checking another user's privileges — not possible
+        - Page access or feature flags — see `GET /v1/user-setting`
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+
+        **See also:** `GET /v1/user-setting`, `GET /v1/user/me`
+      tags:
+      - Roles and privileges
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). Seven entries, one per Type 0-6 in that order, without paging properties (no TotalRecord / TotalPage).
+
+            Order: Type ascending (0 Customer … 6 Employee)
+
+            Empty result: Never empty: always seven packages; a caller without privileges gets "0" values.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/PrivilegePackageRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+      x-timelog-key: rest.v1.security.privilege.getuserprivileges
+  /v1/role:
+    delete:
+      operationId: deleteRolePrivilegeMapping
+      summary: Revoke a privilege from a role
+      description: |-
+        Removes one privilege (an area privilege for an event-type group) from a role.
+
+        Switches off one cell of a role's privilege matrix — the same change as unticking a privilege checkbox for a role in TimeLog's settings. Pages connected to the event-type group are removed from the role unless another of the role's groups still needs them. The call ALWAYS answers 200 `null` when it does not crash: if a TimeLog rule blocks the removal (last role that can edit all employees, hourly-rate privilege dependencies), nothing is deleted and the response is still 200. REST v1 cannot read a role's privileges, so the result cannot be verified through the API.
+
+        **Use it to:**
+        - Withdraw a privilege from a role on many tenants at once
+
+        **Not for:**
+        - Deleting a role — not possible in REST v1
+        - Removing a role from a user — not possible in REST v1
+
+        **Rules across fields:**
+        - R1: All three query parameters must be present; if any is missing the request matches no action and gets 405 UnsupportedApiVersion.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Duplicates: Deleting a mapping that does not exist still runs the side effects (events, cache clear) and returns 200.
+        - Side effect: Recomputes the time-tracking search rows of the role's users when the privilege is 'projects available for employee department / resource group'.
+        - Side effect: Removes the group's connected pages from the role, unless another group of the same area still needs them.
+        - Side effect: Clears cached privilege lists for employee / project / customer / invoice scopes when the area privilege is one of those scope privileges.
+
+        **Call first:** `GET /v1/role`
+
+        **See also:** `POST /v1/role`
+
+        > **Not yet documented:** errors; examples (success).
+      tags:
+      - Roles and privileges
+      parameters:
+      - name: roleId
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: The role to change. Query-string parameter (name matched case-insensitively).
+      - name: areaPrivilegeGUID
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Area privilege to remove.
+      - name: eventTypeGroupGUID
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Event-type group to remove. All rows of the role / area privilege for the group's event types are deleted
+          (including duplicates left by POST).
+      responses:
+        '200':
+          description: 'Success without content: HTTP 200 with the literal JSON body `null`. Literal JSON `null` — returned
+            both when the rows were deleted and when a business rule blocked the delete.'
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '405':
+          description: '- The route matched, but no action for this HTTP method accepted the request. Observed when a DELETE
+            that needs required (non-nullable) query parameters is sent without them: the versioning layer reports it as an
+            unsupported version / method, although the method is listed in the Allow header. It is a missing-parameter error
+            that looks like a 405. Returned before authentication (also without a token). — When: A query parameter is missing'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: No query parameters
+                  value:
+                    code: UnsupportedApiVersion
+                    error: No route providing a controller name with API version '1' was found to match HTTP method 'DELETE'
+                      and request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/role'.
+                    traceId: 2d95ac09-c879-4c76-bb76-fe90a991d13f
+                    type: https://docs.api-versioning.org/problems#unsupported
+                    title: Unsupported API version
+                    status: 405
+                    detail: The requested resource with API version '1' does not support HTTP method 'DELETE'.
+        '500':
+          description: |-
+            - **Code 100** — EventTypeGroupGUID is not a known event-type group (this includes the empty GUID that an empty or partial JSON body produces). The group lookup returns null and the mapping loop throws. Nothing is written. — When: Unknown eventTypeGroupGUID — nothing deleted — Fix: Send the GUID of an existing event-type group. REST v1 cannot list them (see RolePrivilegeMappingCreate gaps).
+
+            - **Code 100** — RoleID / roleId does not exist. POST: the mapping rows are inserted first, then the audit-event step loads the role, gets null and throws — the call fails but the orphan rows stay. DELETE: the delete rule dereferences the null role and throws before anything is deleted. — When: Unknown roleId — nothing deleted — Fix: Use a RoleID from `GET /v1/role`.
+
+            - **Code 100** — AreaPrivilegeGUID is not a known area privilege. POST: rows (and connected-page mappings) are written, then the audit step dereferences the null privilege and throws — the write stays. DELETE: the delete rule dereferences it and throws before anything is deleted. — When: Unknown areaPrivilegeGUID — nothing deleted — Fix: Send the GUID of an existing area privilege.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.security.role.delete
+    get:
+      operationId: listRoles
+      summary: List roles
+      description: |-
+        Lists the tenant's shared roles (name, description, active flag), by name.
+
+        The value set for RoleID: UserRoleIDs on user create/update and roleId / RoleID on the role-privilege operations. Only shared roles are listed — employee-specific roles and locked system roles are left out. Inactive roles ARE listed (IsActive false); user create/update reject them, so filter on IsActive before offering a role for assignment.
+
+        **Use it to:**
+        - Map role names to RoleIDs before creating users with extra roles
+
+        **Not for:**
+        - Reading which privileges a role has — not available in REST v1
+        - Reading a user's roles — not available in REST v1
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `POST /v1/user/create`, `PUT /v1/user`, `POST /v1/role`
+      tags:
+      - Roles and privileges
+      parameters:
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size. No maximum enforced in the API layer.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). Roles without per-entity links.
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: Name ascending (no tie-breaker)
+
+            Empty result: 200 with TotalRecord "0" and no Entities (not expected: tenants are seeded with standard roles)
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/RoleRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.security.role.list
+    post:
+      operationId: createRolePrivilegeMapping
+      summary: Grant a privilege to a role
+      description: |-
+        Adds one privilege (an area privilege for an event-type group) to an existing role.
+
+        Switches on one cell of a role's privilege matrix — the same change as ticking a privilege checkbox for a role in TimeLog's settings. If the event-type group is connected to pages, the role also gets access to those pages. It does not create a role, and REST v1 has no operation that creates or deletes roles. The call returns 200 with body `null`. There is no read operation for a role's privileges, so the result cannot be verified through REST v1.
+
+        **Use it to:**
+        - Provision a tenant's role set-up from a template (same privileges on many tenants)
+
+        **Not for:**
+        - Creating a role — not possible in REST v1
+        - Giving a role to a user — use UserRoleIDs on `POST /v1/user/create` / update
+
+        **Rules across fields:**
+        - R1: AreaPrivilegeGUID should belong to the area of the event-type group; NOT checked — any pairing is stored.
+
+        **Behaviour:**
+        - Not idempotent.
+        - Safe to retry only under a condition.
+        - Duplicates: Not deduplicated — the same mapping can be stored several times.
+        - Side effect: Recomputes the time-tracking search rows of the role's users when the privilege is 'register on all tasks' or 'projects available for employee department / resource group'.
+        - Side effect: Maps the group's connected pages to the role (page access), each with its own audit events.
+        - Side effect: Clears the cached privilege lists for employee / project / customer / invoice scopes when the area privilege is one of those scope privileges.
+        - On failure: Unknown RoleID or AreaPrivilegeGUID with a valid group: the inserts, the allocation recompute and the page mappings are kept; the call returns 500.
+
+        **Call first:** `GET /v1/role`
+
+        **See also:** `DELETE /v1/role`, `GET /v1/privilege/user-privileges`
+
+        > **Not yet documented:** behaviour → consistency; examples (success).
+      tags:
+      - Roles and privileges
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RolePrivilegeMappingCreate.create'
+      responses:
+        '200':
+          description: 'Success without content: HTTP 200 with the literal JSON body `null`. Literal JSON `null`.'
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 100** — EventTypeGroupGUID is not a known event-type group (this includes the empty GUID that an empty or partial JSON body produces). The group lookup returns null and the mapping loop throws. Nothing is written. — When: Unknown or empty EventTypeGroupGUID, empty body {} (capture) — Fix: Send the GUID of an existing event-type group. REST v1 cannot list them (see RolePrivilegeMappingCreate gaps).
+
+            - **Code 100** — RoleID / roleId does not exist. POST: the mapping rows are inserted first, then the audit-event step loads the role, gets null and throws — the call fails but the orphan rows stay. DELETE: the delete rule dereferences the null role and throws before anything is deleted. — When: Unknown RoleID — rows already written — Fix: Use a RoleID from `GET /v1/role`.
+
+            - **Code 100** — AreaPrivilegeGUID is not a known area privilege. POST: rows (and connected-page mappings) are written, then the audit step dereferences the null privilege and throws — the write stays. DELETE: the delete rule dereferences it and throws before anything is deleted. — When: Unknown AreaPrivilegeGUID — rows already written — Fix: Send the GUID of an existing area privilege.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Empty body (unknown event-type group)
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'model: {"RoleID":0,"AreaPrivilegeGUID":"00000000-0000-0000-0000-000000000000","EventTypeGroupGUID":"00000000-0000-0000-0000-000000000000"}'
+                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/role
+      x-timelog-key: rest.v1.security.role.create
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: |-
+        OAuth 2.0 bearer token, sent as `Authorization: Bearer <token>`. JWT and reference tokens are both accepted. The token must carry the required scope (default `tlp`).
+
+        The token's `sub` claim is the acting user. A token WITHOUT `sub` (client-credentials) acts as the system service user. If the `sub` user cannot log in (inactive, locked, deleted), the request is rejected with 401 — it is no longer let through without a user.
+
+        > **Not yet documented:** how to obtain a token.
+
+        > **Not yet documented:** token lifetime.
+  schemas:
+    MessageError:
+      type: object
+      description: Body of 401 and some framework errors — not the ResponseError shape.
+      properties:
+        Message:
+          type: string
+    PrivilegePackageRead:
+      type: object
+      properties:
+        Type:
+          type: integer
+          enum:
+          - 0
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
+          x-enum-descriptions:
+          - 'Customer area: may see all customers, or only customers where the caller is account manager.'
+          - 'Project area: all projects, projects of the caller''s legal entity, of the caller''s department tree, or where
+            the caller is account / project manager.'
+          - 'Project sub-contracts: same five scopes as Project, for contracts.'
+          - 'Invoices and vouchers: all, the caller''s legal entity, the caller''s department tree, or projects where the
+            caller is account / project manager.'
+          - 'Registration on behalf of others: all registrations, own only, employees of the caller''s legal entity, or of
+            the caller''s department tree.'
+          - 'Approval: timesheets/expenses of all employees, own employees or the caller''s legal entity; project time/expenses
+            of all, legal-entity, department or own projects.'
+          - 'Employee area: all employees, the caller''s legal entity, or the caller''s department tree — each split into
+            View / Create / Edit / CreateEdit (CVs in TimeLog Skills).'
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: none
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            The area this package covers. Every response holds exactly one package per member, in member order.
+
+            Identifier of this object.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | Customer | Customer area: may see all customers, or only customers where the caller is account manager. |
+            | `1` | Project | Project area: all projects, projects of the caller's legal entity, of the caller's department tree, or where the caller is account / project manager. |
+            | `2` | Contract | Project sub-contracts: same five scopes as Project, for contracts. |
+            | `3` | Invoice | Invoices and vouchers: all, the caller's legal entity, the caller's department tree, or projects where the caller is account / project manager. |
+            | `4` | TimeTracking | Registration on behalf of others: all registrations, own only, employees of the caller's legal entity, or of the caller's department tree. |
+            | `5` | Approval | Approval: timesheets/expenses of all employees, own employees or the caller's legal entity; project time/expenses of all, legal-entity, department or own projects. |
+            | `6` | Employee | Employee area: all employees, the caller's legal entity, or the caller's department tree — each split into View / Create / Edit / CreateEdit (CVs in TimeLog Skills). |
+        PrivilegePackage:
+          type: object
+          readOnly: true
+          description: |-
+            String → string dictionary. Two key families: `Priv<AreaPrivilegeType>` = "1" when the caller holds that privilege, "0" otherwise (Employee package: `Priv<AreaPrivilegeType><Action>` with Action View, Create, Edit or CreateEdit, and no action-less keys); `PrivParam<Parameter>` = the caller's own ID that a scoped privilege is matched against, as a decimal string: ProjectManagerID, AccountManagerID and EmployeeUserID = the caller's user ID; DepartmentID = the caller's department; UserLegalEntityID = the caller's legal entity. A PrivParam value is NOT a flag. TimeTracking: PrivRegistration{AllRegistrations, UsersOwnRegistrations, EmployeesInMyOwnLegalEntity, EmployeesInMyOwnDepartmentAndSubDepartments} + PrivParam EmployeeUserID, DepartmentID, UserLegalEntityID. Approval: PrivApprovalApprovalOf{TimesheetAndExpenseAllEmployees, TimesheetAndExpenseOwnEmployees, ProjectTimeAndExpenseAllProjects, ProjectTimeAndExpenseLegalEntityProjects, ProjectTimeAndExpenseDepartmentProjects, ProjectTimeAndExpenseOwnProjects, TimesheetAndExpenseOwnLegalEntity} + PrivParam EmployeeUserID, DepartmentID, UserLegalEntityID. Employee: PrivEmployee{AllEmployees, AllInLegalEntityEmployees, EmployeesInUserDepartmentAndSubDepartment}{View, Create, Edit, CreateEdit} + PrivParam EmployeeUserID, DepartmentID, UserLegalEntityID.
+
+            The key set is fixed per Type by code, so a key's presence says nothing; read its value. Exactly which business actions each privilege unlocks is defined by TimeLog's privilege model, not by this operation.
+
+            > **Not yet documented:** notes.
+      description: The caller's data-scope privileges for one area (customers, projects, contracts, invoices, time tracking,
+        approval, employees), as a flat string dictionary. A client uses it to decide which records to offer the user before
+        calling the data operations, e.g. "all projects" versus "only projects where I am project manager".
+    ResponseError:
+      type: object
+      description: Error body for validation (400), privilege (403), business-rule (422/500) and other server errors. `Details`
+        lists strings for validation errors, or `{ErrorCode, Message}` objects for business-rule violations. `Parameters`
+        echoes the request arguments, including the full payload.
+      properties:
+        Code:
+          type: integer
+          description: 'TimeLog error class (not the HTTP status): 100 unexpected, 102 business rule, 103 privilege, 200 validation.'
+        Message:
+          type: string
+        Details:
+          type: array
+          items: {}
+        Parameters:
+          type:
+          - string
+          - object
+          - 'null'
+        Url:
+          type: string
+    RolePrivilegeMappingCreate.create:
+      type: object
+      properties:
+        RoleID:
+          type: integer
+          writeOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The role to change.
+
+            Refers to `RoleRead.RoleID`. Look up valid values with `GET /v1/role`.
+
+            - On POST the mapping rows are already written when it fails.
+
+            - The role is a locked system role or an employee-specific role — No check on the role kind.
+
+            role.list does not return locked system or employee-specific roles, but this field accepts them.
+
+            Valid values come from `GET /v1/role`.
+        AreaPrivilegeGUID:
+          type: string
+          format: uuid
+          writeOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            GUID of the area privilege (a row of TimeLog's privilege catalogue, e.g. 'all employees' in the employee area).
+
+            Reference to another object.
+
+            - On POST the mapping rows are already written when it fails.
+
+            - The area privilege does not belong to the event-type group's area — No pairing check.
+
+            > **Not yet documented:** values → lookup op.
+
+            > **Not yet documented:** identity → references → schema.
+        EventTypeGroupGUID:
+          type: string
+          format: uuid
+          writeOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            GUID of the event-type group: the set of actions (event types) the privilege is granted for, e.g. view / create / edit.
+
+            Reference to another object.
+
+            - The group has connected pages — POST also gives the role access to those pages; DELETE removes them unless another group still needs them.
+
+            > **Not yet documented:** values → lookup op.
+
+            > **Not yet documented:** identity → references → schema.
+      required:
+      - RoleID
+      - AreaPrivilegeGUID
+      - EventTypeGroupGUID
+      description: 'One privilege setting of a role: "on this role, switch on the event-type group X of the area privilege
+        Y". It mirrors one checkbox in the role''s privilege matrix in TimeLog''s settings. The GUIDs are system identifiers
+        of TimeLog''s privilege model; no REST v1 operation lists them.'
+    RoleRead:
+      type: object
+      properties:
+        RoleID:
+          type: integer
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier of the role. Send it as RoleID / roleId on the role-privilege operations, and in UserRoleIDs on user create/update.
+
+            Identifier of this object, unique per TimeLog site.
+        Name:
+          type: string
+          readOnly: true
+          maxLength: 255
+          description: |-
+            Display name as typed by the tenant administrator (not translated). Standard roles are seeded with a numbering prefix, e.g. "10. Time tracker". A NULL name is returned as an empty string.
+
+            Not declared unique in the table; match roles on RoleID or ID, not on Name.
+        Description:
+          type: string
+          readOnly: true
+          description: Free-text description of the role. A NULL description is returned as an empty string.
+        IsActive:
+          type: boolean
+          readOnly: true
+          description: false = the role is switched off. Inactive roles ARE returned by the list; user create/update reject
+            them in UserRoleIDs (error 37926).
+        IsLockedSystemRole:
+          type: boolean
+          readOnly: true
+          description: true = a system role that tenants cannot change. Always false in this list, because the list excludes
+            locked system roles.
+        ID:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: unknown
+            id_format: guid
+          description: |-
+            GUID of the role, generated by the database. No REST v1 operation takes it as input.
+
+            Alternate key, unique per TimeLog site.
+
+            > **Not yet documented:** identity → uniqueness enforced.
+      description: 'A role of the tenant: a named bundle of area access, page access and privileges that is given to users.
+        The list operation returns only the shared roles a tenant administrator creates. Employee-specific roles and locked
+        system roles (e.g. the external-user role) are never returned.'
+    TafAction:
+      type: object
+      description: A hypermedia action the caller may take on the object. Present only where the operation registers actions.
+    TafLink:
+      type: object
+      properties:
+        Href:
+          type: string
+        Rel:
+          type: string
+    TafListPaging:
+      type: object
+      description: 'Paging values. They are returned as STRINGS, for example `"TotalRecord": "12"`.'
+      properties:
+        TotalRecord:
+          type: string
+        TotalPage:
+          type: string
+        PageNumber:
+          type: string
+x-timelog-service: Security

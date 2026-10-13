@@ -1,0 +1,1641 @@
+openapi: 3.1.0
+info:
+  title: Timesheet (time tracking items) — REST API v1
+  version: v1
+  description: |-
+    Read the caller's time registrations the way the timesheet shows them, toggle favourites, and check whether a period can be closed.
+
+    Enums are integers in v1.
+
+    **Conventions that apply to every operation in this file:**
+    - Property names are PascalCase.
+    - Successful bodies use the TAF envelope: one object in `Properties`, lists in `Entities[].Properties`.
+    - Some operations succeed without content: HTTP 200 with the literal body `null`, or HTTP 204.
+    - `PUT` replaces the whole object: omitted fields are reset.
+    - Treat error `Code` 102 as a business-rule violation, whether the HTTP status is 422 or 500.
+
+    > **Not yet documented:** rate limits.
+servers:
+- url: https://{your-timelog-host}/{tlp-virtual-directory}/api
+  description: Your TimeLog site.
+  variables:
+    your-timelog-host:
+      default: your-timelog-host
+      description: 'The host of your TimeLog site. Not yet documented: the production host pattern.'
+    tlp-virtual-directory:
+      default: your-virtual-directory
+      description: The virtual directory your TimeLog site is hosted under.
+security:
+- bearer: []
+tags:
+- name: Timesheet (time tracking items)
+  description: Read the caller's time registrations the way the timesheet shows them, toggle favourites, and check whether
+    a period can be closed.
+paths:
+  /v1/time-tracking-item/get-by-date:
+    get:
+      operationId: getTimeTrackingItemsByDate
+      summary: List my time tracking items by date
+      description: |-
+        Lists the calling user's own time registrations (project time and absence) between two dates, enriched for display.
+
+        Returns the caller's registrations with Date between startDate and endDate (both inclusive), each as a TimeTrackingItemRead: the registration plus its customer, project, task or absence code, allocation hours and approval / invoicing state. Always the CALLER's registrations — there is no employee parameter, so it cannot be used to read other employees' time. Paged ($page / $pagesize); each page is selected in creation order and then sorted by StartTime.
+
+        **Use it to:**
+        - Render a day / period timesheet in a time-tracking client
+        - Let an employee review what they registered before submitting
+
+        **Not for:**
+        - Other employees' time or reporting across employees → Reporting API / time registration reports
+        - Grouped week with norm time → `GET /v1/time-tracking-item/get-weekly-registrations`
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Duplicates: n/a (read)
+        - Changes are visible to the next read immediately.
+
+        **Next:** `GET /v1/time-tracking-item/{timeRegistrationID}`, `PUT /v1/time-registration`, `POST /v1/time-tracker/task/start-time-tracker`
+
+        **See also:** `GET /v1/time-tracking-item/get-by-date-order-by-recent-registration`, `GET /v1/time-tracking-item/get-weekly-registrations`
+
+        > **Not yet documented:** examples; request → query params.
+      tags:
+      - Timesheet (time tracking items)
+      parameters:
+      - name: startDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+          x-timelog-filter:
+            operators:
+            - gte
+        description: |-
+          First day (inclusive). Omitting it → 404 (no action matched).
+
+          Filters on `TimeTrackingItemRead.Date` (gte).
+      - name: endDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+          x-timelog-filter:
+            operators:
+            - lte
+        description: |-
+          Last day (inclusive). Not checked against startDate: endDate < startDate returns an empty list.
+
+          Filters on `TimeTrackingItemRead.Date` (lte).
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). TAF list; each entity has a self link to the get-by-ID operation, and project rows (EntityType 43) a 'start-time-tracker' action.
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Empty result: 200 with TotalRecord "0" and no Entities
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/TimeTrackingItemRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: startDate or endDate omitted'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.registration.timetrackingitem.getbydate
+  /v1/time-tracking-item/get-by-date-order-by-recent-registration:
+    get:
+      operationId: getTimeTrackingItemsByDateOrderByRecentRegistration
+      summary: List my time tracking items by date, most recent first
+      description: |-
+        Lists the calling user's own time registrations between two dates, most recently CREATED first.
+
+        Same data, scope and paging as get-by-date, but ordered by the registration's creation time, newest first, and not re-sorted. It returns registrations (one row each), not distinct tasks: to build a "recently used tasks" picker, de-duplicate on TaskID / AbsenceCodeID client-side.
+
+        **Use it to:**
+        - Show the caller's latest registrations first (e.g. a mobile 'recent' list)
+        - Derive recently used tasks for quick re-entry
+
+        **Not for:**
+        - Chronological day view → `GET /v1/time-tracking-item/get-by-date`
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Duplicates: n/a (read)
+        - Changes are visible to the next read immediately.
+
+        **Next:** `GET /v1/time-tracking-item/{timeRegistrationID}`, `POST /v1/time-registration`
+
+        **See also:** `GET /v1/time-tracking-item/get-by-date`, `GET /v1/customer/search-for-time-tracking-order-by-recent-registration`
+
+        > **Not yet documented:** examples.
+      tags:
+      - Timesheet (time tracking items)
+      parameters:
+      - name: startDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+          x-timelog-filter:
+            operators:
+            - gte
+        description: |-
+          First day (inclusive). Omitting it → 404 (no action matched).
+
+          Filters on `TimeTrackingItemRead.Date` (gte).
+      - name: endDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+          x-timelog-filter:
+            operators:
+            - lte
+        description: |-
+          Last day (inclusive).
+
+          Filters on `TimeTrackingItemRead.Date` (lte).
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size (no maximum in the API layer).
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). TAF list; self link per entity, 'start-time-tracker' action on project rows.
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: Created descending (newest-created first); no tie-breaker.
+
+            Empty result: 200 with TotalRecord "0" and no Entities
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/TimeTrackingItemRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: startDate or endDate omitted'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.registration.timetrackingitem.getbydateorderbyrecentregistration
+  /v1/time-tracking-item/get-weekly-registrations:
+    get:
+      operationId: getWeeklyRegistrations
+      summary: Get my weekly registrations
+      description: |-
+        Returns the calling user's registrations for the 7 days from startDate, grouped by day and task, with daily and weekly norm hours and the difference.
+
+        The weekly-timesheet view of the CALLER's time. The window is startDate through startDate + 6 days (no alignment to a week start: send the Monday yourself if you want an ISO week). All registrations of the window are read (no paging), grouped by day, then by task, and each day gets the employee's norm hours and registered − norm. Week totals: TotalRegisteredHours (days with registrations) and TotalNormHours (every day of the window that has an employee projection) — so a day with no registrations is missing from `Tasks` but still counts in TotalNormHours.
+
+        **Use it to:**
+        - Weekly timesheet grid in a time-tracking client
+        - 'Am I short this week?' — TotalHoursDifference
+
+        **Not for:**
+        - A flat, paged list → `GET /v1/time-tracking-item/get-by-date`
+        - Approval status per day → `GET /v1/approval/timesheets/get-status-by-dates`
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Duplicates: n/a (read)
+        - Changes are visible to the next read immediately.
+
+        **Next:** `GET /v1/time-tracking-item/{timeRegistrationID}`, `POST /v1/approval/timesheets/submit-period`
+
+        **See also:** `GET /v1/time-tracking-item/get-by-date`
+
+        > **Not yet documented:** examples.
+      tags:
+      - Timesheet (time tracking items)
+      parameters:
+      - name: startDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+          x-timelog-filter:
+            operators:
+            - between
+        description: |-
+          First day of the 7-day window; the window ends startDate + 6 days (inclusive). Omitting it → 404.
+
+          Filters on `TimeTrackingItemRead.Date` (between).
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). One object for the window (TAF single envelope).
+
+            Order: Days ascending; within a day, task groups by TaskName; within a group, registrations by Date (procedure order: Created ascending).
+
+            Empty result: 200 with Tasks [] and TotalRegisteredHours 0; TotalNormHours still the window's norm.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TimeTrackingItemExpandedRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: startDate omitted'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.registration.timetrackingitem.getweeklyregistrations
+  /v1/time-tracking-item/save-favourite:
+    post:
+      operationId: saveTimeTrackingItemFavourite
+      summary: Toggle a timesheet favourite
+      description: |-
+        Flips the calling user's "favourite" mark on a task or an absence code in the timesheet — adds it if absent, removes it if present.
+
+        If the caller already has a favourite for (GroupType, ReferenceID) on the timesheet page, it is deleted; otherwise one is created. Favourites are per user. The result is visible as IsFavourite on time tracking items. Answers 204 with no body; there is no endpoint to read the current state directly.
+
+        **Use it to:**
+        - Star / un-star a task in a time-tracking client's task picker
+
+        **Not for:**
+        - Setting a known state idempotently — read IsFavourite first, then toggle only if needed
+
+        **Rules across fields:**
+        - R1: ReferenceID must be a TaskID when GroupType = 1 and an AbsenceCodeID when GroupType = 3.
+
+        **Behaviour:**
+        - Not idempotent.
+        - Not safe to retry blindly. A retry after a lost response flips the favourite BACK. Re-read IsFavourite before retrying.
+        - Duplicates: Toggle: a second identical call undoes the first.
+        - Side effect: Inserts or deletes the caller's favourite row (entity = task 98 / absence code 149, page TimeTrackingBase 361).
+        - Side effect: Clears the favourites cache.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** Task IDs: `GET /v1/task/search-for-time-tracking` (or list rows' TaskID), Absence codes: AbsenceCodeRead lookups
+
+        **Next:** `GET /v1/time-tracking-item/get-by-date`
+
+        > **Not yet documented:** examples.
+      tags:
+      - Timesheet (time tracking items)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimeTrackingItemSaveFavourite'
+      responses:
+        '204':
+          description: |-
+            Success without content: HTTP 204 with an empty body. No body, for both 'added' and 'removed' — the response does not say which happened.
+
+            Order: n/a
+
+            Empty result: n/a
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 100** — ReferenceID is not an existing task (GroupType 1) or absence code (GroupType 3). Also raised when un-favouriting a task / absence code that has since been deleted. — When: ReferenceID is not an existing task / absence code (incl. omitted = 0), or un-favouriting a since-deleted one — Fix: Send an existing TaskID with GroupType 1, or an existing AbsenceCodeID with GroupType 3.
+
+            - **Code 100** — GroupType is not 1 (Project) or 3 (Absence) — including omitted (0) and the time-tracker / travel-time members 4–6 of the shared enum. — When: GroupType not 1 or 3 — Fix: Send GroupType 1 or 3.
+
+            - **Code 100** — No JSON body (or 'null'): the controller dereferences the null request model. — When: No body / null body — Fix: Send a JSON object with ReferenceID and GroupType.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Empty body (error)
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'requestModel: {"ReferenceID":0,"GroupType":0}'
+                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/time-tracking-item/save-favourite
+      x-timelog-key: rest.v1.registration.timetrackingitem.savefavourite
+  /v1/time-tracking-item/{timeRegistrationID}:
+    get:
+      operationId: getTimeTrackingItemByID
+      summary: Get a time tracking item
+      description: |-
+        Returns one time registration, by its integer ID, in the enriched timesheet shape (TimeTrackingItemRead).
+
+        Looks up a single registration by TimeRegistrationID and returns it with its customer, project, task or absence code, allocation hours and approval / invoicing state — the same shape as one row of the list operations. This is the target of every list row's self link. An ID that does not exist (or is not a project / absence registration the procedure can resolve) answers 500, not 404.
+
+        **Use it to:**
+        - Refresh one timesheet row after editing it
+        - Follow a list row's self link
+
+        **Not for:**
+        - The write model of a registration (GUID, hourly rate, ...) → `GET /v1/time-registration/{timeRegistrationID}`
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Duplicates: n/a (read)
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/time-tracking-item/get-by-date`
+
+        **See also:** `GET /v1/time-registration/{timeRegistrationID}`
+
+        > **Not yet documented:** examples.
+      tags:
+      - Timesheet (time tracking items)
+      parameters:
+      - name: timeRegistrationID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: The registration's integer ID (TimeRegistrationRead.TimeRegistrationID / list rows). A non-integer →
+          404 route not found.
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). TAF single envelope with a self link (and the 'start-time-tracker' action on project rows).
+
+            Order: n/a (single object)
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TimeTrackingItemRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The URL did not match any route (including a route constraint such as {id:int} receiving a non-integer).
+            — When: timeRegistrationID is not an integer'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Unknown ID (error)
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'timeRegistrationID: 1'
+                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/time-tracking-item/1
+      x-timelog-key: rest.v1.registration.timetrackingitem.get
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: |-
+        OAuth 2.0 bearer token, sent as `Authorization: Bearer <token>`. JWT and reference tokens are both accepted. The token must carry the required scope (default `tlp`).
+
+        The token's `sub` claim is the acting user. A token WITHOUT `sub` (client-credentials) acts as the system service user. If the `sub` user cannot log in (inactive, locked, deleted), the request is rejected with 401 — it is no longer let through without a user.
+
+        > **Not yet documented:** how to obtain a token.
+
+        > **Not yet documented:** token lifetime.
+  schemas:
+    MessageError:
+      type: object
+      description: Body of 401 and some framework errors — not the ResponseError shape.
+      properties:
+        Message:
+          type: string
+    ResponseError:
+      type: object
+      description: Error body for validation (400), privilege (403), business-rule (422/500) and other server errors. `Details`
+        lists strings for validation errors, or `{ErrorCode, Message}` objects for business-rule violations. `Parameters`
+        echoes the request arguments, including the full payload.
+      properties:
+        Code:
+          type: integer
+          description: 'TimeLog error class (not the HTTP status): 100 unexpected, 102 business rule, 103 privilege, 200 validation.'
+        Message:
+          type: string
+        Details:
+          type: array
+          items: {}
+        Parameters:
+          type:
+          - string
+          - object
+          - 'null'
+        Url:
+          type: string
+    TafAction:
+      type: object
+      description: A hypermedia action the caller may take on the object. Present only where the operation registers actions.
+    TafLink:
+      type: object
+      properties:
+        Href:
+          type: string
+        Rel:
+          type: string
+    TafListPaging:
+      type: object
+      description: 'Paging values. They are returned as STRINGS, for example `"TotalRecord": "12"`.'
+      properties:
+        TotalRecord:
+          type: string
+        TotalPage:
+          type: string
+        PageNumber:
+          type: string
+    TimeTrackingItemExpandedDayRead:
+      type: object
+      properties:
+        Date:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            The day (the registrations' Date with the time part removed).
+
+            Date only — no time component.
+        RegisteredHours:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Sum of Hours of all registrations of the day (project time and absence).
+
+            Unit: hours
+
+            Contains personal data.
+        NormHours:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            The employee's normal working hours for that day (NormalWorkingHours of the employee projection of the date; public holidays reduce it). 0 when there is no projection for the date.
+
+            Unit: hours
+        HoursDifference:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            RegisteredHours − NormHours for the day. Negative = under the norm.
+
+            Unit: hours
+        TaskInfos:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimeTrackingItemExpandedTaskRead'
+          readOnly: true
+          description: The day's registrations grouped by TaskID, ordered by TaskName. Project registrations form one group
+            per task. ALL absence registrations of the day share ONE group (their TaskID is null), labelled with the first
+            absence's code.
+      description: 'One day of the employee''s week: the registrations of that day grouped by task, the hours registered,
+        the employee''s norm hours for the day and the difference. Only exists for days that have registrations.'
+    TimeTrackingItemExpandedRead:
+      type: object
+      properties:
+        TotalRegisteredHours:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Sum of Hours of every registration returned for the window — project time AND absence. Equal to the sum of the days' RegisteredHours.
+
+            Unit: hours
+
+            Contains personal data.
+        TotalNormHours:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            The employee's normal (expected) working hours summed over ALL days of the window that have an employee projection — including days on which nothing was registered (those days are not in `Tasks`). So TotalNormHours is generally NOT the sum of the listed days' NormHours.
+
+            Unit: hours
+
+            > **Not yet documented:** description.
+        TotalHoursDifference:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            TotalRegisteredHours − TotalNormHours. Negative = the employee registered less than the norm for the window.
+
+            Unit: hours
+        Tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimeTrackingItemExpandedDayRead'
+          readOnly: true
+          description: One entry per DAY of the window that has at least one registration, ordered by date ascending. Days
+            without registrations are omitted.
+      description: 'The calling employee''s registrations for one 7-day window, grouped first by day and then by task, with
+        the employee''s norm (expected) time per day and the difference. It is the data behind TimeLog''s weekly timesheet:
+        "how much did I register each day, on what, and how far am I from my norm". Despite its name, `Tasks` is the list
+        of DAYS. The object has no ID; it is identified by (caller, startDate).'
+    TimeTrackingItemExpandedRegistrationRead:
+      type: object
+      properties:
+        AllocatedHour:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          readOnly: true
+          description: |-
+            The hours the EMPLOYEE is allocated on the task — a per-employee, per-task budget figure, NOT the hours of this registration and NOT a remaining or used figure. 0 when the allocation has no hours; null on absence rows. Truncated to a whole number: the stored float is converted with Convert.ToInt32, which rounds to the nearest whole hour (ties to even). Identical on every registration of the same allocation.
+
+            Unit: hours
+        TimeRegistrationID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: unknown
+            id_format: int
+          description: |-
+            The registration's integer ID — the same ID TimeRegistrationRead exposes and GET /v1/time-tracking-item/{timeRegistrationID} takes. The registration's GUID is read but NOT exposed by this model.
+
+            Identifier of this object, unique per TimeLog site.
+
+            > **Not yet documented:** identity → uniqueness enforced.
+        UserID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The employee (user) who owns the registration.
+
+            Refers to `UserRead.UserID`.
+
+            Contains personal data.
+        Created:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            When the registration row was created. Also the paging order of the list operations.
+
+            Time zone: not yet documented.
+
+            > **Not yet documented:** constraints → timezone.
+        CreatedBy:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            User ID of the creator, as stored on the registration.
+
+            Refers to `UserRead.UserID`.
+        LastModified:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            When the registration was last changed.
+
+            Time zone: not yet documented.
+
+            > **Not yet documented:** constraints → timezone.
+        LastModifiedBy:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            User ID of the last modifier.
+
+            Refers to `UserRead.UserID`.
+        IsBillable:
+          type: boolean
+          readOnly: true
+          description: Whether this registration is billable.
+        Status:
+          type: boolean
+          readOnly: true
+          description: true when the registration is CLOSED — the employee has submitted (closed) the day in the timesheet;
+            false when open. The stored column is the TimeRegistrationStatus number (0 Open, 1 Closed) converted to a boolean
+            (any non-zero value = true). Note TimeRegistrationRead.Status exposes the same column as an integer.
+        Date:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            The day the time is registered on.
+
+            Date only — no time component.
+
+            > **Not yet documented:** constraints → timezone.
+        MonthlyPeriod:
+          type: string
+          readOnly: true
+          description: The salary / accounting month the registration belongs to, as a 6-character string MMYYYY (e.g. "102026"
+            = October 2026; month zero-padded). Empty string when the registration has no monthly period (ID 0). Looked up
+            from the stored MonthlyPeriodID.
+        Comment:
+          type: string
+          readOnly: true
+          description: |-
+            The registration's comment. Empty string (never null) when none.
+
+            Contains personal data.
+        Hours:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            The registered duration in decimal hours (e.g. 1.5 = 1 h 30 min). The same duration is also stored in Minutes; each is rounded from the other per registration, so summing Hours vs summing Minutes over many registrations can drift slightly.
+
+            Unit: hours
+
+            Contains personal data.
+        AdditionalTextField:
+          type: string
+          readOnly: true
+          description: The registration's additional text (the task's extra field). Empty string when none.
+        InvoiceStatus:
+          type: boolean
+          readOnly: true
+          description: true when the registration has been added to a voucher OR to an invoice; false when it is still bookable.
+            The stored column is the 3-valued RegistrationInvoicedStatus (0 Bookable, 1 AddedToVoucher, 2 AddedToInvoice)
+            collapsed to a boolean, so voucher vs invoice cannot be told apart here. TimeRegistrationRead.InvoiceStatus exposes
+            the 3 values.
+        TimeRegistrationApprovalStatus:
+          type: integer
+          format: int32
+          enum:
+          - 0
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
+          - 7
+          - 8
+          - 9
+          x-enum-descriptions:
+          - 'Open: not submitted and not in any approval state.'
+          - Rejected by the employee manager; the employee must correct and resubmit.
+          - Rejected by the employee manager, then edited; the timesheet is still open (not yet resubmitted).
+          - Approved by the employee manager.
+          - Rejected by a project manager.
+          - Rejected by a project manager, then edited; the timesheet is still open.
+          - Approved by the project manager. Depending on the tenant's approval setup the employee manager may still have
+            to approve.
+          - 'Closed / pending approval: submitted, no approval decision yet. Never stored — derived from Status = closed.'
+          - Rejected by the employee manager, corrected and submitted again (stored value 7).
+          - Rejected by a project manager, corrected and submitted again (stored value 8).
+          readOnly: true
+          description: |-
+            Where the registration is in the approval flow. COMPUTED: the stored approval status, except that a stored 'NotSpecified' is reported as Submitted (7) when the registration is closed (Status true). Integer on the wire. ⚠ The numbers differ from the STORED enum for the resubmitted states (stored 7/8 are reported as 8/9).
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | NotSpecified | Open: not submitted and not in any approval state. |
+            | `1` | EmployeeManagerRejected | Rejected by the employee manager; the employee must correct and resubmit. |
+            | `2` | EmployeeManagerRejectedAndResolved | Rejected by the employee manager, then edited; the timesheet is still open (not yet resubmitted). |
+            | `3` | EmployeeManagerApproved | Approved by the employee manager. |
+            | `4` | ProjectManagerRejected | Rejected by a project manager. |
+            | `5` | ProjectManagerRejectedAndResolved | Rejected by a project manager, then edited; the timesheet is still open. |
+            | `6` | ProjectManagerApproved | Approved by the project manager. Depending on the tenant's approval setup the employee manager may still have to approve. |
+            | `7` | Submitted | Closed / pending approval: submitted, no approval decision yet. Never stored — derived from Status = closed. |
+            | `8` | EmployeeManagerRejectedAndResubmitted | Rejected by the employee manager, corrected and submitted again (stored value 7). |
+            | `9` | ProjectManagerRejectedAndResubmitted | Rejected by a project manager, corrected and submitted again (stored value 8). |
+        TimeTrackingFormat:
+          type: integer
+          format: int32
+          enum:
+          - 0
+          - 1
+          - 2
+          - 3
+          - 4
+          x-enum-descriptions:
+          - Duration in hours/minutes.
+          - Absence for a full day (hours from normal working time).
+          - Absence for half a day (hours from normal working time).
+          - 'Salary-code (supplement) format: a registration posts a count of 1.'
+          - 'Salary-code (supplement) format: a registration posts the entered number as a count.'
+          readOnly: true
+          description: |-
+            How the duration was entered: hours, full day, half day, or a salary-code count format.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | Hours | Duration in hours/minutes. |
+            | `1` | FullDay | Absence for a full day (hours from normal working time). |
+            | `2` | HalfDay | Absence for half a day (hours from normal working time). |
+            | `3` | YesNo | Salary-code (supplement) format: a registration posts a count of 1. |
+            | `4` | Count | Salary-code (supplement) format: a registration posts the entered number as a count. |
+        Minutes:
+          type: integer
+          format: int32
+          readOnly: true
+          description: |-
+            The registered duration in whole minutes (the same duration as Hours, stored separately).
+
+            Unit: minutes
+
+            Contains personal data.
+        BillableHours:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Billable duration of the registration in decimal hours (stored; may differ from Hours, e.g. after billable rounding or a non-billable registration).
+
+            Unit: hours
+
+            > **Not yet documented:** description.
+        BillableMinutes:
+          type: integer
+          format: int32
+          readOnly: true
+          description: |-
+            Billable duration in whole minutes (stored).
+
+            Unit: minutes
+        StartTime:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: |-
+            Clock time the work started, when timestamps are used (the registration's timestamp). null when the registration has no timestamp.
+
+            Time zone: not yet documented.
+
+            > **Not yet documented:** constraints → timezone.
+        EndTime:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: |-
+            Clock time the work ended. null when the registration has no timestamp.
+
+            Time zone: not yet documented.
+
+            > **Not yet documented:** constraints → timezone.
+        IsTimestampOverlapping:
+          type: boolean
+          readOnly: true
+          description: |-
+            COMPUTED warning flag: true when this registration's StartTime–EndTime interval overlaps another registration's (or both have identical timestamps). Only computed when timestamps are active for the employee (feature TimeRegistrationTimestamp + setting 'for all' or the employee's own timestamp flags) AND feature ShowWarningWhenTimestampOverlap is on; false otherwise. On the list operations the comparison is made only against the registrations IN THE SAME RESPONSE PAGE; on get-by-ID it is checked against all the employee's registrations.
+
+            - timestamps not active for the owner, or feature ShowWarningWhenTimestampOverlap off — Always false.
+      description: 'One time registration inside the weekly view: the registration-level subset of TimeTrackingItemRead (the
+        task-level fields sit on the enclosing TimeTrackingItemExpandedTaskRead). Same values as TimeTrackingItemRead for
+        the same TimeRegistrationID.'
+    TimeTrackingItemExpandedTaskRead:
+      type: object
+      properties:
+        CustomerID:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Customer of the project the registration's task belongs to. null on absence rows. Copied from the FIRST registration of the group.
+
+            Refers to `CustomerRead.CustomerID`. Look up valid values with `GET /v1/customer/search-for-time-tracking`.
+
+            Null: null = absence registration (no project).
+        CustomerName:
+          type: string
+          readOnly: true
+          description: Customer's company name. Empty string (not null) on absence rows. Copied from the FIRST registration
+            of the group.
+        CustomerNo:
+          type: string
+          readOnly: true
+          description: Customer number. Empty string on absence rows. Copied from the FIRST registration of the group.
+        ProjectID:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Project of the registration's task. null on absence rows. Copied from the FIRST registration of the group.
+
+            Refers to `ProjectRead.ProjectID`.
+        ProjectName:
+          type: string
+          readOnly: true
+          description: Project name. Empty string on absence rows. Copied from the FIRST registration of the group.
+        ProjectNo:
+          type: string
+          readOnly: true
+          description: The project's contract number, shown as the project number. Empty string on absence rows. Copied from
+            the FIRST registration of the group.
+        TaskID:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The task the group is for; null for the day's single absence group.
+
+            Refers to `TaskRead.TaskID`.
+        TaskName:
+          type: string
+          readOnly: true
+          description: Task name. Empty string on absence rows. Copied from the FIRST registration of the group.
+        TaskFullName:
+          type: string
+          readOnly: true
+          description: |-
+            The task's stored full name. Empty string on absence rows. Copied from the FIRST registration of the group.
+
+            > **Not yet documented:** description.
+        IsFixedPrice:
+          type:
+          - boolean
+          - 'null'
+          readOnly: true
+          description: true when the task is fixed-price. null on absence rows. Copied from the FIRST registration of the
+            group.
+        TaskNo:
+          type: string
+          readOnly: true
+          description: The task's number. Empty string on absence rows. Copied from the FIRST registration of the group.
+        TaskIsActive:
+          type:
+          - boolean
+          - 'null'
+          readOnly: true
+          description: Whether the task is active. null on absence rows. Inactive-task registrations are still returned. Copied
+            from the FIRST registration of the group.
+        AbsenceCodeID:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Absence code of an absence registration. null on project rows. The way to tell the two kinds of row apart (together with EntityType). Copied from the FIRST registration of the group.
+
+            Refers to `AbsenceCodeRead.AbsenceCodeID`.
+        AbsenceName:
+          type: string
+          readOnly: true
+          description: Absence code name. Empty string on project rows. Copied from the FIRST registration of the group.
+        AbsenceCode:
+          type: string
+          readOnly: true
+          description: The absence code's short code. Empty string on project rows. Copied from the FIRST registration of
+            the group.
+        AdditionalTextIsRequired:
+          type: boolean
+          readOnly: true
+          description: The task requires the additional text field to be filled when registering. Always false on absence
+            rows. Copied from the FIRST registration of the group.
+        DefaultBillable:
+          type: boolean
+          readOnly: true
+          description: The task's default for the billable flag of new registrations. Always false on absence rows. Copied
+            from the FIRST registration of the group.
+        IsETCProject:
+          type: boolean
+          readOnly: true
+          description: |-
+            The project's IsETCProject flag. Always false on absence rows. Copied from the FIRST registration of the group.
+
+            > **Not yet documented:** description.
+        ShowBillable:
+          type: boolean
+          readOnly: true
+          description: |-
+            Computed in the procedure: true when the billable flag may be shown/changed for this row — i.e. the task is NOT fixed-price (false for fixed-price tasks, where registrations are always billable). Always false on absence rows. Copied from the FIRST registration of the group.
+
+            > **Not yet documented:** description.
+        IsFavourite:
+          type: boolean
+          readOnly: true
+          description: Whether the task / absence code is marked as a favourite in the timesheet (toggled with POST /v1/time-tracking-item/save-favourite).
+            For ABSENCE rows it is the owner's own favourite. For PROJECT rows it is true when ANY user has favourited the
+            task. Copied from the FIRST registration of the group.
+        EntityID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            What the time is booked on: an allocation ID (EntityType 43) or an absence code ID (EntityType 149). Copied from the FIRST registration of the group.
+
+            Refers to `Allocation | AbsenceCodeRead (see EntityType)`.
+        EntityType:
+          type: integer
+          format: int32
+          enum:
+          - 43
+          - 149
+          x-enum-descriptions:
+          - Project (or travel) time booked through the employee's task allocation; EntityID is the allocation ID. Such rows
+            also get a 'start-time-tracker' TAF action.
+          - Absence; EntityID is the absence code ID.
+          readOnly: true
+          description: |-
+            Kind of thing EntityID points to. Only 43 and 149 occur: the procedures return no other registration kinds. Copied from the FIRST registration of the group.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `43` | Allocation | Project (or travel) time booked through the employee's task allocation; EntityID is the allocation ID. Such rows also get a 'start-time-tracker' TAF action. |
+            | `149` | AbsenceCode | Absence; EntityID is the absence code ID. |
+        AbsenceIsActive:
+          type:
+          - boolean
+          - 'null'
+          readOnly: true
+          description: Whether the absence code is active. null on project rows. Copied from the FIRST registration of the
+            group.
+        Registrations:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimeTrackingItemExpandedRegistrationRead'
+          readOnly: true
+          description: 'The group''s registrations (TimeTrackingItemExpandedRegistrationRead), ordered by Date (within a day:
+            procedure order, i.e. Created ascending).'
+      description: The registrations of one task on one day, with the task's (or absence code's) descriptive fields. Task-level
+        values are copied from the group's first registration; for the absence group (TaskID null) that means the first absence
+        registration's code labels ALL the day's absence registrations.
+    TimeTrackingItemRead:
+      type: object
+      properties:
+        CustomerID:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Customer of the project the registration's task belongs to. null on absence rows.
+
+            Refers to `CustomerRead.CustomerID`. Look up valid values with `GET /v1/customer/search-for-time-tracking`.
+
+            Null: null = absence registration (no project).
+        CustomerName:
+          type: string
+          readOnly: true
+          description: Customer's company name. Empty string (not null) on absence rows.
+        CustomerNo:
+          type: string
+          readOnly: true
+          description: Customer number. Empty string on absence rows.
+        ProjectID:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Project of the registration's task. null on absence rows.
+
+            Refers to `ProjectRead.ProjectID`.
+        ProjectName:
+          type: string
+          readOnly: true
+          description: Project name. Empty string on absence rows.
+        ProjectNo:
+          type: string
+          readOnly: true
+          description: The project's contract number, shown as the project number. Empty string on absence rows.
+        TaskID:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Task the time is registered on (the task of the employee's allocation). null on absence rows.
+
+            Refers to `TaskRead.TaskID`.
+        TaskName:
+          type: string
+          readOnly: true
+          description: Task name. Empty string on absence rows.
+        TaskFullName:
+          type: string
+          readOnly: true
+          description: |-
+            The task's stored full name. Empty string on absence rows.
+
+            > **Not yet documented:** description.
+        IsFixedPrice:
+          type:
+          - boolean
+          - 'null'
+          readOnly: true
+          description: true when the task is fixed-price. null on absence rows.
+        TaskNo:
+          type: string
+          readOnly: true
+          description: The task's number. Empty string on absence rows.
+        TaskIsActive:
+          type:
+          - boolean
+          - 'null'
+          readOnly: true
+          description: Whether the task is active. null on absence rows. Inactive-task registrations are still returned.
+        AbsenceCodeID:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Absence code of an absence registration. null on project rows. The way to tell the two kinds of row apart (together with EntityType).
+
+            Refers to `AbsenceCodeRead.AbsenceCodeID`.
+        AbsenceName:
+          type: string
+          readOnly: true
+          description: Absence code name. Empty string on project rows.
+        AbsenceCode:
+          type: string
+          readOnly: true
+          description: The absence code's short code. Empty string on project rows.
+        AbsenceIsActive:
+          type:
+          - boolean
+          - 'null'
+          readOnly: true
+          description: Whether the absence code is active. null on project rows.
+        AdditionalTextIsRequired:
+          type: boolean
+          readOnly: true
+          description: The task requires the additional text field to be filled when registering. Always false on absence
+            rows.
+        DefaultBillable:
+          type: boolean
+          readOnly: true
+          description: The task's default for the billable flag of new registrations. Always false on absence rows.
+        IsETCProject:
+          type: boolean
+          readOnly: true
+          description: |-
+            The project's IsETCProject flag. Always false on absence rows.
+
+            > **Not yet documented:** description.
+        ShowBillable:
+          type: boolean
+          readOnly: true
+          description: |-
+            Computed in the procedure: true when the billable flag may be shown/changed for this row — i.e. the task is NOT fixed-price (false for fixed-price tasks, where registrations are always billable). Always false on absence rows.
+
+            > **Not yet documented:** description.
+        AllocatedHour:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          readOnly: true
+          description: |-
+            The hours the EMPLOYEE is allocated on the task — a per-employee, per-task budget figure, NOT the hours of this registration and NOT a remaining or used figure. 0 when the allocation has no hours; null on absence rows. Truncated to a whole number: the stored float is converted with Convert.ToInt32, which rounds to the nearest whole hour (ties to even). Identical on every registration of the same allocation.
+
+            Unit: hours
+        TimeRegistrationID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: unknown
+            id_format: int
+          description: |-
+            The registration's integer ID — the same ID TimeRegistrationRead exposes and GET /v1/time-tracking-item/{timeRegistrationID} takes. The registration's GUID is read but NOT exposed by this model.
+
+            Identifier of this object, unique per TimeLog site.
+
+            > **Not yet documented:** identity → uniqueness enforced.
+        EntityID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            What the time is booked on: an allocation ID (EntityType 43) or an absence code ID (EntityType 149).
+
+            Refers to `Allocation | AbsenceCodeRead (see EntityType)`.
+        EntityType:
+          type: integer
+          format: int32
+          enum:
+          - 43
+          - 149
+          x-enum-descriptions:
+          - Project (or travel) time booked through the employee's task allocation; EntityID is the allocation ID. Such rows
+            also get a 'start-time-tracker' TAF action.
+          - Absence; EntityID is the absence code ID.
+          readOnly: true
+          description: |-
+            Kind of thing EntityID points to. Only 43 and 149 occur: the procedures return no other registration kinds.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `43` | Allocation | Project (or travel) time booked through the employee's task allocation; EntityID is the allocation ID. Such rows also get a 'start-time-tracker' TAF action. |
+            | `149` | AbsenceCode | Absence; EntityID is the absence code ID. |
+        UserID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The employee (user) who owns the registration.
+
+            Refers to `UserRead.UserID`.
+
+            Contains personal data.
+        Created:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            When the registration row was created. Also the paging order of the list operations.
+
+            Time zone: not yet documented.
+
+            > **Not yet documented:** constraints → timezone.
+        CreatedBy:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            User ID of the creator, as stored on the registration.
+
+            Refers to `UserRead.UserID`.
+        LastModified:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            When the registration was last changed.
+
+            Time zone: not yet documented.
+
+            > **Not yet documented:** constraints → timezone.
+        LastModifiedBy:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            User ID of the last modifier.
+
+            Refers to `UserRead.UserID`.
+        IsBillable:
+          type: boolean
+          readOnly: true
+          description: Whether this registration is billable.
+        Status:
+          type: boolean
+          readOnly: true
+          description: true when the registration is CLOSED — the employee has submitted (closed) the day in the timesheet;
+            false when open. The stored column is the TimeRegistrationStatus number (0 Open, 1 Closed) converted to a boolean
+            (any non-zero value = true). Note TimeRegistrationRead.Status exposes the same column as an integer.
+        Date:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            The day the time is registered on.
+
+            Date only — no time component.
+
+            Filterable via `startDate / endDate` (between).
+
+            > **Not yet documented:** constraints → timezone.
+        MonthlyPeriod:
+          type: string
+          readOnly: true
+          description: The salary / accounting month the registration belongs to, as a 6-character string MMYYYY (e.g. "102026"
+            = October 2026; month zero-padded). Empty string when the registration has no monthly period (ID 0). Looked up
+            from the stored MonthlyPeriodID.
+        Comment:
+          type: string
+          readOnly: true
+          description: |-
+            The registration's comment. Empty string (never null) when none.
+
+            Contains personal data.
+        Hours:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            The registered duration in decimal hours (e.g. 1.5 = 1 h 30 min). The same duration is also stored in Minutes; each is rounded from the other per registration, so summing Hours vs summing Minutes over many registrations can drift slightly.
+
+            Unit: hours
+
+            Contains personal data.
+        AdditionalTextField:
+          type: string
+          readOnly: true
+          description: The registration's additional text (the task's extra field). Empty string when none.
+        InvoiceStatus:
+          type: boolean
+          readOnly: true
+          description: true when the registration has been added to a voucher OR to an invoice; false when it is still bookable.
+            The stored column is the 3-valued RegistrationInvoicedStatus (0 Bookable, 1 AddedToVoucher, 2 AddedToInvoice)
+            collapsed to a boolean, so voucher vs invoice cannot be told apart here. TimeRegistrationRead.InvoiceStatus exposes
+            the 3 values.
+        TimeRegistrationApprovalStatus:
+          type: integer
+          format: int32
+          enum:
+          - 0
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
+          - 7
+          - 8
+          - 9
+          x-enum-descriptions:
+          - 'Open: not submitted and not in any approval state.'
+          - Rejected by the employee manager; the employee must correct and resubmit.
+          - Rejected by the employee manager, then edited; the timesheet is still open (not yet resubmitted).
+          - Approved by the employee manager.
+          - Rejected by a project manager.
+          - Rejected by a project manager, then edited; the timesheet is still open.
+          - Approved by the project manager. Depending on the tenant's approval setup the employee manager may still have
+            to approve.
+          - 'Closed / pending approval: submitted, no approval decision yet. Never stored — derived from Status = closed.'
+          - Rejected by the employee manager, corrected and submitted again (stored value 7).
+          - Rejected by a project manager, corrected and submitted again (stored value 8).
+          readOnly: true
+          description: |-
+            Where the registration is in the approval flow. COMPUTED: the stored approval status, except that a stored 'NotSpecified' is reported as Submitted (7) when the registration is closed (Status true). Integer on the wire. ⚠ The numbers differ from the STORED enum for the resubmitted states (stored 7/8 are reported as 8/9).
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | NotSpecified | Open: not submitted and not in any approval state. |
+            | `1` | EmployeeManagerRejected | Rejected by the employee manager; the employee must correct and resubmit. |
+            | `2` | EmployeeManagerRejectedAndResolved | Rejected by the employee manager, then edited; the timesheet is still open (not yet resubmitted). |
+            | `3` | EmployeeManagerApproved | Approved by the employee manager. |
+            | `4` | ProjectManagerRejected | Rejected by a project manager. |
+            | `5` | ProjectManagerRejectedAndResolved | Rejected by a project manager, then edited; the timesheet is still open. |
+            | `6` | ProjectManagerApproved | Approved by the project manager. Depending on the tenant's approval setup the employee manager may still have to approve. |
+            | `7` | Submitted | Closed / pending approval: submitted, no approval decision yet. Never stored — derived from Status = closed. |
+            | `8` | EmployeeManagerRejectedAndResubmitted | Rejected by the employee manager, corrected and submitted again (stored value 7). |
+            | `9` | ProjectManagerRejectedAndResubmitted | Rejected by a project manager, corrected and submitted again (stored value 8). |
+        TimeTrackingFormat:
+          type: integer
+          format: int32
+          enum:
+          - 0
+          - 1
+          - 2
+          - 3
+          - 4
+          x-enum-descriptions:
+          - Duration in hours/minutes.
+          - Absence for a full day (hours from normal working time).
+          - Absence for half a day (hours from normal working time).
+          - 'Salary-code (supplement) format: a registration posts a count of 1.'
+          - 'Salary-code (supplement) format: a registration posts the entered number as a count.'
+          readOnly: true
+          description: |-
+            How the duration was entered: hours, full day, half day, or a salary-code count format.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | Hours | Duration in hours/minutes. |
+            | `1` | FullDay | Absence for a full day (hours from normal working time). |
+            | `2` | HalfDay | Absence for half a day (hours from normal working time). |
+            | `3` | YesNo | Salary-code (supplement) format: a registration posts a count of 1. |
+            | `4` | Count | Salary-code (supplement) format: a registration posts the entered number as a count. |
+        Minutes:
+          type: integer
+          format: int32
+          readOnly: true
+          description: |-
+            The registered duration in whole minutes (the same duration as Hours, stored separately).
+
+            Unit: minutes
+
+            Contains personal data.
+        BillableHours:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Billable duration of the registration in decimal hours (stored; may differ from Hours, e.g. after billable rounding or a non-billable registration).
+
+            Unit: hours
+
+            > **Not yet documented:** description.
+        BillableMinutes:
+          type: integer
+          format: int32
+          readOnly: true
+          description: |-
+            Billable duration in whole minutes (stored).
+
+            Unit: minutes
+        IsFavourite:
+          type: boolean
+          readOnly: true
+          description: Whether the task / absence code is marked as a favourite in the timesheet (toggled with POST /v1/time-tracking-item/save-favourite).
+            For ABSENCE rows it is the owner's own favourite. For PROJECT rows it is true when ANY user has favourited the
+            task.
+        StartTime:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: |-
+            Clock time the work started, when timestamps are used (the registration's timestamp). null when the registration has no timestamp.
+
+            Time zone: not yet documented.
+
+            > **Not yet documented:** constraints → timezone.
+        EndTime:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: |-
+            Clock time the work ended. null when the registration has no timestamp.
+
+            Time zone: not yet documented.
+
+            > **Not yet documented:** constraints → timezone.
+        IsTimestampOverlapping:
+          type: boolean
+          readOnly: true
+          description: |-
+            COMPUTED warning flag: true when this registration's StartTime–EndTime interval overlaps another registration's (or both have identical timestamps). Only computed when timestamps are active for the employee (feature TimeRegistrationTimestamp + setting 'for all' or the employee's own timestamp flags) AND feature ShowWarningWhenTimestampOverlap is on; false otherwise. On the list operations the comparison is made only against the registrations IN THE SAME RESPONSE PAGE; on get-by-ID it is checked against all the employee's registrations.
+
+            - timestamps not active for the owner, or feature ShowWarningWhenTimestampOverlap off — Always false.
+      description: 'One time registration (project time or absence) of an employee, flattened together with the customer,
+        project, task (or absence code) it is registered on, the employee''s allocation on that task, and the registration''s
+        approval / invoicing state. It is the row model of TimeLog''s timesheet grid: everything a time-tracking client needs
+        to render a registration line without further lookups. Identified by TimeRegistrationID. Absence rows carry the absence
+        fields and NULL customer / project / task fields; project rows the reverse.'
+    TimeTrackingItemSaveFavourite:
+      type: object
+      properties:
+        ReferenceID:
+          type: integer
+          format: int32
+          writeOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The TaskID (GroupType 1 = Project) or the AbsenceCodeID (GroupType 3 = Absence) to toggle as favourite.
+
+            Refers to `TaskRead | AbsenceCodeRead (see GroupType)`.
+
+            - omitted — Binds as 0, which is no valid task / absence code → 500 Code 100.
+
+            - the task / absence code does not exist — "ReferenceId invalid" → 500 Code 100 with the generic message.
+
+            > **Not yet documented:** behaviour.
+        GroupType:
+          type: integer
+          format: int32
+          enum:
+          - 1
+          - 3
+          - 4
+          - 5
+          - 6
+          x-enum-descriptions:
+          - 'ReferenceID is a TaskID: toggles the task as a timesheet favourite.'
+          - 'ReferenceID is an AbsenceCodeID: toggles the absence code as a favourite.'
+          - Exists in the shared enum; rejected here (mapped to 'not specified').
+          - Exists in the shared enum; rejected here.
+          - Exists in the shared enum; rejected here.
+          writeOnly: true
+          description: |-
+            Says whether ReferenceID is a task or an absence code. Only 1 and 3 are accepted.
+
+            - any value other than 1 or 3 (incl. omitted = 0, and the retired 2) — Mapped to DomainType.NotSpecified → "DomainType invalid" → 500 Code 100.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `1` | Project | ReferenceID is a TaskID: toggles the task as a timesheet favourite. |
+            | `3` | Absence | ReferenceID is an AbsenceCodeID: toggles the absence code as a favourite. |
+            | `4` | ProjectTimeTracker | Exists in the shared enum; rejected here (mapped to 'not specified'). |
+            | `5` | AbsenceTimeTracker | Exists in the shared enum; rejected here. |
+            | `6` | TravelTime | Exists in the shared enum; rejected here. |
+
+            > **Not yet documented:** values → serialization.
+      description: 'Identifies a task or an absence code whose "favourite" mark in the calling user''s timesheet is to be
+        TOGGLED. There is no on/off field: the call flips the current state.'
+x-timelog-service: Registration

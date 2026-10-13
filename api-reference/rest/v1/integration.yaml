@@ -1,0 +1,1073 @@
+openapi: 3.1.0
+info:
+  title: Integrations — REST API v1
+  version: v1
+  description: |-
+    Register the external systems your keys belong to, and record sync conflicts TimeLog cannot resolve on its own.
+
+    Enums are integers in v1.
+
+    **Conventions that apply to every operation in this file:**
+    - Property names are PascalCase.
+    - Successful bodies use the TAF envelope: one object in `Properties`, lists in `Entities[].Properties`.
+    - Some operations succeed without content: HTTP 200 with the literal body `null`, or HTTP 204.
+    - `PUT` replaces the whole object: omitted fields are reset.
+    - Treat error `Code` 102 as a business-rule violation, whether the HTTP status is 422 or 500.
+
+    > **Not yet documented:** rate limits.
+servers:
+- url: https://{your-timelog-host}/{tlp-virtual-directory}/api
+  description: Your TimeLog site.
+  variables:
+    your-timelog-host:
+      default: your-timelog-host
+      description: 'The host of your TimeLog site. Not yet documented: the production host pattern.'
+    tlp-virtual-directory:
+      default: your-virtual-directory
+      description: The virtual directory your TimeLog site is hosted under.
+security:
+- bearer: []
+tags:
+- name: Integrations
+  description: Register the external systems your keys belong to, and record sync conflicts TimeLog cannot resolve on its
+    own.
+paths:
+  /v1/external-systems:
+    get:
+      operationId: getAllExternalSystems
+      summary: List external systems
+      description: |-
+        Lists the external systems registered in the tenant, ordered by name.
+
+        Returns every external system of the tenant — the ones TimeLog's built-in integrations created (one per integration handler, e.g. "e-conomic <site>_v1", "Microsoft Dynamics 365 Business Central <site>_v1") and any an integrator registered itself. This is the lookup for the ExternalSystemID used by the external-key endpoints of time registrations, projects and tasks, and by integration conflicts.
+
+        **Use it to:**
+        - At integration start-up: find the ExternalSystemID your integration registered earlier (match on the ID you stored, not on the name — names are not unique).
+        - Check whether your system is already registered before calling create, so a restart does not register a duplicate.
+        - Build an admin view of which systems hold keys in this tenant.
+
+        **Not for:**
+        - Reading the key mappings themselves → the external-keys endpoints of time registrations, projects and tasks.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Duplicates: Several systems may share a name (four 'Microsoft Outlook Calendar …' rows in the capture).
+        - Changes are visible to the next read immediately.
+
+        **Next:** `GET /v1/external-systems/{externalSystemID}`, `POST /v1/external-systems`
+
+        **See also:** `PUT /v1/time-registration/{timeRegistrationID}/external-keys`, `PUT /v1/project/{projectID}/external-keys`, `PUT /v1/task/{taskID}/external-keys`
+      tags:
+      - Integrations
+      parameters:
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size. No maximum enforced in the API layer; with more than 10 systems, raise it or page.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). External systems, each with a self link and the create / update / delete TAF actions.
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: Name ascending (no sort parameter)
+
+            Empty result: 200 with TotalRecord "0" and no Entities
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/ExternalSystemRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token — Fix: Obtain a new
+            token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+      x-timelog-key: rest.v1.integration.externalsystem.list
+    post:
+      operationId: createExternalSystem
+      summary: Register an external system
+      description: |-
+        Registers a new external system and returns it with its new ID.
+
+        Creates the "other side" an integration links TimeLog objects to. Do this once per integration (per tenant), store the returned ID, and use it as ExternalSystemID when you write external keys on time registrations, projects and tasks. TimeLog does not deduplicate: every call creates a new system, even with a name that already exists.
+
+        **Use it to:**
+        - First run of a new integration: register your system, persist Properties.ID in your own configuration.
+        - One system per counterpart: an integration syncing two ERPs registers two systems so their keys never collide.
+
+        **Not for:**
+        - Setting up a TimeLog built-in finance/payroll integration — creating its integration handler registers the system automatically.
+
+        **Behaviour:**
+        - Not idempotent.
+        - Not safe to retry blindly. A retry after a timeout registers a second system. List first and match on the ID you stored (or, failing that, on name + description) before retrying.
+        - Duplicates: None — names are not unique and are not checked.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/external-systems`
+
+        **Next:** `PUT /v1/time-registration/{timeRegistrationID}/external-keys`, `PUT /v1/project/{projectID}/external-keys`, `PUT /v1/task/{taskID}/external-keys`
+
+        **See also:** `PUT /v1/external-systems/{externalSystemID}`
+
+        > **Not yet documented:** examples (success).
+      tags:
+      - Integrations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExternalSystemWrite.create'
+      responses:
+        '200':
+          description: The object, wrapped in the TAF envelope (`Properties`). The created external system, read back with
+            GET /v1/external-systems/{id} (same representation). IsSystemExternalSystem is always false.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/ExternalSystemRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: Name or Description
+            null, empty or whitespace-only — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Missing Name and Description
+                  value:
+                    Code: 200
+                    Details:
+                    - '''Name'' must not be empty.'
+                    - '''Description'' must not be empty.'
+                    Message: Invalid model state error.
+                    Parameters: 'externalSystemCreateModel: {"Name":null,"Description":null}'
+                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/external-systems
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: No body
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'externalSystemCreateModel: null'
+                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/external-systems
+      x-timelog-key: rest.v1.integration.externalsystem.create
+  /v1/external-systems/{externalSystemID}:
+    get:
+      operationId: getExternalSystemById
+      summary: Get an external system
+      description: |-
+        Returns one external system by its integer ID.
+
+        Reads a single external system. Create and update answer with this same representation. Use it to confirm that the ExternalSystemID your integration stored still exists before writing external keys against it.
+
+        **Use it to:**
+        - Verify a stored ExternalSystemID at integration start-up (an unknown ID returns 500 / ErrorCode 37045, not 404).
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/external-systems`
+
+        **Next:** `PUT /v1/external-systems/{externalSystemID}`
+
+        > **Not yet documented:** examples (success).
+      tags:
+      - Integrations
+      parameters:
+      - name: externalSystemID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: The external system's integer ID.
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). The external system, with a self link and the create / update / delete TAF actions.
+
+            Empty result: Unknown ID → 500 Code 102 with ErrorCode 37045, not 404
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/ExternalSystemRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The URL did not match any route (including a route constraint such as {id:int} receiving a non-integer).
+            — When: externalSystemID is not an integer (route constraint)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 37045** — externalSystemID (query) or ExternalSystemID (body) is not an external system of
+            the tenant. Checked before the project / task exists. — Fix: Use an ExternalSystemID from the external-systems
+            list (not curated yet), or create the external system first.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Unknown external system ID
+                  value:
+                    Code: 102
+                    Details:
+                    - Message: 'No external system with ExternalSystemID: 1 exist'
+                      ErrorCode: 37045
+                    Message: Business rules exception.
+                    Parameters: 'externalSystemID: 1'
+                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/external-systems/1
+      x-timelog-key: rest.v1.integration.externalsystem.get
+    put:
+      operationId: updateExternalSystem
+      summary: Update an external system
+      description: |-
+        Replaces the name and description of an external system.
+
+        Overwrites both text fields of an existing external system; the ID, and every external key and conflict attached to it, stay as they are. Both fields are required — send the current value of the one you do not want to change.
+
+        **Use it to:**
+        - Rename your integration's system after a product rename, keeping all its external keys.
+
+        **Not for:**
+        - Renaming a system created by a built-in TimeLog integration — those integrations resolve mappings by name; keep their names unique (see ExternalSystemRead.Name).
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Side effect: Updates ExternalSystemName and ExternalSystemDescription of the row. External keys and conflicts reference the ID and are untouched.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/external-systems/{externalSystemID}`
+
+        **See also:** `POST /v1/external-systems`
+
+        > **Not yet documented:** examples (success).
+      tags:
+      - Integrations
+      parameters:
+      - name: externalSystemID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: The external system to update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExternalSystemWrite.update'
+      responses:
+        '200':
+          description: The object, wrapped in the TAF envelope (`Properties`). The updated external system, read back with
+            GET /v1/external-systems/{id}.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/ExternalSystemRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: Name or Description
+            null, empty or whitespace-only (checked before the ID) — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Empty body
+                  value:
+                    Code: 200
+                    Details:
+                    - '''Name'' must not be empty.'
+                    - '''Description'' must not be empty.'
+                    Message: Invalid model state error.
+                    Parameters: 'externalSystemUpdateModel: {"Name":null,"Description":null}'
+                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/external-systems/1
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The URL did not match any route (including a route constraint such as {id:int} receiving a non-integer).
+            — When: externalSystemID is not an integer (route constraint)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: |-
+            - **Code 37045** — externalSystemID (query) or ExternalSystemID (body) is not an external system of the tenant. Checked before the project / task exists. — When: externalSystemID does not exist — Fix: Use an ExternalSystemID from the external-systems list (not curated yet), or create the external system first.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: No body, unknown ID
+                  value:
+                    Code: 102
+                    Details:
+                    - Message: 'No external system with ExternalSystemID: 1 exist'
+                      ErrorCode: 37045
+                    Message: Business rules exception.
+                    Parameters: 'externalSystemUpdateModel: null'
+                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/external-systems/1
+      x-timelog-key: rest.v1.integration.externalsystem.update
+  /v1/integration-conflicts:
+    get:
+      operationId: getAllIntegrationConflicts
+      summary: List integration conflicts
+      description: |-
+        Lists integration conflicts, newest first, optionally only those in one status.
+
+        Returns the conflicts recorded in the tenant — changes from an external system that TimeLog refused on a business rule and parked for a decision — with the resolve options TimeLog offers for each. Filter on conflictStatusType=1 to get the open (Active) ones.
+
+        **Use it to:**
+        - Poll for open conflicts (conflictStatusType=1) and surface them in your integration's monitoring.
+        - Check whether a conflict your integration reported earlier is still Active before reporting it again.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `GET /v1/integration-conflicts/{integrationConflictID}`
+
+        **See also:** `POST /v1/integration-conflicts`
+
+        > **Not yet documented:** errors.
+      tags:
+      - Integrations
+      parameters:
+      - name: conflictStatusType
+        in: query
+        required: false
+        schema:
+          type: integer
+          x-timelog-filter:
+            operators:
+            - eq
+        description: |-
+          1 = Active, 2 = Ignored, 3 = Resolved. Omitted = conflicts in every status.
+
+          Filters on `IntegrationConflictRead.ConflictStatusType` (eq).
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size. No maximum enforced in the API layer.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). Conflicts, each with a self link.
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: ConflictID descending (newest first; no sort parameter)
+
+            Empty result: 200 with TotalRecord "0", TotalPage "0" and no Entities
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/IntegrationConflictRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: conflictStatusType
+            is not a member name or number of the enum (model binding) — not captured — Fix: Fix every item listed in Details
+            and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+      x-timelog-key: rest.v1.integration.integrationconflict.list
+    post:
+      operationId: createIntegrationConflict
+      summary: Report an integration conflict
+      description: |-
+        Records that a change from an external system was refused by a TimeLog business rule, as an Active conflict.
+
+        Lets an integration hand a refusal back to TimeLog instead of retrying forever or dropping it: the conflict is stored as Active with the resolve options TimeLog offers for its type, so a person can decide what to do. Only one kind can be reported at this commit — ErrorCode 37886 (a task in a completed task-driven revenue contract cannot be deleted), offering "close and copy" or "delete and copy" the task. Any other code is refused with 37985.
+
+        **Use it to:**
+        - Your ERP deleted a task that TimeLog refuses to delete (37886): report it here instead of retrying the delete.
+
+        **Not for:**
+        - Logging arbitrary sync errors — only error codes with a registered conflict type are accepted.
+
+        **Behaviour:**
+        - Not idempotent.
+        - Not safe to retry blindly. Every call inserts a new conflict; there is no deduplication on ErrorCode / ExternalSystemID / message. List Active conflicts before retrying.
+        - Duplicates: None.
+        - Side effect: Clears the IntegrationConflict cache.
+        - Side effect: Raises the TLP event IntegrationConflictCreated (event type 594), with the conflict as JSON.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/external-systems`
+
+        **Next:** `GET /v1/integration-conflicts/{integrationConflictID}`
+
+        **See also:** `GET /v1/integration-conflicts`
+
+        > **Not yet documented:** behaviour → events emitted; examples (success).
+      tags:
+      - Integrations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntegrationConflictCreate.create'
+      responses:
+        '200':
+          description: The object, wrapped in the TAF envelope (`Properties`). The created conflict (ConflictStatusType 1,
+            ResolveOptionTypeUsed 0), read back with GET /v1/integration-conflicts/{id}.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/IntegrationConflictRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: ErrorCode or ExternalSystemID
+            missing / <= 0; ErrorMessage empty — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 37985** — ErrorCode is not a code TimeLog can turn into a conflict. At this commit only 37886 is accepted. — When: ErrorCode is not 37886 — Fix: Send ErrorCode 37886 (task in a completed task-driven revenue contract cannot be deleted); other refusals cannot be recorded as conflicts.
+
+            - **Code 37045** — externalSystemID (query) or ExternalSystemID (body) is not an external system of the tenant. Checked before the project / task exists. — When: ExternalSystemID does not exist — Fix: Use an ExternalSystemID from the external-systems list (not curated yet), or create the external system first.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.integration.integrationconflict.create
+  /v1/integration-conflicts/{integrationConflictID}:
+    get:
+      operationId: getIntegrationConflictById
+      summary: Get an integration conflict
+      description: |-
+        Returns one integration conflict by its integer ConflictID.
+
+        Reads a single conflict, including its current status and the resolve options for its type. Create answers with this same representation.
+
+        **Use it to:**
+        - Follow up a conflict your integration reported: has someone resolved or ignored it yet?
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/integration-conflicts`
+
+        **See also:** `POST /v1/integration-conflicts`
+
+        > **Not yet documented:** examples (success).
+      tags:
+      - Integrations
+      parameters:
+      - name: integrationConflictID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: The conflict's integer ID.
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). The conflict, with a self link and the create-integration-conflict TAF action.
+
+            Empty result: Unknown ID → 500 Code 102 with ErrorCode 37048, not 404
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/IntegrationConflictRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The URL did not match any route (including a route constraint such as {id:int} receiving a non-integer).
+            — When: integrationConflictID is not an integer (route constraint)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 37048** — integrationConflictID is not a conflict of the tenant (also 0 and negative values).
+            Not a 404. — Fix: Use a ConflictID from GET /v1/integration-conflicts.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Unknown conflict ID
+                  value:
+                    Code: 102
+                    Details:
+                    - Message: 'No integration conflict with ConflictID: 1 exist'
+                      ErrorCode: 37048
+                    Message: Business rules exception.
+                    Parameters: 'integrationConflictID: 1'
+                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/integration-conflicts/1
+      x-timelog-key: rest.v1.integration.integrationconflict.get
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: |-
+        OAuth 2.0 bearer token, sent as `Authorization: Bearer <token>`. JWT and reference tokens are both accepted. The token must carry the required scope (default `tlp`).
+
+        The token's `sub` claim is the acting user. A token WITHOUT `sub` (client-credentials) acts as the system service user. If the `sub` user cannot log in (inactive, locked, deleted), the request is rejected with 401 — it is no longer let through without a user.
+
+        > **Not yet documented:** how to obtain a token.
+
+        > **Not yet documented:** token lifetime.
+  schemas:
+    ExternalSystemRead:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier of the external system. Send it as ExternalSystemID on the external-key endpoints and on POST /v1/integration-conflicts.
+
+            Identifier of this object, unique per TimeLog site.
+        Name:
+          type: string
+          readOnly: true
+          maxLength: 200
+          description: |-
+            Display name of the external system. For systems created by TimeLog's built-in integrations it is the integration handler's name. Those integrations resolve their key mappings by THIS NAME (not by ID) in several stored procedures, so two systems with the same name can make such a lookup land on the other system's keys.
+
+            Always store the ID, never the name.
+        Description:
+          type: string
+          readOnly: true
+          maxLength: 255
+          description: Free-text description. Required on create/update, so normally non-empty; a NULL in the table is returned
+            as an empty string.
+        IsSystemExternalSystem:
+          type: boolean
+          readOnly: true
+          description: |-
+            Marks a system-owned external system. The REST API does not honour it: such a system can still be updated and deleted through these endpoints.
+
+            - column is NULL — Returned as false.
+
+            No TLP code path at this commit sets it to true: the domain constructor sets false, the upsert procedure never writes the column, and the seeded OTT row (ID 5) is NULL. Every row in the captured tenant is false.
+
+            > **Not yet documented:** description.
+      description: 'An external system registered in the tenant: a named "other side" (ERP, payroll, calendar, CRM …) that
+        TimeLog objects can be linked to through external keys (ExternalKey.ExternalSystemID) and that integration conflicts
+        are raised against. TimeLog''s own built-in integrations create one per integration handler (named after the handler,
+        e.g. "e-conomic <site>_v1"); an integrator can register its own with POST /v1/external-systems.'
+    ExternalSystemWrite.create:
+      type: object
+      properties:
+        Name:
+          type: string
+          maxLength: 200
+          minLength: 1
+          description: |-
+            Display name of the external system. Not unique: sending an existing name creates a second system with that name.
+
+            - null, empty or whitespace-only — 400 "'Name' must not be empty."
+
+            Built-in TimeLog integrations resolve key mappings by system name. Giving a system the name of another one makes those name-based lookups ambiguous (see ExternalSystemRead.Name).
+
+            > **Not yet documented:** behaviour.
+        Description:
+          type: string
+          maxLength: 255
+          minLength: 1
+          description: |-
+            Free-text description of the external system.
+
+            - null, empty or whitespace-only — 400 "'Description' must not be empty."
+      required:
+      - Name
+      - Description
+      description: The body that registers an external system (POST) or renames / re-describes one (PUT). Both fields are
+        always required — PUT is a full replacement of the two text fields, not a patch.
+    ExternalSystemWrite.update:
+      type: object
+      properties:
+        Name:
+          type: string
+          maxLength: 200
+          minLength: 1
+          description: |-
+            Display name of the external system. Not unique: sending an existing name creates a second system with that name.
+
+            - null, empty or whitespace-only — 400 "'Name' must not be empty."
+
+            Built-in TimeLog integrations resolve key mappings by system name. Giving a system the name of another one makes those name-based lookups ambiguous (see ExternalSystemRead.Name).
+
+            > **Not yet documented:** behaviour.
+        Description:
+          type: string
+          maxLength: 255
+          minLength: 1
+          description: |-
+            Free-text description of the external system.
+
+            - null, empty or whitespace-only — 400 "'Description' must not be empty."
+      required:
+      - Name
+      - Description
+      description: The body that registers an external system (POST) or renames / re-describes one (PUT). Both fields are
+        always required — PUT is a full replacement of the two text fields, not a patch.
+    IntegrationConflictCreate.create:
+      type: object
+      properties:
+        ErrorCode:
+          type: integer
+          description: |-
+            The TimeLog error code the external change ran into. Must be a code that has a conflict type: at this commit only 37886 ("Task in completed task driven revenue contract cannot be deleted"), which yields ConflictType 2. Stored as OriginalErrorCode.
+
+            Can be set on create only.
+
+            - 0, negative or missing — 400 "'Error Code' must not be empty." / "must be greater than '0'."
+
+            - any code other than 37886 — 500 Code 102, ErrorCode 37985 (no conflict type for that code).
+        ErrorMessage:
+          type: string
+          minLength: 1
+          description: |-
+            The error message to show for the conflict. Stored unchanged as OriginalErrorMessage; TimeLog does not check that it matches ErrorCode.
+
+            Can be set on create only.
+
+            - null, empty or whitespace-only — 400 "'Error Message' must not be empty."
+        ExternalSystemID:
+          type: integer
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The external system the conflicting change came from.
+
+            Can be set on create only.
+
+            Refers to `ExternalSystemRead.ID`. Look up valid values with `GET /v1/external-systems`.
+
+            - 0, negative or missing — 400 "'External System ID' must not be empty." / "must be greater than '0'."
+
+            - not an existing external system — 500 Code 102, ErrorCode 37045.
+
+            Valid values come from `GET /v1/external-systems`.
+      required:
+      - ErrorCode
+      - ErrorMessage
+      - ExternalSystemID
+      description: Reports that a change from an external system was refused by a TimeLog business rule. TimeLog derives the
+        conflict type from ErrorCode and stores the conflict as Active.
+    IntegrationConflictRead:
+      type: object
+      properties:
+        ConflictID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier of the conflict; the {integrationConflictID} of GET /v1/integration-conflicts/{id}.
+
+            Identifier of this object, unique per TimeLog site.
+        ID:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: false
+            id_format: guid
+          description: |-
+            GUID of the conflict, generated by TimeLog on create. No operation looks a conflict up by it.
+
+            Alternate key, unique per TimeLog site.
+        ConflictDateTime:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            When TimeLog recorded the conflict (the create call), not when the change happened in the external system.
+
+            Time zone: server local time (DateTime.Now on the TimeLog web server), no offset in the value
+
+            > **Not yet documented:** constraints → timezone.
+        ConflictType:
+          type: integer
+          enum:
+          - 1
+          - 2
+          x-enum-descriptions:
+          - 'A task could not be moved because of invoicing. Declared but NOT creatable: no conflict model maps an error code
+            to it at this commit.'
+          - A task could not be deleted because it is in a completed task-driven revenue contract. Created when ErrorCode
+            = 37886.
+          readOnly: true
+          description: |-
+            What kind of conflict this is. Derived by TimeLog from the ErrorCode sent on create.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `1` | TaskCannotBeMovedDueToInvoicing | A task could not be moved because of invoicing. Declared but NOT creatable: no conflict model maps an error code to it at this commit. |
+            | `2` | TaskCannotBeDeletedDueToInvoicing | A task could not be deleted because it is in a completed task-driven revenue contract. Created when ErrorCode = 37886. |
+        ConflictStatusType:
+          type: integer
+          enum:
+          - 1
+          - 2
+          - 3
+          x-enum-descriptions:
+          - Open; no decision taken yet. Set on create.
+          - Someone decided not to act on it.
+          - Someone resolved it; ResolvedByUserID is then set.
+          readOnly: true
+          description: |-
+            Where the conflict is in its life cycle. Always 1 (Active) when created through the API.
+
+            Filterable via `conflictStatusType` (eq).
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `1` | Active | Open; no decision taken yet. Set on create. |
+            | `2` | Ignored | Someone decided not to act on it. |
+            | `3` | Resolved | Someone resolved it; ResolvedByUserID is then set. |
+
+            > **Not yet documented:** values → members.
+        ResolveOptionTypes:
+          type: array
+          items:
+            enum:
+            - 0
+            - 1
+            - 2
+          readOnly: true
+          description: |-
+            The ways TimeLog offers to resolve a conflict of this ConflictType. Computed from the type on every read, not stored.
+
+            - ConflictType = 2 — [1, 2]
+
+            A stored ConflictType 1 row has no conflict model; mapping it would dereference a missing model (not reachable through POST).
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | NotChosen | No option chosen (only appears in ResolveOptionTypeUsed). |
+            | `1` | CloseOriginalTaskAndCreateACopyOfTask | Close the original task and create a copy of it. |
+            | `2` | DeleteOriginalTaskAndCreateACopyOfTask | Delete the original task and create a copy of it. |
+        ResolveOptionTypeUsed:
+          type: integer
+          enum:
+          - 0
+          - 1
+          - 2
+          x-enum-descriptions:
+          - No option applied yet. Set on create.
+          - The original task was closed and copied.
+          - The original task was deleted and copied.
+          readOnly: true
+          description: |-
+            The resolve option that was applied. 0 (NotChosen) until a resolution is recorded.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | NotChosen | No option applied yet. Set on create. |
+            | `1` | CloseOriginalTaskAndCreateACopyOfTask | The original task was closed and copied. |
+            | `2` | DeleteOriginalTaskAndCreateACopyOfTask | The original task was deleted and copied. |
+        ResolvedByUserID:
+          type:
+          - integer
+          - 'null'
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The user who set the conflict to Resolved; null otherwise.
+
+            Refers to `UserRead.UserID`. Look up valid values with `GET /v1/user`.
+
+            Null: null = not resolved (or resolved before the field was set).
+
+            Valid values come from `GET /v1/user`.
+        OriginalErrorCode:
+          type: integer
+          readOnly: true
+          description: The TimeLog error code that caused the conflict, as sent on create (ErrorCode). 37886 for every conflict
+            creatable at this commit.
+        OriginalErrorMessage:
+          type: string
+          readOnly: true
+          description: The error message sent on create (ErrorMessage), stored as-is.
+        ExternalSystemID:
+          type: integer
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The external system whose change caused the conflict.
+
+            Refers to `ExternalSystemRead.ID`. Look up valid values with `GET /v1/external-systems`.
+
+            Checked on create only; there is no foreign key, so after the external system is deleted the conflict keeps pointing at a missing ID.
+
+            Valid values come from `GET /v1/external-systems`.
+      description: 'A record that a change coming from an external system could not be applied in TimeLog because of a TimeLog
+        business rule, kept so that someone can decide how to resolve it. At this commit exactly one kind is supported: a
+        task that cannot be deleted because it sits in a completed task-driven revenue contract (TimeLog error 37886). Conflicts
+        are created Active and carry the resolve options TimeLog offers for their type; REST v1 has no operation to change
+        their status.'
+    MessageError:
+      type: object
+      description: Body of 401 and some framework errors — not the ResponseError shape.
+      properties:
+        Message:
+          type: string
+    ResponseError:
+      type: object
+      description: Error body for validation (400), privilege (403), business-rule (422/500) and other server errors. `Details`
+        lists strings for validation errors, or `{ErrorCode, Message}` objects for business-rule violations. `Parameters`
+        echoes the request arguments, including the full payload.
+      properties:
+        Code:
+          type: integer
+          description: 'TimeLog error class (not the HTTP status): 100 unexpected, 102 business rule, 103 privilege, 200 validation.'
+        Message:
+          type: string
+        Details:
+          type: array
+          items: {}
+        Parameters:
+          type:
+          - string
+          - object
+          - 'null'
+        Url:
+          type: string
+    TafAction:
+      type: object
+      description: A hypermedia action the caller may take on the object. Present only where the operation registers actions.
+    TafLink:
+      type: object
+      properties:
+        Href:
+          type: string
+        Rel:
+          type: string
+    TafListPaging:
+      type: object
+      description: 'Paging values. They are returned as STRINGS, for example `"TotalRecord": "12"`.'
+      properties:
+        TotalRecord:
+          type: string
+        TotalPage:
+          type: string
+        PageNumber:
+          type: string
+x-timelog-service: Integration

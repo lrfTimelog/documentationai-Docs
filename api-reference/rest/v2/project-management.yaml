@@ -1,0 +1,3968 @@
+openapi: 3.1.0
+info:
+  title: Projects — REST API v2
+  version: v2
+  description: |-
+    Find the projects a user can register on, and register expenses and mileage on a project.
+
+    Enums are strings (member names) in v2 responses.
+
+    **Conventions that apply to every operation in this file:**
+    - Property names are PascalCase.
+    - Successful bodies use the TAF envelope: one object in `Properties`, lists in `Entities[].Properties`.
+    - Some operations succeed without content: HTTP 200 with the literal body `null`, or HTTP 204.
+    - `PUT` replaces the whole object: omitted fields are reset.
+    - Treat error `Code` 102 as a business-rule violation, whether the HTTP status is 422 or 500.
+
+    > **Not yet documented:** rate limits.
+servers:
+- url: https://{your-timelog-host}/{tlp-virtual-directory}/api
+  description: Your TimeLog site.
+  variables:
+    your-timelog-host:
+      default: your-timelog-host
+      description: 'The host of your TimeLog site. Not yet documented: the production host pattern.'
+    tlp-virtual-directory:
+      default: your-virtual-directory
+      description: The virtual directory your TimeLog site is hosted under.
+security:
+- bearer: []
+tags:
+- name: Projects
+  description: Find the projects a user can register on, and register expenses and mileage on a project.
+paths:
+  /v2/adjustments/move-hours:
+    get:
+      operationId: getTimeRegistrationsForMoveHoursProcess
+      summary: List time registrations for moving hours
+      description: |-
+        Lists the project time registrations in a date range that the caller may move, with filters on customer, project, employee, department and more.
+
+        Returns, unpaged, every project time registration whose date lies in [periodStartsAt, periodEndsAt] (both inclusive) on an ACTIVE project the caller can see by project privilege (all projects, or the projects where the caller is project manager / account manager / in the project's department subtree). Twelve ID-list filters each take a comma-separated list and an include (default) / exclude switch; searchText matches customer number and name, project number, name and description, and task name (contains). Each row says whether it is invoiced or in a closed accounting period — those cannot be moved; set hideUnmovableRegistrationsIds to drop them. List Properties: AdditionalCommentFieldName (label of the additional text field, "" when that feature is off), IsShowingProjectNo / IsShowingTaskNo (ProjectNumber / TaskNo features), IsCommentMandatory (MandatoryComment feature) and TotalRegisteredHours (sum of RegisteredHours, a number).
+
+        **Use it to:**
+        - Find registrations booked on the wrong task before invoicing, to move them with `PUT /v2/adjustments/move-hours`
+
+        **Not for:**
+        - Your own registrations or a paged registration export → `GET /v1/time-registration/{timeRegistrationID}`
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `PUT /v2/adjustments/move-hours`
+
+        **See also:** `GET /v2/adjustments/move-hours/projects`, `GET /v2/projects/{projectId}/time-registrations`
+
+        > **Not yet documented:** examples; response → empty result.
+      tags:
+      - Projects
+      parameters:
+      - name: periodStartsAt
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+          x-timelog-filter:
+            operators:
+            - gte
+        description: |-
+          First date (inclusive). Omitted → 404 action not matched (captured).
+
+          Filters on `MoveHoursRead.Date` (gte).
+      - name: periodEndsAt
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+          x-timelog-filter:
+            operators:
+            - lte
+        description: |-
+          Last date (inclusive; compared with the registration's date at midnight, so pass the day itself). Omitted → 404 (captured).
+
+          Filters on `MoveHoursRead.Date` (lte).
+      - name: searchText
+        in: query
+        required: false
+        schema:
+          type: string
+          x-timelog-filter:
+            operators:
+            - contains
+        description: |-
+          Contains-match (LIKE %x%, OR) on customer number, customer name, project number, project name, project description and task name. Not on employee or comment.
+
+          Filters on `MoveHoursRead.ProjectName` (contains).
+      - name: customerIds
+        in: query
+        required: false
+        schema:
+          type: string
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          Customer IDs; with isCustomerInclusive (default true) false = exclude them.
+
+          Several values: one string, separated by `,`.
+
+          Filters on `customer of the project` (in).
+      - name: projectIds
+        in: query
+        required: false
+        schema:
+          type: string
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          Project IDs; isProjectInclusive (default true).
+
+          Several values: one string, separated by `,`.
+
+          Filters on `MoveHoursRead.ProjectId` (in).
+      - name: projectStatusIds
+        in: query
+        required: false
+        schema:
+          type: string
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          PAGE-FILTER status codes, not StatusId: 1 Quote, 2 Approved, 3 InProgress, 4 OnHold, 5 Completed, 6 Archived, 7 Cancelled; groups -1 active (Quote..OnHold), -2 inactive (Completed, Archived, Cancelled), -3 all. isProjectStatusInclusive (default true).
+
+          Several values: one string, separated by `,`.
+
+          Filters on `project status` (in).
+      - name: employeeDepartmentIds
+        in: query
+        required: false
+        schema:
+          type: string
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          Department IDs of the registering employee, sub-departments included; isEmployeeDepartmentInclusive.
+
+          Several values: one string, separated by `,`.
+
+          Filters on `employee department (with sub-departments)` (in).
+      - name: employeeIds
+        in: query
+        required: false
+        schema:
+          type: string
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          USER IDs, not employee IDs; isEmployeeInclusive.
+
+          Several values: one string, separated by `,`.
+
+          Filters on `registration owner (USER ID)` (in).
+      - name: projectTypeIds
+        in: query
+        required: false
+        schema:
+          type: string
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          isProjectTypeInclusive.
+
+          Several values: one string, separated by `,`.
+
+          Filters on `project type` (in).
+      - name: projectCategoryIds
+        in: query
+        required: false
+        schema:
+          type: string
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          isProjectCategoryInclusive.
+
+          Several values: one string, separated by `,`.
+
+          Filters on `project category` (in).
+      - name: taskTypeIds
+        in: query
+        required: false
+        schema:
+          type: string
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          Switch is named isProjectTaskTypesInclusive.
+
+          Several values: one string, separated by `,`.
+
+          Filters on `task type` (in).
+      - name: employeeTypeIds
+        in: query
+        required: false
+        schema:
+          type: string
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          isEmployeeTypeInclusive.
+
+          Several values: one string, separated by `,`.
+
+          Filters on `employee type (role)` (in).
+      - name: projectManagerIds
+        in: query
+        required: false
+        schema:
+          type: string
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          isProjectManagerInclusive.
+
+          Several values: one string, separated by `,`.
+
+          Filters on `project manager (employee ID)` (in).
+      - name: accountManagerIds
+        in: query
+        required: false
+        schema:
+          type: string
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          isAccountManagerInclusive.
+
+          Several values: one string, separated by `,`.
+
+          Filters on `account manager (employee ID)` (in).
+      - name: projectDepartmentIds
+        in: query
+        required: false
+        schema:
+          type: string
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          isProjectDepartmentInclusive.
+
+          Several values: one string, separated by `,`.
+
+          Filters on `project department (with sub-departments)` (in).
+      - name: contractTypeIds
+        in: query
+        required: false
+        schema:
+          type: string
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          Contract MODEL types; isContractTypeInclusive.
+
+          Several values: one string, separated by `,`.
+
+          Filters on `contract model of the task's contract` (in).
+      - name: is…Inclusive (13 switches)
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          One per list above (isCustomerInclusive, isProjectInclusive, isProjectStatusInclusive, isEmployeeDepartmentInclusive, isEmployeeInclusive, isProjectTypeInclusive, isProjectCategoryInclusive, isProjectTaskTypesInclusive, isEmployeeTypeInclusive, isProjectManagerInclusive, isAccountManagerInclusive, isProjectDepartmentInclusive, isContractTypeInclusive): true = keep only matching rows, false = drop matching rows. Ignored when its list is empty.
+
+          Filters on `the ID list it belongs to (include / exclude)` (in).
+      - name: hideUnmovableRegistrationsIds
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          x-timelog-filter:
+            operators:
+            - eq
+        description: |-
+          true = drop invoiced registrations and registrations dated in a closed accounting period. Approval / timesheet state is not considered.
+
+          Filters on `MoveHoursRead.IsInvoiced / IsInClosedAccountingPeriod` (eq).
+      - name: hideNonBillableIds
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          x-timelog-filter:
+            operators:
+            - eq
+        description: |-
+          true = drop non-billable registrations. Ignored unless the BillableOnTime feature is on.
+
+          Filters on `registration NonBillable flag` (eq).
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). Entities[].Properties = MoveHoursRead; list Properties AdditionalCommentFieldName (string), IsShowingProjectNo, IsShowingTaskNo, IsCommentMandatory (booleans), TotalRegisteredHours (number, hours).
+
+            Order: Registration date, project number, task sort order (ascending).
+
+            Empty result: 200 with no Entities and TotalRegisteredHours 0 (src_only).
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/MoveHoursRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: periodStartsAt /
+            periodEndsAt or a boolean switch not parseable (model binding, src_only). — Fix: Fix every item listed in Details
+            and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token, once the action matched.
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: periodStartsAt or periodEndsAt omitted (captured: every scenario sent none).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.projectmanagement.adjustments.gettimeregistrationsformovehoursprocess
+    put:
+      operationId: moveHoursOfTimeRegistrations
+      summary: Move time registrations to another task
+      description: |-
+        Moves one or more project time registrations to another task (of any project), keeping each registration's ID, hours and date.
+
+        For each ID in timeRegistrationIds, in order, the registration is re-pointed to TargetTaskId: the employee is allocated to the target task when not yet allocated, the registration's allocation (and so its rate) changes, billable duration is re-evaluated (billable-hours / rounding features), and the registration is saved in place — same TimeRegistrationId, GUID, hours, date, comment, factor and approval status (a rejected one becomes "rejected and resolved"). Attached mileage keeps its project and only its registration reference is updated; a running time tracker on the registration is notified as deleted. Refused per registration: absence registrations, target project Cancelled / Archived, target task closed or a parent task, invoiced, on a draft invoice, dated in a closed accounting period, outside the employee's employment, missing mandatory comment / additional text, exceeding allocated hours (feature). A closed (approved) timesheet does NOT block a move. Answers 204 when every registration moved, otherwise 422 with a bare array of MoveHoursResultRead (one entry per ID — moved ones included, and they STAY moved). An unknown or non-integer ID aborts the loop with 500 after earlier IDs were moved. The caller's rights over the registrations or projects are NOT checked.
+
+        **Use it to:**
+        - Correct registrations booked on the wrong task or project before invoicing
+
+        **Not for:**
+        - Changing hours, date or comment → `PUT /v1/time-registration`
+
+        **Behaviour:**
+        - Idempotent.
+        - Moving a registration to the task it is already on re-saves it unchanged in substance (src_only).
+        - Safe to retry only under a condition. Yes after a 422 or 500 — re-read the registrations first (moved ones are already on the target) and resend the rest.
+        - Duplicates: A duplicated ID is moved twice (second time a no-op move).
+        - Side effect: Per registration: allocation on the target task created when missing; registration re-pointed to it (rate of the target allocation applies); billable duration re-evaluated.
+        - Side effect: A running time tracker on the registration is notified as deleted.
+        - On failure: Registrations before the failing ID stay moved (422 array, or 500 with no per-item result).
+        - On failure: An allocation created on the target task can remain even when the move is then refused by a later rule (src_only).
+        - Changes are visible to the next read immediately.
+        - Batch: Sequential; each registration in its own transaction; refusals are collected (422), any other error aborts the remainder (500).
+
+        **Call first:** `GET /v2/adjustments/move-hours`, `GET /v2/adjustments/move-hours/projects/{projectId}/tasks`
+
+        **Next:** `GET /v2/adjustments/move-hours`
+
+        **See also:** `PUT /v1/time-registration`
+
+        > **Not yet documented:** behaviour → side effects on failure; examples.
+      tags:
+      - Projects
+      parameters:
+      - name: timeRegistrationIds
+        in: query
+        required: true
+        schema:
+          type: string
+        description: |-
+          Comma-separated integer TimeRegistrationIds, processed in order. Omitted → 404 action not matched (captured). Unknown or non-integer entry → 500 after earlier entries were moved.
+
+          Several values: one string, separated by `,`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoveHoursUpdate.update'
+      responses:
+        '204':
+          description: |-
+            Success without content: HTTP 204 with an empty body. Every listed registration was moved.
+
+            Empty result: Not applicable.
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: TargetTaskId missing
+            or <= 0. — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token, once the action matched.
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: timeRegistrationIds omitted (captured: every scenario).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '422':
+          description: '- At least one listed registration could not be moved. Rules, per registration: it must be a project
+            registration (37555 — not an absence); the target task''s project must not be Cancelled or Archived (37556); the
+            target task must not be closed (37557) nor a parent task (37558); then the regular registration rules on the moved
+            registration — not invoiced (37537), not on a draft invoice (37549), date not in a closed accounting period (30011),
+            within the employee''s employment and after site creation, comment / additional text present when required, allocated
+            hours not exceeded (feature). A closed (approved) timesheet does NOT block a move. — When: At least one registration
+            refused by a move rule; the others in the array were moved. — Fix: Read every array entry: entries with AreHoursMovedSuccessfully
+            true WERE moved; resend only the refused IDs after fixing the target or the registration.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.projectmanagement.adjustments.movehoursoftimeregistrations
+  /v2/adjustments/move-hours/projects:
+    get:
+      operationId: getProjectsNamesForMoveHoursProcess
+      summary: List projects for moving hours
+      description: |-
+        Lists the active projects the caller can see by project privilege, as name / ID options for choosing a move target.
+
+        Returns every active (Aktiv), non-template project within the caller's project privileges (all projects, or projects where the caller is project manager / account manager / in the project's department subtree), any order status, as flat DropDownItemRead options: Value = ProjectID, Name = "<number> <name>" with the ProjectNumber feature, otherwise "<name> (<number>)" — a project without number reads "<name> ()" (captured). Unpaged; no defined order.
+
+        **Use it to:**
+        - Pick the target project, then its tasks, before PUT /v2/adjustments/move-hours
+
+        **Not for:**
+        - Searching projects with filters → `GET /v2/projects`
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `GET /v2/adjustments/move-hours/projects/{projectId}/tasks`
+
+        **See also:** `GET /v2/adjustments/move-hours`
+      tags:
+      - Projects
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`).
+
+            Order: None defined (SELECT DISTINCT without ORDER BY; captured in ProjectID order).
+
+            Empty result: 200 with no Entities (src_only).
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/DropDownItemRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+      x-timelog-key: rest.v2.projectmanagement.adjustments.getprojectsnamesformovehoursprocess
+  /v2/adjustments/move-hours/projects/{projectId}/tasks:
+    get:
+      operationId: getTasksNamesByProjectIDForMoveHoursProcess
+      summary: List a project's tasks for moving hours
+      description: |-
+        Returns a project's active leaf tasks with their parent tasks, as a nested name / ID tree for choosing a move target.
+
+        Selects the project's ACTIVE leaf tasks (any task status) and adds all their ancestor tasks, then nests them: root tasks are the entities, sub-tasks sit in Items (recursively). Value = TaskID; Name = the task name, plus " (<task number>)" when the TaskNo feature is on and the task has a number. Parent tasks appear only as containers — time cannot be moved onto them (move / split refuse a parent task). Ordered by the project's task sort order. Unpaged. An unknown, 0 or negative projectId answers 200 with no Entities (captured).
+
+        **Use it to:**
+        - Pick TargetTaskId for PUT /v2/adjustments/move-hours or the split halves
+
+        **Not for:**
+        - Task search across projects → `GET /v1/task/filter`
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v2/adjustments/move-hours/projects`
+
+        **Next:** `PUT /v2/adjustments/move-hours`
+
+        **See also:** `GET /v1/task`
+      tags:
+      - Projects
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: The project. Not an integer → 404 with empty body (route constraint, captured); unknown / 0 / negative
+          → 200 empty list (captured).
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`).
+
+            Order: Project, then task sort order (the task tree order).
+
+            Empty result: 200 with only Links (no Entities key) — captured for projectId 0, 99999999 and -999999.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/DropDownItemRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+              examples:
+                example1:
+                  summary: Tasks of project 1
+                  value:
+                    Entities:
+                    - Properties:
+                        Name: This is another test (0023)
+                        Value: 52
+                    - Properties:
+                        Name: Task 1
+                        Value: 1
+                    - Properties:
+                        Name: This is a test (0022)
+                        Value: 51
+                    - Properties:
+                        Name: Task 2
+                        Value: 2
+                    - Properties:
+                        Name: test task
+                        Value: 16
+                    Links:
+                    - Href: https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/adjustments/move-hours/projects/1/tasks
+                      Rel: self
+                example2:
+                  summary: Unknown project
+                  value:
+                    Links:
+                    - Href: https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/adjustments/move-hours/projects/99999999/tasks
+                      Rel: self
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The URL did not match any route (including a route constraint such as {id:int} receiving a non-integer).
+            — When: projectId not an integer (route constraint {projectId:int}; captured with an empty body).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.projectmanagement.adjustments.gettasksnamesbyprojectidformovehoursprocess
+  /v2/contract-hourly-rates/dropdown-content:
+    get:
+      operationId: contractHourlyRateDropdownList
+      summary: List the hourly rates a task's contract offers
+      description: |-
+        Lists the active hourly rates of a task's contract (plus one rate in use), cheapest first, for choosing an allocation's rate.
+
+        Resolves the task's contract and returns its ACTIVE contract hourly rates, ordered by amount then name, plus the rate given in suggestedHourlyRateId even when inactive (only if it belongs to the same contract) — so a rate already in use stays selectable. Unpaged. Amounts are in the rate's price-group currency, which is not returned. A contract with no matching rate answers 200 with the body null instead of an empty list. The caller's access is NOT checked.
+
+        **Use it to:**
+        - Offer the rate choices when allocating a person to a task (default = SuggestedHourlyRateId from employee-unallocated)
+
+        **Not for:**
+        - Full rate records with currency, GUID and product number → `GET /v1/contract-hourly-rate`
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Consistency: immediate (manager result cached per request — src_only)
+
+        **Call first:** `GET /v2/projects/{projectId}/employee-unallocated`
+
+        **Next:** `POST /v1/task/{taskID}/allocation`
+
+        **See also:** `GET /v1/contract-hourly-rate`, `GET /v2/projects/{projectId}/employee-allocation`
+
+        > **Not yet documented:** description; examples.
+      tags:
+      - Projects
+      parameters:
+      - name: taskId
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: Task whose contract's rates are listed. Omitted → 404 (captured); unknown → 500 (src_only).
+      - name: suggestedHourlyRateId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+        description: A rate to include even if inactive (ignored when it is on another contract); 0 = none.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). When no rate matches, the body is the JSON literal null (TafSuccessResult).
+
+            Order: Amount ascending, then name.
+
+            Empty result: 200 with body null.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/ContractHourlyRateReadV2'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token, once the action matched.
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: taskId omitted (captured: every scenario omitted it).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.projectmanagement.contracthourlyrates.contracthourlyratedropdownlist
+  /v2/milestones/incomplete:
+    get:
+      operationId: getAllIncompleteMilestonesBeforeDueDate
+      summary: List my incomplete milestones due by a date
+      description: |-
+        Lists the milestones the caller is responsible for that are not completed and due on or before a date (overdue included), paged.
+
+        Returns the incomplete milestones whose responsible employee is the CALLER (recurring milestones as their individual instances, each with its own responsible employee and date), due on or before dueDate — overdue ones included — on active, non-template projects, earliest due date first, paged with $page / $pagesize (default 10) and a TotalRecord count. The controller is marked with FeaturePolicy(ShowMileStones), but that attribute only hides TAF links / actions: the route answers with the feature off too.
+
+        **Use it to:**
+        - Remind a user of milestones that are due or overdue
+
+        **Not for:**
+        - A project's milestone plan → not exposed in REST v2 (not curated)
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `PUT /v2/milestones/{id}/status`
+
+        > **Not yet documented:** examples; response → success.
+      tags:
+      - Projects
+      parameters:
+      - name: dueDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+          x-timelog-filter:
+            operators:
+            - lte
+        description: |-
+          Latest due date (inclusive). Omitted → 404 action not matched (captured).
+
+          Filters on `MilestoneRead.DueDate` (lte).
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size. $top / $skip are parsed but ignored; no sort parameter.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`).
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: Due date ascending.
+
+            Empty result: 200 with no Entities (src_only).
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/MilestoneRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: dueDate not a date
+            (model binding; src_only). — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token, once the action matched.
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: dueDate omitted (captured: every scenario omitted it).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.projectmanagement.milestones.getallincompletemilestonesbeforeduedate
+  /v2/milestones/{id}/status:
+    put:
+      operationId: updateMilestonesStatus
+      summary: Complete or reopen a milestone
+      description: |-
+        Marks a milestone (or one occurrence of a recurring milestone) as completed or not completed.
+
+        Send the MilestoneId and IsRecurring of a GET /v2/milestones/incomplete entity unchanged. isRecurring=true treats id as a recurring-milestone INSTANCE ID and flips only that occurrence's IsCompleted (no event); isRecurring=false treats id as a milestone ID, sets its completion, refreshes the parent task's status, saves it with the caller as modifier and raises MilestoneChangeStatus. Setting the status it already has does nothing. Answers 200 with body null. The flag is trusted: a wrong isRecurring addresses a different milestone that shares the number.
+
+        **Use it to:**
+        - Tick off a milestone from a reminder list
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Side effect: Recurring instance: IsCompleted, LastModifiedBy, LastModified updated (no event).
+        - Side effect: Milestone: completion set, parent task status refreshed, milestone saved, MilestoneChangeStatus event, task notified, cache cleared.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v2/milestones/incomplete`
+
+        > **Not yet documented:** behaviour → side effects; examples.
+      tags:
+      - Projects
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: 'MilestoneId from the list: a recurring-instance ID when isRecurring is true, otherwise a milestone ID.
+          Unknown → 500 (src_only).'
+      - name: isCompleted
+        in: query
+        required: true
+        schema:
+          type: boolean
+        description: true = completed, false = reopen. Omitted → 404 (captured).
+      - name: isRecurring
+        in: query
+        required: true
+        schema:
+          type: boolean
+        description: Which ID space id belongs to — pass MilestoneRead.IsRecurring unchanged. Omitted → 404 (captured).
+      responses:
+        '200':
+          description: |-
+            Success without content: HTTP 200 with the literal JSON body `null`. Body is the JSON literal null (TafSuccessResult), also when nothing changed.
+
+            Empty result: Not applicable.
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token, once the action matched.
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: isCompleted or isRecurring omitted (captured: every scenario omitted both).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.projectmanagement.milestones.updatemilestonesstatus
+  /v2/projects:
+    get:
+      operationId: getSearchedProjectsBasedOnCriteriaV2
+      summary: Search projects by criteria
+      description: |-
+        Lists every non-template project the caller may see, filtered by up to 15 include/exclude ID lists and a text search, with hour aggregates.
+
+        Returns all matching non-template projects in ONE unpaged TAF list, ordered by project number then name, with list Properties: ProjectsCount, TotalBudgetWorkHours, TotalProjectActualHours, TotalTasksBudgetHours, TotalAllocationsBudgetHours (numbers as en-GB strings) and IsShowingProjectStage / IsShowingProjectCategory (tenant features, booleans). Every filter is an optional comma-separated ID list with an is…Inclusive switch (true = keep projects whose value is in the list, false = drop them); an empty list means no filter; filters AND together. searchText is a LIKE '%text%' over customer number and name, project number, name and description. Rows are limited in SQL to the projects the caller's project privilege package covers: all projects, or the union of projects where the caller is project manager / account manager, projects of the caller's department subtree, restricted to the caller's legal entity when that privilege is set. A caller without project privileges gets an empty list.
+
+        **Use it to:**
+        - Project overview / portfolio list with the same filters as the TimeLog project list
+        - Find the projectId values to pass to the bulk status / stage / resource-planner / delete operations
+
+        **Not for:**
+        - Paging through large tenants — there is no paging; use `GET /v1/project/get-all`
+        - A project picker for time registration → `GET /v1/project-header/search-for-time-tracking-order-by-recent-registration`
+
+        **Rules across fields:**
+        - R1: Each is…Inclusive switch is used only when its ID list is non-empty.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v2/filters/list/{pageIdentifier}`
+
+        **Next:** `GET /v2/projects/actions`, `GET /v2/projects/{projectId}/time-registrations`
+
+        **See also:** `GET /v1/project/get-all`, `GET /v2/filters/project-status/content`
+
+        > **Not yet documented:** request → query params → contractStatusIds; response → empty result.
+      tags:
+      - Projects
+      parameters:
+      - name: searchText
+        in: query
+        required: false
+        schema:
+          type: string
+          x-timelog-filter:
+            operators:
+            - contains
+        description: |-
+          LIKE '%text%' on customer number, customer name, project number, project name and project description (OR). Wildcards % and _ are not escaped. Empty = no text filter.
+
+          Filters on `SearchProjectRead.No, Name, Description, CustomerName (+ customer number)` (contains).
+      - name: customerIds
+        in: query
+        required: false
+        schema:
+          type: string
+        description: |-
+          Customer IDs. Each entry must parse as an integer.
+
+          Several values: one string, separated by `,`.
+      - name: isCustomerInclusive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          true = only these customers; false = all but these.
+
+          Filters on `customerIds` (in).
+      - name: projectDepartmentIds
+        in: query
+        required: false
+        schema:
+          type: string
+        description: |-
+          Project (handling) department IDs, matched exactly (0 = projects without department); no subtree expansion.
+
+          Several values: one string, separated by `,`.
+      - name: isProjectDepartmentInclusive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          Include / exclude switch.
+
+          Filters on `projectDepartmentIds` (in).
+      - name: legalEntityProjectIds
+        in: query
+        required: false
+        schema:
+          type: string
+        description: |-
+          Project legal-entity IDs.
+
+          Several values: one string, separated by `,`.
+      - name: isLegalEntityProjectInclusive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          Include / exclude switch.
+
+          Filters on `legalEntityProjectIds` (in).
+      - name: accountManagerIds
+        in: query
+        required: false
+        schema:
+          type: string
+        description: |-
+          Account manager EMPLOYEE IDs.
+
+          Several values: one string, separated by `,`.
+      - name: isAccountManagerInclusive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          Include / exclude switch.
+
+          Filters on `accountManagerIds` (in).
+      - name: contractModelIds
+        in: query
+        required: false
+        schema:
+          type: string
+        description: |-
+          ContractModelType values. Matched per CONTRACT row: with isContractModelInclusive=false a project still matches when any other contract has another model.
+
+          Several values: one string, separated by `,`.
+      - name: isContractModelInclusive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          Include / exclude switch.
+
+          Filters on `contractModelIds` (in).
+      - name: contractStatusIds
+        in: query
+        required: false
+        schema:
+          type: string
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          Contract status values; per contract row like contractModelIds.
+
+          Several values: one string, separated by `,`.
+
+          Filters (in).
+
+          Valid values come from `GET /v2/filters/contract-status/content`.
+      - name: isContractStatusInclusive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          Include / exclude switch.
+
+          Filters on `contractStatusIds` (in).
+      - name: projectStatusIds
+        in: query
+        required: false
+        schema:
+          type: integer
+          enum:
+          - -3
+          - -2
+          - -1
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
+          - 7
+          x-enum-descriptions:
+          - Every status 0–6.
+          - Completed, Archived, Cancelled (4, 5, 6).
+          - Quote, Approved, InProgress, OnHold (0–3).
+          - StatusId 0.
+          - StatusId 1.
+          - StatusId 2.
+          - StatusId 3.
+          - StatusId 4.
+          - StatusId 5.
+          - StatusId 6.
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          PAGE-FILTER status codes, not StatusId: 1–7 map to StatusId 0–6 (1 = Quote … 7 = Cancelled); -1 = active group (Quote, Approved, InProgress, OnHold), -2 = inactive group (Completed, Archived, Cancelled), -3 = all. Any other integer passes through unchanged (so 0 also means Quote). When a group code is present the individual codes are ignored, and only one group applies: -3 over -2 over -1. Same codes as `GET /v2/filters/project-status/content`.
+
+          Several values: one string, separated by `,`.
+
+          Filters on `SearchProjectRead.StatusId` (in).
+
+          Allowed values:
+
+          | Value | Name | Meaning |
+          |---|---|---|
+          | `-3` | All | Every status 0–6. |
+          | `-2` | Inactive | Completed, Archived, Cancelled (4, 5, 6). |
+          | `-1` | Active | Quote, Approved, InProgress, OnHold (0–3). |
+          | `1` | Quote | StatusId 0. |
+          | `2` | Approved | StatusId 1. |
+          | `3` | InProgress | StatusId 2. |
+          | `4` | OnHold | StatusId 3. |
+          | `5` | Completed | StatusId 4. |
+          | `6` | Archived | StatusId 5. |
+          | `7` | Cancelled | StatusId 6. |
+      - name: isProjectStatusInclusive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          Include / exclude switch.
+
+          Filters on `projectStatusIds` (in).
+      - name: projectManagerIds
+        in: query
+        required: false
+        schema:
+          type: string
+        description: |-
+          Project manager EMPLOYEE IDs.
+
+          Several values: one string, separated by `,`.
+      - name: isProjectManagerInclusive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          Include / exclude switch.
+
+          Filters on `projectManagerIds` (in).
+      - name: projectTypeIds
+        in: query
+        required: false
+        schema:
+          type: string
+        description: |-
+          Project type IDs.
+
+          Several values: one string, separated by `,`.
+      - name: isProjectTypeInclusive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          Include / exclude switch.
+
+          Filters on `projectTypeIds` (in).
+      - name: projectCategoryIds
+        in: query
+        required: false
+        schema:
+          type: string
+        description: |-
+          Project category IDs.
+
+          Several values: one string, separated by `,`.
+      - name: isProjectCategoryInclusive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          Include / exclude switch.
+
+          Filters on `projectCategoryIds` (in).
+      - name: projectStageIds
+        in: query
+        required: false
+        schema:
+          type: string
+        description: |-
+          Project stage IDs (current stage). Projects without a stage never match an inclusive list and always survive an exclusive one.
+
+          Several values: one string, separated by `,`.
+      - name: isProjectStageInclusive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          Include / exclude switch.
+
+          Filters on `projectStageIds` (in).
+      - name: customerOwnerIds
+        in: query
+        required: false
+        schema:
+          type: string
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          Customer-owner EMPLOYEE IDs. Not echoed in the response.
+
+          Several values: one string, separated by `,`.
+
+          Filters (in).
+
+          Valid values come from `GET /v2/filters/customer-owner/content`.
+      - name: isCustomerOwnerInclusive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          Include / exclude switch.
+
+          Filters on `customerOwnerIds` (in).
+      - name: contactIds
+        in: query
+        required: false
+        schema:
+          type: string
+        description: |-
+          Customer contact-person IDs.
+
+          Several values: one string, separated by `,`.
+      - name: isContactInclusive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          Include / exclude switch.
+
+          Filters on `contactIds` (in).
+      - name: partnerIds
+        in: query
+        required: false
+        schema:
+          type: string
+        description: |-
+          Partner IDs.
+
+          Several values: one string, separated by `,`.
+      - name: isPartnerInclusive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          x-timelog-filter:
+            operators:
+            - in
+        description: |-
+          Include / exclude switch.
+
+          Filters on `partnerIds` (in).
+      - name: projectInactivityPeriodIds
+        in: query
+        required: false
+        schema:
+          type: string
+          x-timelog-filter:
+            operators:
+            - lt
+        description: |-
+          ONE number of days N (despite the plural name): keep only projects whose newest registration LastModified — or, without registrations, whose creation — is older than N days. Parsed with TryParse: a list or a non-number silently means 0 = no filter.
+
+          Filters on `date of the latest time registration (or project creation when none)` (lt).
+
+          Valid values come from `GET /v2/filters/project-inactivity-period/content`.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). List Properties: ProjectsCount (string), TotalBudgetWorkHours, TotalProjectActualHours, TotalTasksBudgetHours, TotalAllocationsBudgetHours (sums over the returned rows, en-GB number strings, hours), IsShowingProjectStage, IsShowingProjectCategory (booleans).
+
+            Order: Project number, then project name (ascending; projects without a number first).
+
+            Empty result: 200 with ProjectsCount "0" and no Entities (src_only).
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/SearchProjectRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.projectmanagement.searchprojects.getsearchedprojectsbasedoncriteria
+  /v2/projects/actions:
+    get:
+      operationId: getAllProjectsActionsV2
+      summary: List the project-list bulk actions
+      description: |-
+        Returns the bulk actions the project list offers, each with the endpoint and ready-made body to call.
+
+        Names are code names, not translated, except stage names, which are the tenant's own.
+
+        **Use it to:**
+        - Build the bulk-action menu of a project list; resolve the active stage IDs for PUT /v2/projects/stage
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `PUT /v2/projects/status`, `PUT /v2/projects/stage`, `PUT /v2/projects/resource-planner`
+
+        **See also:** `GET /v2/projects`
+
+        > **Not yet documented:** response → default ordering.
+      tags:
+      - Projects
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). No list Properties.
+
+            Empty result: Never empty: DeleteAction and ChangeStatusTo are always present.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/ProjectActionRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+              examples:
+                example1:
+                  summary: Tenant with ProjectStage and NewResourcePlanner on
+                  value:
+                    Entities:
+                    - Properties:
+                        Name: DeleteAction
+                    - Properties:
+                        Name: ChangeStatusTo
+                        Actions:
+                        - Name: Quote
+                          Uri: status
+                          Body:
+                            Status: 0
+                        - Name: Approved
+                          Uri: status
+                          Body:
+                            Status: 1
+                        - Name: InProgress
+                          Uri: status
+                          Body:
+                            Status: 2
+                        - Name: OnHold
+                          Uri: status
+                          Body:
+                            Status: 3
+                        - Name: Completed
+                          Uri: status
+                          Body:
+                            Status: 4
+                        - Name: Archived
+                          Uri: status
+                          Body:
+                            Status: 5
+                        - Name: Cancelled
+                          Uri: status
+                          Body:
+                            Status: 6
+                    - Properties:
+                        Name: ChangeStageTo
+                        Actions:
+                        - Name: Initiation
+                          Uri: stage
+                          Body:
+                            Stage: 1
+                        - Name: Planning
+                          Uri: stage
+                          Body:
+                            Stage: 2
+                        - Name: Execution & Controlling
+                          Uri: stage
+                          Body:
+                            Stage: 3
+                        - Name: Closing
+                          Uri: stage
+                          Body:
+                            Stage: 4
+                    - Properties:
+                        Name: ResourcePlanner
+                        Actions:
+                        - Name: EnableResourcePlanner
+                          Uri: resource-planner
+                          Body:
+                            IsAddingToResourcePlanner: true
+                        - Name: DisableResourcePlanner
+                          Uri: resource-planner
+                          Body:
+                            IsAddingToResourcePlanner: false
+                    Links:
+                    - Href: https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/projects/actions
+                      Rel: self
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.projectmanagement.searchprojects.getallactions
+  /v2/projects/resource-planner:
+    put:
+      operationId: updateProjectsResourcePlannerAdditionStatusV2
+      summary: Add projects to or remove them from the Resource Planner
+      description: |-
+        Makes the listed projects available in the Resource Planner, or takes them out, and tells the Resource Planner service.
+
+        Loads the headers of all listed projects in one call (IDs that do not exist are silently skipped), then for each project whose IsAvailableInResourcePlanner differs from the requested value: writes the flag and raises IsAvailableInResourcePlannerChecked or …Unchecked, both published to the project-plan service-bus topic the Resource Planner service consumes. Projects already in the requested state are skipped (no write, no event). Answers 200 with an empty TAF list whose Properties.UpdatedProjectsCount counts only the projects actually changed. What the Resource Planner service does with a deactivation (keep or drop the project's plans) is RP-side, unknown.
+
+        **Use it to:**
+        - Choose which projects are planned in the Resource Planner
+
+        **Behaviour:**
+        - Idempotent.
+        - Projects already in the requested state are skipped: a repeat call changes nothing and raises no events (UpdatedProjectsCount 0).
+        - Safe to retry.
+        - On failure: Projects processed before a failing write keep their new flag and their events were published.
+        - Consistency: eventual for the Resource Planner (service-bus topic); immediate in TimeLog
+        - Batch: Unknown IDs are skipped silently; a failing write aborts the rest with 500 after earlier projects were switched.
+
+        **Call first:** `GET /v2/projects`
+
+        > **Not yet documented:** behaviour → side effects; examples; request → query params → projectsIds.
+      tags:
+      - Projects
+      parameters:
+      - name: projectsIds
+        in: query
+        required: true
+        schema:
+          type: string
+        description: |-
+          Comma-separated project IDs. All are parsed before any write (a non-integer entry fails the call with 500 before anything changes); unknown IDs are skipped. Omitted → 405 (captured).
+
+          Several values: one string, separated by `,`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectResourcePlannerAdditionUpdate.update'
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`).
+
+            Empty result: Not applicable: the answer never has Entities.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/ProjectsBulkUpdateResultRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token, once the action matched.
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '405':
+          description: '- The route matched, but no action for this HTTP method accepted the request. Observed when a DELETE
+            that needs required (non-nullable) query parameters is sent without them: the versioning layer reports it as an
+            unsupported version / method, although the method is listed in the Allow header. It is a missing-parameter error
+            that looks like a 405. Returned before authentication (also without a token). — When: projectsIds omitted — also
+            without a token (captured, every scenario).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: projectsIds omitted
+                  value:
+                    code: UnsupportedApiVersion
+                    error: No route providing a controller name with API version '2' was found to match HTTP method 'PUT'
+                      and request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/projects/resource-planner'.
+                    traceId: …
+                    type: https://docs.api-versioning.org/problems#unsupported
+                    title: Unsupported API version
+                    status: 405
+                    detail: The requested resource with API version '2' does not support HTTP method 'PUT'.
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.projectmanagement.searchprojects.updateprojectsresourceplanneradditionstatus
+  /v2/projects/stage:
+    put:
+      operationId: updateProjectsStagesV2
+      summary: Move several projects to a project stage
+      description: |-
+        Sets the current project stage of every listed project, one project after another.
+
+        Project stages are a tenant-configured, ordered sequence (e.g. Initiation, Planning, Execution & Controlling, Closing). For each project: the chosen stage gets Date (or keeps its date when the project is already in that stage, else today), every LATER stage's date is cleared, the dates are normalised by the stage date rule, and the project's current stage is re-derived. Answers 200 with an empty TAF list whose Properties.UpdatedProjectsCount is the number of IDs processed. The first invalid project or stage aborts with 500 and earlier projects keep the new stage. Stage 0 / clearing is not possible. The ProjectStage feature is not checked here.
+
+        **Use it to:**
+        - Move a batch of projects to the next lifecycle stage from a portfolio tool
+
+        **Behaviour:**
+        - Idempotent.
+        - The same stage again keeps its existing date when Date is omitted; with Date, the date is re-set and later stages cleared again.
+        - Safe to retry.
+        - Side effect: Per project: stage-unit dates saved (chosen stage set, later stages cleared, date rule applied); the project's current stage re-derived.
+        - Side effect: ProjectStagesChanged event (audit log) when the project's stage actually changes.
+        - On failure: Projects before the failing one keep the new stage.
+        - Changes are visible to the next read immediately.
+        - Batch: Sequential, no transaction, no per-item result.
+
+        **Call first:** `GET /v2/projects/actions`, `GET /v2/projects`
+
+        > **Not yet documented:** behaviour → events emitted; examples.
+      tags:
+      - Projects
+      parameters:
+      - name: projectsIds
+        in: query
+        required: true
+        schema:
+          type: string
+        description: |-
+          Comma-separated project IDs, processed in order. Omitted → 405 (captured). Unknown / <= 0 ID or non-integer entry → 500 after earlier entries were applied.
+
+          Several values: one string, separated by `,`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectStageUpdate.update'
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`).
+
+            Empty result: Not applicable: the answer never has Entities.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/ProjectsBulkUpdateResultRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: Stage negative. —
+            Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token, once the action matched.
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '405':
+          description: '- The route matched, but no action for this HTTP method accepted the request. Observed when a DELETE
+            that needs required (non-nullable) query parameters is sent without them: the versioning layer reports it as an
+            unsupported version / method, although the method is listed in the Allow header. It is a missing-parameter error
+            that looks like a 405. Returned before authentication (also without a token). — When: projectsIds omitted — also
+            without a token (captured, every scenario).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: projectsIds omitted
+                  value:
+                    code: UnsupportedApiVersion
+                    error: No route providing a controller name with API version '2' was found to match HTTP method 'PUT'
+                      and request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/projects/stage'.
+                    traceId: …
+                    type: https://docs.api-versioning.org/problems#unsupported
+                    title: Unsupported API version
+                    status: 405
+                    detail: The requested resource with API version '2' does not support HTTP method 'PUT'.
+        '500':
+          description: |-
+            - **Code 100** — A projectsIds entry is <= 0 or not a project, or Stage is 0 / not an existing project stage. Raised per project inside the loop: earlier projects keep their new stage. — When: Unknown / <= 0 project, Stage 0 or unknown stage; earlier projects stay changed. — Fix: Send existing project IDs and a Stage from GET /v2/projects/actions (ChangeStageTo).
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.projectmanagement.searchprojects.updateprojectsstage
+  /v2/projects/status:
+    put:
+      operationId: updateProjectsStatusV2
+      summary: Change the status of several projects
+      description: |-
+        Moves every listed project to one status (Quote … Cancelled), one project after another.
+
+        For each ID in projectsIds, in the order given: loads the project, changes its status with TimeLog's status processing and saves it. InProgress opens the project for time registration; OnHold / Completed / Archived / Cancelled close it; Quote / Approved keep the project's current flag. Completed, Archived and Cancelled also mark every open milestone completed and move every open contract to Completed (Cancelled for Cancelled) — reopening later does NOT reopen contracts. Answers 200 with an empty TAF list whose Properties.UpdatedProjectsCount is the number of IDs processed. The first failing project aborts the call with 500 and the earlier projects KEEP their new status; there is no per-project result. Always send Status: {} moves every listed project to Quote.
+
+        **Use it to:**
+        - Close a batch of finished projects (Completed / Archived) from a portfolio tool
+
+        **Not for:**
+        - Opening a Quote / Approved project for time registration — this route keeps the current flag; use `PUT /v1/project/{projectID}/status` (AllowTimeTracking)
+
+        **Rules across fields:**
+        - R1: When the projectsIds string is exactly one character long (a single project 1–9), Date is replaced by today.
+
+        **Behaviour:**
+        - Idempotent.
+        - Same status again re-applies it: status date reset, ProjectStatusChanged raised again, project re-saved.
+        - Safe to retry only under a condition. After a 500 re-send the whole list: projects already moved are re-applied harmlessly; closing statuses never reopen contracts, so a retry cannot undo the cascade.
+        - Side effect: Per project: status units / status date written and the status stored, OpenForTimeRegistration set by status.
+        - Side effect: Completed / Archived / Cancelled: open milestones completed, every open contract moved to Completed / Cancelled.
+        - On failure: Projects before the failing one keep their new status; within the failing project the status may already be written before the save fails.
+        - Changes are visible to the next read immediately.
+        - Batch: Sequential, no transaction, no per-item result: the first failure aborts the rest with 500 and gives no indication which projects were already changed.
+
+        **Call first:** `GET /v2/projects`, `GET /v2/projects/actions`
+
+        **See also:** `PUT /v1/project/{projectID}/status`
+
+        > **Not yet documented:** errors; examples.
+      tags:
+      - Projects
+      parameters:
+      - name: projectsIds
+        in: query
+        required: true
+        schema:
+          type: string
+        description: |-
+          Comma-separated project IDs, processed in order; duplicates are processed (and counted) twice. Omitted → 405 (captured). A non-integer entry → 500 after the entries before it were applied.
+
+          Several values: one string, separated by `,`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectStatusUpdateV2.update'
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`).
+
+            Empty result: Not applicable: the answer never has Entities.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/ProjectsBulkUpdateResultRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: Status outside 0–6.
+            — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token, once the action matched.
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '405':
+          description: '- The route matched, but no action for this HTTP method accepted the request. Observed when a DELETE
+            that needs required (non-nullable) query parameters is sent without them: the versioning layer reports it as an
+            unsupported version / method, although the method is listed in the Allow header. It is a missing-parameter error
+            that looks like a 405. Returned before authentication (also without a token). — When: projectsIds omitted — also
+            without a token (captured, every scenario).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: projectsIds omitted
+                  value:
+                    code: UnsupportedApiVersion
+                    error: No route providing a controller name with API version '2' was found to match HTTP method 'PUT'
+                      and request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/projects/status'.
+                    traceId: …
+                    type: https://docs.api-versioning.org/problems#unsupported
+                    title: Unsupported API version
+                    status: 405
+                    detail: The requested resource with API version '2' does not support HTTP method 'PUT'.
+        '500':
+          description: |-
+            - **Code 37969** — ProjectStatus = 4 (Completed) while the project has a multi-customer (MCP) contract that uses the system customer. — When: Status 4 on a project with an MCP contract using the system customer; earlier projects stay changed. — Fix: Fix the MCP contract's customers before completing the project.
+
+            - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: Contract status-change or project save rules while processing a project; earlier projects stay changed.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.projectmanagement.searchprojects.updateprojectsstatus
+  /v2/projects/{projectId}/employee-allocation:
+    get:
+      operationId: employeeAllocationOnTask
+      summary: Get a user's allocation on a task
+      description: |-
+        Returns one user's allocation on one task — allocated and registered hours and the hourly rate it uses — or 204 when there is none.
+
+        Looks up the allocation of userId's employee on taskId. Found → 200 with a single EmployeeAllocationOnTaskRead: AllocationId, allocated hours, all hours registered on it (all dates), and the allocation's contract hourly rate (ID, name, amount) with the currency abbreviation of the PATH project. No allocation — or an allocation whose rate row is missing — answers 204 with no body. The caller's access is NOT checked.
+
+        **Use it to:**
+        - Show whether a person is already on a task and at which rate before re-planning
+
+        **Not for:**
+        - All allocations of a task → `GET /v1/task/{taskID}/allocation`
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/user`, `GET /v1/task`
+
+        **Next:** `PUT /v1/allocation/{allocationID}`
+
+        **See also:** `GET /v1/allocation/{allocationID}`, `GET /v2/projects/{projectId}/employee-unallocated`
+
+        > **Not yet documented:** examples.
+      tags:
+      - Projects
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: Project whose currency abbreviation is returned; only read when an allocation exists. Not checked against
+          taskId.
+      - name: taskId
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: The task. Omitted → 404 (captured).
+      - name: userId
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: The user. Unknown → 500 (src_only).
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). The allocation (TAF single: Properties = EmployeeAllocationOnTaskRead).
+
+            Empty result: 204 No Content.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/EmployeeAllocationOnTaskRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '204':
+          description: |-
+            Success without content: HTTP 204 with an empty body. No allocation of this user on this task (any lookup error is also mapped to 'none').
+
+            Empty result: 204 No Content.
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token, once the action matched.
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: taskId or userId omitted (captured: every scenario omitted both).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.projectmanagement.projects.employeeallocationontask
+  /v2/projects/{projectId}/employee-unallocated:
+    get:
+      operationId: unallocatedResourceLists
+      summary: Get the suggested rate for allocating a user to a task
+      description: |-
+        For a user not yet allocated to a task, returns the contract hourly rate TimeLog would assign and whether a rate can be chosen.
+
+        Returns at most ONE entity: when userId is an active user without an allocation on taskId (and not an inactive member of the project's resource group) and the task is neither Completed nor Cancelled, the rate TimeLog resolves for that employee on the task (task rate → contract team member → resource group → project standard rate → employee's standard rate by service → the contract's first rate), with its amount, the PATH project's currency abbreviation and IsShownHourlyRateDropDown. Otherwise an empty list. Resolving can CREATE a project-specific rate on the contract when the employee's service is missing. projectId is used only for the currency label and is not checked against the task. The caller's access is NOT checked.
+
+        **Use it to:**
+        - Pre-fill the hourly rate when allocating a person to a task
+
+        **Not for:**
+        - The rates a contract offers → `GET /v2/contract-hourly-rates/dropdown-content`
+
+        **Behaviour:**
+        - Idempotent.
+        - Same answer on repeat; but the first call may create a contract hourly rate; later calls find it.
+        - Safe to retry.
+        - Side effect: May CREATE a Project-type contract hourly rate on the task's contract (employee's standard rate, service missing on the contract) and notify its creation.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/user`, `GET /v1/task`
+
+        **Next:** `POST /v1/task/{taskID}/allocation`
+
+        **See also:** `GET /v2/projects/{projectId}/employee-allocation`, `GET /v2/contract-hourly-rates/dropdown-content`
+
+        > **Not yet documented:** examples.
+      tags:
+      - Projects
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: Project whose currency abbreviation is returned. Not checked against taskId. Unknown → 500 (src_only).
+      - name: taskId
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: The task. Omitted → 404 (captured); unknown → 500 (src_only).
+      - name: userId
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+          x-timelog-filter:
+            operators:
+            - eq
+        description: |-
+          The user. Unknown, inactive or already allocated → empty list.
+
+          Filters on `UnallocatedEmployeeRead.UserId` (eq).
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`).
+
+            Order: Not applicable (at most one entity).
+
+            Empty result: 200 with no Entities: user unknown / inactive / already allocated, or task Completed / Cancelled (src_only).
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/UnallocatedEmployeeRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token, once the action matched.
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: taskId or userId omitted (captured: every scenario omitted both).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.projectmanagement.projects.unallocatedresourcelists
+  /v2/projects/{projectId}/tasks-unallocated:
+    get:
+      operationId: unallocatedTasksLists
+      summary: List a project's tasks a user is not allocated to
+      description: |-
+        Returns up to 30 active tasks of a project that a user has no allocation on, optionally filtered by text.
+
+        Lists the project's active (Aktiv), non-recurring tasks on which the user has no allocation row — active or inactive — ordered by task tree order and WBS, at most 30 (fixed; no paging, no total). Task status is not filtered: completed or cancelled tasks still marked active are listed. searchText matches task name, task number or task type name (contains). Parent tasks are excluded unless isIncludeParentTask=true. An unknown userId returns every active task (no allocation can match). The caller's access to the project is NOT checked.
+
+        **Use it to:**
+        - Offer the tasks a person can still be allocated to
+
+        **Not for:**
+        - All tasks of a project → `GET /v1/task`
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/user`
+
+        **Next:** `POST /v1/task/{taskID}/allocation`
+
+        **See also:** `GET /v2/projects/{projectId}/employee-unallocated`
+
+        > **Not yet documented:** examples.
+      tags:
+      - Projects
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: 'The project (no route constraint: a non-integer value fails model binding). Unknown → empty list (src_only).'
+      - name: userId
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: 'The user whose allocations are excluded. Omitted → 404 action not matched (captured: every scenario
+          omitted it).'
+      - name: searchText
+        in: query
+        required: false
+        schema:
+          type: string
+          x-timelog-filter:
+            operators:
+            - contains
+        description: |-
+          Contains-match on task name, task number or task type name. Only '[' is escaped: '%' and '_' act as wildcards.
+
+          Filters on `UnallocatedTaskRead.TaskName` (contains).
+      - name: isIncludeParentTask
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          x-timelog-filter:
+            operators:
+            - eq
+        description: |-
+          true = also list parent tasks; false (default) = leaf tasks only.
+
+          Filters on `UnallocatedTaskRead.IsParent` (eq).
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`).
+
+            Order: Task sort order, then WBS.
+
+            Empty result: 200 with no Entities (src_only).
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/UnallocatedTaskRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: projectId / userId
+            not an integer (model binding; src_only). — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token, once the action matched.
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: userId omitted (captured).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.projectmanagement.projects.unallocatedtaskslists
+  /v2/projects/{projectId}/time-registrations:
+    get:
+      operationId: getProjectTimeRegistrationsV2
+      summary: List a project's time registrations
+      description: |-
+        Returns every time registration on a project — all employees, all dates — with hours, rate, amount, billability and invoicing state.
+
+        Runs the time-registration drill-down report for one project with no other filter and no date range: every registration on every task of the project, of every employee, ordered by date, task name, last change and ID, in one unpaged TAF list. List Properties: AdditionalCommentFieldName (the tenant's label of the additional text field, "" when that feature is off), TimeRegistrationsTotalActualHours and TimeRegistrationsTotalActualAmount (sums over the rows, en-GB number strings; the amount sum adds the rows' amounts as they are, in each row's Currency).
+
+        **Use it to:**
+        - Show who registered what on a project, and whether it is invoiced
+
+        **Not for:**
+        - Your own or a date-bounded list of registrations → `GET /v1/time-registration/{timeRegistrationID}` (scoped, paged)
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v2/projects`
+
+        **See also:** `GET /v1/time-registration/{timeRegistrationID}`
+
+        > **Not yet documented:** response → empty result.
+      tags:
+      - Projects
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: The project. Not an integer → 400; unknown, 0 or negative → 500.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`).
+
+            Order: Date, project name, task name, last modified, registration ID (ascending).
+
+            Empty result: 200 with no Entities and totals "0" for a project without registrations (src_only).
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/ProjectTimeRegistrationRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: projectId not an
+            integer (captured: Code 200 "The value ''not_an_integer'' is not valid for Int32."). — Fix: Fix every item listed
+            in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Unknown project
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'projectId: 99999999'
+                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/projects/99999999/time-registrations
+      x-timelog-key: rest.v2.projectmanagement.searchprojects.getprojecttimeregistrationsv2
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: |-
+        OAuth 2.0 bearer token, sent as `Authorization: Bearer <token>`. JWT and reference tokens are both accepted. The token must carry the required scope (default `tlp`).
+
+        The token's `sub` claim is the acting user. A token WITHOUT `sub` (client-credentials) acts as the system service user. If the `sub` user cannot log in (inactive, locked, deleted), the request is rejected with 401 — it is no longer let through without a user.
+
+        > **Not yet documented:** how to obtain a token.
+
+        > **Not yet documented:** token lifetime.
+  schemas:
+    ContractHourlyRateReadV2:
+      type: object
+      properties:
+        ContractHourlyRateID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            ID of the rate — the value for HourlyRateID on allocations / tasks.
+
+            Set by TimeLog.
+
+            Identifier of this object, unique per TimeLog site.
+        ProjectSubContractID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The contract the rate belongs to (the task's contract).
+
+            Set by TimeLog.
+
+            Refers to `ContractRead.ContractID`. Look up valid values with `GET /v1/contract`.
+        Name:
+          type: string
+          readOnly: true
+          description: |-
+            Display name of the rate; second sort key.
+
+            Set by TimeLog.
+        Amount:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Price per hour, in the currency of the rate's price group. First sort key (ascending).
+
+            Set by TimeLog.
+
+            Unit: currency of the rate's price group per hour (not returned)
+
+            Contains financial data.
+        Type:
+          type: string
+          enum:
+          - Standard
+          - Customer
+          - Project
+          x-enum-descriptions:
+          - Copied from the legal entity's standard price list (integer 1).
+          - Copied from a customer-specific price list (integer 2).
+          - Exists only on this contract — project-specific, not in any price list (integer 3).
+          readOnly: true
+          description: |-
+            Where the rate came from. Serialized as the member NAME.
+
+            Set by TimeLog.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `Standard` | Standard | Copied from the legal entity's standard price list (integer 1). |
+            | `Customer` | Customer | Copied from a customer-specific price list (integer 2). |
+            | `Project` | Project | Exists only on this contract — project-specific, not in any price list (integer 3). |
+      description: 'One hourly (sales) rate of a contract, as offered in the rate picker of an allocation: its ID, name, amount
+        and where it came from. Same business object as v1 ContractHourlyRateRead (see there for copy / indexation semantics),
+        reduced to the picker''s fields; no currency is returned.'
+    DropDownItemRead:
+      type: object
+      properties:
+        Name:
+          type: string
+          readOnly: true
+          description: 'The option''s label, ready to show (composition per operation: project or task name with its number).'
+        Value:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer ID of the entity the option stands for (ProjectID or TaskID — per operation).
+
+            Identifier of this object, unique per TimeLog site.
+        Items:
+          type:
+          - array
+          - 'null'
+          items:
+            $ref: '#/components/schemas/DropDownItemRead'
+          readOnly: true
+          description: |-
+            Child options of a tree dropdown (sub-tasks under their parent task). Omitted from the JSON when null (NullValueHandling.Ignore) — a leaf and every option of a flat dropdown carry no Items key.
+
+            Null: Absent = no children (leaf) or a flat dropdown.
+      description: A tree-shaped dropdown nests its child options in Items; a flat one never sets Items.
+    EmployeeAllocationOnTaskRead:
+      type: object
+      properties:
+        UserId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Echo of the userId query parameter.
+
+            Set by TimeLog.
+
+            Refers to `UserRead.UserID`.
+
+            Filterable via `userId` (eq).
+        AllocationId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            ID of the allocation — the AllocationID of the v1 allocation operations.
+
+            Set by TimeLog.
+
+            Identifier of this object, unique per TimeLog site.
+        AllocatedHours:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Hours allocated to the user on the task (Timer).
+
+            Set by TimeLog.
+
+            Unit: hours
+        RegisteredHours:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Sum of all time registrations on this allocation, all dates (0 when none).
+
+            Set by TimeLog.
+
+            Unit: hours
+        HourlyRateId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            ContractHourlyRateID the allocation prices its hours with.
+
+            Set by TimeLog.
+
+            Refers to `ContractHourlyRateReadV2.ContractHourlyRateID`. Look up valid values with `GET /v2/contract-hourly-rates/dropdown-content`.
+        HourlyRateName:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: |-
+            Name of that rate.
+
+            Set by TimeLog.
+        HourlyRateAmount:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Price per hour of that rate, in the rate's price-group currency.
+
+            Set by TimeLog.
+
+            Unit: currency of the rate's price group per hour
+
+            Contains financial data.
+        HourlyRateCurrencyAbb:
+          type: string
+          readOnly: true
+          description: |-
+            Currency abbreviation of the project given in the path.
+
+            Set by TimeLog.
+      description: 'One user''s allocation on one task: the allocated hours, the hours registered on it so far, and the contract
+        hourly rate it uses (name, amount, currency label).'
+    MessageError:
+      type: object
+      description: Body of 401 and some framework errors — not the ResponseError shape.
+      properties:
+        Message:
+          type: string
+    MilestoneRead:
+      type: object
+      properties:
+        MilestoneId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: false
+            id_format: int
+          description: |-
+            For a recurring milestone: the RecurringMilestoneInstanceID of this occurrence; otherwise the milestone's own ID. Send it with IsRecurring to PUT /v2/milestones/{id}/status — the two ID spaces overlap, so the pair identifies the milestone.
+
+            Set by TimeLog.
+
+            Identifier of this object, unique per TimeLog site.
+        ProjectId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The milestone's project (always an active, non-template project in this list).
+
+            Set by TimeLog.
+
+            Refers to `SearchProjectRead.ProjectId`.
+        ProjectName:
+          type: string
+          readOnly: true
+          description: |-
+            Project name.
+
+            Set by TimeLog.
+        ProjectNo:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: |-
+            Project number (KontraktNr).
+
+            Set by TimeLog.
+        ProjectNameFormatted:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: |-
+            Ready-to-show project label: "<number> <name>" when the tenant's ProjectNumber feature is on, otherwise "<name> (<number>)".
+
+            Set by TimeLog.
+        DueDate:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            Due date of the milestone (of the instance, for recurring ones). Sort key, ascending.
+
+            Set by TimeLog.
+
+            Date only — no time component.
+
+            Filterable via `dueDate` (lte).
+        EmployeeId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Employee ID (not user ID) responsible for the milestone — always the caller's employee in this list.
+
+            Set by TimeLog.
+
+            Reference to another object.
+        Name:
+          type: string
+          readOnly: true
+          description: |-
+            Milestone text.
+
+            Set by TimeLog.
+        IsCompleted:
+          type: boolean
+          readOnly: true
+          description: |-
+            Completion flag — always false in this list (only incomplete milestones are returned).
+
+            Set by TimeLog.
+        IsRecurring:
+          type: boolean
+          readOnly: true
+          description: |-
+            true = MilestoneId is a recurring-instance ID. Pass it unchanged as isRecurring to the status update.
+
+            Set by TimeLog.
+        Wbs:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: |-
+            The milestone's WBS number.
+
+            Set by TimeLog.
+        'No':
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: |-
+            Milestone number; omitted from the JSON when empty (adapter maps "" to null, NullValueHandling.Ignore).
+
+            Set by TimeLog.
+        MilestoneTypeId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            ID of the milestone type (tenant-defined list).
+
+            Set by TimeLog.
+
+            Reference to another object.
+        DepartmentId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Department stored on the milestone (or instance) — the responsible department.
+
+            Set by TimeLog.
+
+            Reference to another object.
+      description: A project milestone (a dated checkpoint on a project, optionally recurring) that an employee is responsible
+        for. For a recurring milestone each occurrence is its own instance; the list returns instances, never the recurring
+        template.
+    MoveHoursRead:
+      type: object
+      properties:
+        Id:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: unknown
+            id_format: guid
+          description: |-
+            The time registration's GUID — the ID of the registration in REST v1 time-registration operations. Not accepted by the move / split routes (they take TimeRegistrationId).
+
+            Set by TimeLog.
+
+            Alternate key, unique per TimeLog site.
+
+            > **Not yet documented:** identity → uniqueness enforced.
+        TimeRegistrationId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer ID of the time registration — the value to send in timeRegistrationIds (move) and in the split route.
+
+            Set by TimeLog.
+
+            Identifier of this object, unique per TimeLog site.
+
+            - The registration is split (POST …/{timeRegistrationId}/split) — The original row is deleted and two NEW registrations with new IDs are created; this ID no longer exists.
+        Date:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            Registration date (midnight; the day the hours belong to).
+
+            Set by TimeLog.
+
+            Date only — no time component.
+
+            Filterable via `periodStartsAt / periodEndsAt` (between).
+        EmployeeInitials:
+          type: string
+          readOnly: true
+          description: |-
+            Initials of the employee who owns the registration.
+
+            Set by TimeLog.
+
+            Contains personal data.
+        EmployeeName:
+          type: string
+          readOnly: true
+          description: |-
+            "First Last" of the employee who owns the registration. The employee filter (employeeIds) takes USER IDs.
+
+            Set by TimeLog.
+
+            Contains personal data.
+        ProjectId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The project the registration is currently on.
+
+            Set by TimeLog.
+
+            Refers to `SearchProjectRead.ProjectId`. Look up valid values with `GET /v2/adjustments/move-hours/projects`.
+
+            Filterable via `projectIds` (in).
+        ProjectName:
+          type: string
+          readOnly: true
+          description: |-
+            Project name.
+
+            Set by TimeLog.
+        ProjectNo:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: |-
+            Project number as stored; second sort key.
+
+            Set by TimeLog.
+        TaskId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The task the registration is currently on (the task of its allocation).
+
+            Set by TimeLog.
+
+            Refers to `TaskRead.TaskID`. Look up valid values with `GET /v2/adjustments/move-hours/projects/{projectId}/tasks`.
+        TaskName:
+          type: string
+          readOnly: true
+          description: |-
+            Task name (searchText matches it).
+
+            Set by TimeLog.
+        TaskFullName:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: |-
+            Task name including its parent path.
+
+            Set by TimeLog.
+        TaskNo:
+          type: string
+          readOnly: true
+          description: |-
+            Task number; "" when none.
+
+            Set by TimeLog.
+        Wbs:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: |-
+            The task's WBS number.
+
+            Set by TimeLog.
+        RegisteredHours:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Registered hours. The list property TotalRegisteredHours is their sum.
+
+            Set by TimeLog.
+
+            Unit: hours
+        InvoiceLineId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Invoice line the registration is on; 0 = not invoiced.
+
+            Set by TimeLog.
+
+            Reference to another object.
+        InvoiceId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Invoice of that line; 0 = not invoiced.
+
+            Set by TimeLog.
+
+            Reference to another object.
+        IsInvoiced:
+          type: boolean
+          readOnly: true
+          description: |-
+            Computed: InvoiceLineId != 0. An invoiced registration cannot be moved or split (the request answers 422).
+
+            Set by TimeLog.
+
+            Filterable via `hideUnmovableRegistrationsIds (with closed period)` (eq).
+        Comment:
+          type: string
+          readOnly: true
+          description: |-
+            The registration's comment (work-unit text); "" when none.
+
+            Set by TimeLog.
+        AdditionalText:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: |-
+            The additional text field (label in the list property AdditionalCommentFieldName); null when never set.
+
+            Set by TimeLog.
+        AccountingPeriodId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            ID of the CLOSED accounting period (status > 0) that contains the registration date; 0 = the date is in no closed period.
+
+            Set by TimeLog.
+
+            Reference to another object.
+        IsInClosedAccountingPeriod:
+          type: boolean
+          readOnly: true
+          description: |-
+            Computed: AccountingPeriodId != 0. A registration in a closed period cannot be moved or split (422).
+
+            Set by TimeLog.
+
+            Filterable via `hideUnmovableRegistrationsIds (with invoiced)` (eq).
+      description: 'A project time registration as the move-hours tool shows it: who registered how many hours on which task
+        of which project on which date, with its comment, and whether it can still be moved — IsInvoiced (it is on an invoice
+        line) and IsInClosedAccountingPeriod (its date falls in a closed accounting period). TimeRegistrationId is the integer
+        ID the move and split operations take.'
+    MoveHoursUpdate.update:
+      type: object
+      properties:
+        TargetTaskId:
+          type: integer
+          format: int32
+          writeOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The task to move the registrations to — any task of any project; the registration's employee is allocated to it automatically when not yet allocated. The task must be open, not a parent task, and on a project that is neither Cancelled nor Archived (checked per registration; a violation is reported per ID in the 422 array).
+
+            Refers to `TaskRead.TaskID`. Look up valid values with `GET /v2/adjustments/move-hours/projects/{projectId}/tasks`.
+
+            - Omitted or 0 / negative — Validator GreaterThan(0) — 400 Invalid model state (src_only).
+
+            Valid values come from `GET /v2/adjustments/move-hours/projects/{projectId}/tasks`.
+      required:
+      - TargetTaskId
+      description: 'The target of a move: the task every listed time registration is moved to.'
+    ProjectActionRead:
+      type: object
+      properties:
+        Name:
+          type: string
+          readOnly: true
+          description: |-
+            Code name of the action or group, NOT translated. Top level: DeleteAction (item), ChangeStatusTo, ChangeStageTo, ResourcePlanner (groups). Inside ChangeStatusTo: the OrderStatus names Quote … Cancelled. Inside ChangeStageTo: the tenant's stage NAMES as configured (e.g. "Planning", captured). Inside ResourcePlanner: EnableResourcePlanner, DisableResourcePlanner.
+
+            Set by TimeLog.
+        Uri:
+          type: string
+          x-timelog-condition: Present on status / stage / resource-planner items only; absent on groups and on DeleteAction.
+          readOnly: true
+          description: |-
+            Relative path under /v2/projects/ to PUT to: "status", "stage" or "resource-planner". The projectsIds query parameter is not part of it.
+
+            **Conditional.** Present on status / stage / resource-planner items only; absent on groups and on DeleteAction.
+        Body:
+          type: object
+          x-timelog-condition: Present on items that have a Uri.
+          readOnly: true
+          description: |-
+            The request body to send to Uri, ready-made: {"Status": n} (ProjectStatusUpdateV2, Date omitted), {"Stage": id} (ProjectStageUpdate, Date omitted) or {"IsAddingToResourcePlanner": true|false} (ProjectResourcePlannerAdditionUpdate).
+
+            **Conditional.** Present on items that have a Uri.
+
+            - Uri = status — Shape ProjectStatusUpdateV2.
+
+            - Uri = stage — Shape ProjectStageUpdate.
+
+            - Uri = resource-planner — Shape ProjectResourcePlannerAdditionUpdate.
+        Actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectActionRead'
+          x-timelog-condition: Groups only (ChangeStatusTo, ChangeStageTo, ResourcePlanner).
+          readOnly: true
+          description: |-
+            The items of the group, in code order.
+
+            **Conditional.** Groups only (ChangeStatusTo, ChangeStageTo, ResourcePlanner).
+      description: One bulk action of the project list, or a group of them. An item says which /v2/projects/{Uri} endpoint
+        to PUT and the exact body to send; a group (ChangeStatusTo, ChangeStageTo, ResourcePlanner) holds the items.
+    ProjectResourcePlannerAdditionUpdate.update:
+      type: object
+      properties:
+        IsAddingToResourcePlanner:
+          type: boolean
+          writeOnly: true
+          description: |-
+            true = make the projects available in the Resource Planner (IsAvailableInResourcePlanner on); false = take them out. Non-nullable: omitted = false, and the NotNull rule cannot fail — {} takes every listed project OUT of the Resource Planner.
+
+            Default: false — removes the projects (see description)
+
+            - The project already has the requested value — Skipped: no write, no event, not counted in UpdatedProjectsCount.
+
+            - Omitted — false.
+      description: Whether the listed projects should be available in the (new) Resource Planner.
+    ProjectStageUpdate.update:
+      type: object
+      properties:
+        Stage:
+          type: integer
+          format: int32
+          writeOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The project stage ID (one of the tenant's project stages; the stage items of GET /v2/projects/actions carry them). Non-nullable: an omitted Stage is 0 → 500.
+
+            Refers to `ProjectStageID`. Look up valid values with `GET /v2/projects/actions`.
+
+            - Negative — 400 (validator GreaterThanOrEqualTo(0)).
+
+            - A valid stage — The stage's date is set; every LATER stage's date is cleared; the dates are then normalised by the stage date rule.
+
+            Valid values come from `GET /v2/projects/actions`.
+        Date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          writeOnly: true
+          description: |-
+            Date for the stage. When omitted: the stage's existing date if the project is already in that stage, otherwise today.
+
+            Date only — no time component.
+
+            Default: existing date when the stage is unchanged, else today
+
+            > **Not yet documented:** constraints → timezone.
+      required:
+      - Stage
+      description: The project stage to move every listed project to, and optionally the stage date.
+    ProjectStatusUpdateV2.update:
+      type: object
+      properties:
+        Status:
+          type: integer
+          format: int32
+          enum:
+          - 0
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
+          x-enum-descriptions:
+          - Quote. Time registration keeps the project's current open/closed flag.
+          - Approved. Time registration keeps the project's current open/closed flag.
+          - In progress. Opens the project for time registration.
+          - On hold. Closes the project for time registration.
+          - Completed. Closes time registration, completes open milestones, moves every open contract to Completed. Refused
+            (37969) when a multi-customer contract uses the system customer.
+          - Archived. Closes time registration, completes open milestones, moves every open contract to Completed.
+          - Cancelled. Closes time registration, completes open milestones, moves every open contract to Cancelled.
+          writeOnly: true
+          description: |-
+            The new status, as the OrderStatus integer. Non-nullable: when omitted it arrives as 0 and is APPLIED — {} moves every listed project to Quote.
+
+            - Not one of 0–6 — 400 "Status must be 0 = Quote or 1 = Approved or 2 = InProgress or 3 = OnHold or 4 = Completed or 5 = Archived or 6 = Cancelled."
+
+            - Omitted — 0 = Quote is applied.
+
+            - Quote or Approved — OpenForTimeRegistration is left as the project had it (the controller passes the project's own flag).
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | Quote | Quote. Time registration keeps the project's current open/closed flag. |
+            | `1` | Approved | Approved. Time registration keeps the project's current open/closed flag. |
+            | `2` | InProgress | In progress. Opens the project for time registration. |
+            | `3` | OnHold | On hold. Closes the project for time registration. |
+            | `4` | Completed | Completed. Closes time registration, completes open milestones, moves every open contract to Completed. Refused (37969) when a multi-customer contract uses the system customer. |
+            | `5` | Archived | Archived. Closes time registration, completes open milestones, moves every open contract to Completed. |
+            | `6` | Cancelled | Cancelled. Closes time registration, completes open milestones, moves every open contract to Cancelled. |
+        Date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          writeOnly: true
+          description: |-
+            Status date to record (date part only). When omitted: the date already stored for that status, or today (ProjectStatusUnitRule).
+
+            Date only — no time component.
+
+            Default: the status's existing date, else today
+
+            - projectsIds has exactly one character — Replaced by today's date.
+
+            - Time part sent — statusDate.Value.Date keeps the date only.
+      description: The target project status for every listed project, and optionally the status date.
+    ProjectTimeRegistrationRead:
+      type: object
+      properties:
+        TimeRegistrationId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            id_format: int
+          description: |-
+            TimeLog time registration ID — the ID REST v1 /v1/time-registration takes.
+
+            Set by TimeLog.
+
+            Identifier of this object, unique per TimeLog site.
+        Date:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            The registration date, a calendar date serialized with a zero time and no offset, e.g. "2019-06-17T00:00:00" (captured). First sort key.
+
+            Set by TimeLog.
+
+            Date only — no time component.
+        ProjectName:
+          type: string
+          readOnly: true
+          description: |-
+            Name of the project (the same on every row).
+
+            Set by TimeLog.
+        TaskName:
+          type: string
+          readOnly: true
+          description: |-
+            Name of the task the registration is on.
+
+            Set by TimeLog.
+        EmployeeInitials:
+          type: string
+          readOnly: true
+          description: |-
+            Initials of the employee who owns the registration.
+
+            Set by TimeLog.
+
+            Contains personal data.
+        EmployeeName:
+          type: string
+          readOnly: true
+          description: |-
+            "<first name> <last name>" of the employee.
+
+            Set by TimeLog.
+
+            Contains personal data.
+        Comment:
+          type: string
+          readOnly: true
+          description: |-
+            The registration comment; "" when empty.
+
+            Set by TimeLog.
+
+            Contains personal data.
+        AdditionalText:
+          type: string
+          readOnly: true
+          description: |-
+            The registration's additional text field; its tenant label is returned as the list property AdditionalCommentFieldName.
+
+            Set by TimeLog.
+        Currency:
+          type: string
+          readOnly: true
+          description: |-
+            Currency abbreviation of the registration, e.g. "EUR" (captured). ActualAmount is in this currency.
+
+            Set by TimeLog.
+        ActualHours:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Registered quantity — decimal hours, e.g. 0.2 (captured).
+
+            Set by TimeLog.
+
+            Unit: hours
+        HourlyRate:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            The registration's rate. Which currency RegRate is stored in is not established.
+
+            Set by TimeLog.
+
+            Unit: currency (unknown — see gaps)
+
+            Contains financial data.
+
+            > **Not yet documented:** constraints → unit.
+        Factor:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Billable factor in percent.
+
+            Set by TimeLog.
+
+            Unit: percent
+        ActualAmount:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Registered amount in the registration's currency, e.g. 6250 for 5 h × 1250 (captured).
+
+            Set by TimeLog.
+
+            Unit: currency of the Currency field
+
+            Contains financial data.
+        NonBillable:
+          type: boolean
+          readOnly: true
+          description: |-
+            true when the registration is flagged non-billable.
+
+            Set by TimeLog.
+        BillableStatus:
+          type: string
+          enum:
+          - NonBillableRegistrationOnBillableTaskWithZeroHourlyRate
+          - BillableRegistrationOnNonBillableTask
+          - NonBillableRegistrationOnNonBillableTask
+          - BillableRegistrationOnBillableTask
+          - NonBillableRegistrationOnBillableTask
+          x-enum-descriptions:
+          - Billable task; the registration is non-billable and its amount is 0.
+          - Non-billable task; the registration is billable (NonBillable = 0).
+          - Non-billable task; the registration is non-billable.
+          - Billable task; every case not covered by -3 or 2 (captured).
+          - Billable task; the adjusted (billable) amount is 0 while the registered amount is > 0 — written off.
+          readOnly: true
+          description: |-
+            Set by TimeLog.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `-3` | NonBillableRegistrationOnBillableTaskWithZeroHourlyRate | Billable task; the registration is non-billable and its amount is 0. |
+            | `-2` | BillableRegistrationOnNonBillableTask | Non-billable task; the registration is billable (NonBillable = 0). |
+            | `-1` | NonBillableRegistrationOnNonBillableTask | Non-billable task; the registration is non-billable. |
+            | `1` | BillableRegistrationOnBillableTask | Billable task; every case not covered by -3 or 2 (captured). |
+            | `2` | NonBillableRegistrationOnBillableTask | Billable task; the adjusted (billable) amount is 0 while the registered amount is > 0 — written off. |
+        BookingStatus:
+          type: string
+          enum:
+          - Booked
+          - Drafted
+          - NotBooked
+          x-enum-descriptions:
+          - On an invoice line (RegInvoiceLineId > 0) of a booked invoice or voucher (BookedInvoiceId / BookedVoucherId >
+            0).
+          - On an invoice line of a draft invoice or voucher, not booked.
+          - Not on an invoice line (or a non-billable registration with status 0).
+          readOnly: true
+          description: |-
+            Invoicing state, computed in the API from the invoice links: Booked when the registration is on an invoice line and that invoice / voucher is booked, Drafted when it is on a draft one, otherwise NotBooked. A non-billable registration with status 0 is always NotBooked. Serialized as the member NAME.
+
+            Set by TimeLog.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | Booked | On an invoice line (RegInvoiceLineId > 0) of a booked invoice or voucher (BookedInvoiceId / BookedVoucherId > 0). |
+            | `1` | Drafted | On an invoice line of a draft invoice or voucher, not booked. |
+            | `2` | NotBooked | Not on an invoice line (or a non-billable registration with status 0). |
+        BookedVoucherId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            ID of a booked voucher (invoice type 4, status > 0) that contains the registration; 0 when none.
+
+            Set by TimeLog.
+
+            Refers to `InvoiceID`.
+        BookedInvoiceId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            ID of a booked invoice (type <= 2, status > 0, creditable) that contains the registration; 0 when none.
+
+            Set by TimeLog.
+
+            Refers to `InvoiceID`.
+        DraftVoucherId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            ID of a draft voucher (type 4, status 0) that contains the registration; 0 when none.
+
+            Set by TimeLog.
+
+            Refers to `InvoiceID`.
+        DraftInvoiceId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            ID of a draft invoice (type <= 2, status 0) that contains the registration; 0 when none.
+
+            Set by TimeLog.
+
+            Refers to `InvoiceID`.
+        RegInvoiceLineId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The invoice line the registration is on; 0 when none.
+
+            Set by TimeLog.
+
+            Refers to `InvoiceLineID`.
+      description: 'One time registration on a project, as shown in the project''s registration drill-down: date, task, employee,
+        hours, rate, amount, billability and invoicing (booking) state. Delivered as the Properties of a TAF list entity.'
+    ProjectsBulkUpdateResultRead:
+      type: object
+      properties:
+        UpdatedProjectsCount:
+          type: string
+          readOnly: true
+          description: |-
+            An integer written as a STRING. status / stage: number of IDs processed (duplicates counted twice). resource-planner: number of projects whose flag actually changed (already-matching and unknown IDs not counted).
+
+            Set by TimeLog.
+
+            - PUT /v2/projects/status or /stage — Incremented once per processed ID.
+
+            - PUT /v2/projects/resource-planner — Incremented only when the flag was changed.
+      description: How many projects a /v2/projects bulk write processed or changed.
+    ResponseError:
+      type: object
+      description: Error body for validation (400), privilege (403), business-rule (422/500) and other server errors. `Details`
+        lists strings for validation errors, or `{ErrorCode, Message}` objects for business-rule violations. `Parameters`
+        echoes the request arguments, including the full payload.
+      properties:
+        Code:
+          type: integer
+          description: 'TimeLog error class (not the HTTP status): 100 unexpected, 102 business rule, 103 privilege, 200 validation.'
+        Message:
+          type: string
+        Details:
+          type: array
+          items: {}
+        Parameters:
+          type:
+          - string
+          - object
+          - 'null'
+        Url:
+          type: string
+    SearchProjectRead:
+      type: object
+      properties:
+        Id:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            id_format: guid
+          description: |-
+            The project GUID.
+
+            Set by TimeLog.
+
+            Alternate key, unique per TimeLog site.
+        ProjectId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            id_format: int
+          description: |-
+            TimeLog project ID — the projectId / projectsIds the other /v2/projects operations and the v1 project endpoints take.
+
+            Set by TimeLog.
+
+            Identifier of this object, unique per TimeLog site.
+        Name:
+          type: string
+          readOnly: true
+          description: |-
+            Project name. Matched by searchText. Second sort key.
+
+            Set by TimeLog.
+        'No':
+          type: string
+          readOnly: true
+          description: |-
+            Project number; "" when the project has none (captured). Matched by searchText. First sort key, so projects without a number come first.
+
+            Set by TimeLog.
+        CustomerId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The project's customer.
+
+            Set by TimeLog.
+
+            Refers to `CustomerRead.CustomerID`.
+
+            Filterable via `customerIds` (in).
+        CustomerName:
+          type: string
+          readOnly: true
+          description: |-
+            Customer name. Matched by searchText (as is the customer number, which is not returned).
+
+            Set by TimeLog.
+        CustomerOwnerId:
+          type: integer
+          format: int32
+          readOnly: true
+          description: Set by TimeLog.
+        LegalEntityId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The project's legal entity.
+
+            Set by TimeLog.
+
+            Refers to `LegalEntityID`.
+
+            Filterable via `legalEntityProjectIds` (in).
+        ContactId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The project's customer contact person; 0 when none.
+
+            Set by TimeLog.
+
+            Refers to `ContactID`.
+
+            Filterable via `contactIds` (in).
+        Description:
+          type: string
+          readOnly: true
+          description: |-
+            Project description. Matched by searchText.
+
+            Set by TimeLog.
+        DepartmentId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The project's (handling) department; 0 when none. The C# type is int? but the adapter always sets a number.
+
+            Set by TimeLog.
+
+            Refers to `DepartmentID`.
+
+            Filterable via `projectDepartmentIds` (in).
+        ProjectManagerId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The project manager's EMPLOYEE ID, 0 when none — not the user ID REST v1 uses.
+
+            Set by TimeLog.
+
+            Refers to `EmployeeID`.
+
+            Filterable via `projectManagerIds` (in).
+        ProjectManagerName:
+          type: string
+          readOnly: true
+          description: |-
+            First name + space + last name of the project manager; "" when none.
+
+            Set by TimeLog.
+
+            Contains personal data.
+        ProjectManagerInitials:
+          type: string
+          readOnly: true
+          description: |-
+            Initials of the project manager.
+
+            Set by TimeLog.
+
+            Contains personal data.
+        AccountManagerId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The account manager's EMPLOYEE ID; 0 when none.
+
+            Set by TimeLog.
+
+            Refers to `EmployeeID`.
+
+            Filterable via `accountManagerIds` (in).
+        AccountManagerName:
+          type: string
+          readOnly: true
+          description: |-
+            Full name of the account manager; "" when none.
+
+            Set by TimeLog.
+
+            Contains personal data.
+        AccountManagerInitials:
+          type: string
+          readOnly: true
+          description: |-
+            Initials of the account manager.
+
+            Set by TimeLog.
+
+            Contains personal data.
+        PartnerId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The project partner; 0 when none.
+
+            Set by TimeLog.
+
+            Refers to `EmployeeID`.
+
+            Filterable via `partnerIds` (in).
+        ProjectTypeId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Project type; 0 when none.
+
+            Set by TimeLog.
+
+            Refers to `ProjectTypeRead.ProjectTypeID`. Look up valid values with `GET /v1/ProjectType`.
+
+            Filterable via `projectTypeIds` (in).
+
+            Valid values come from `GET /v1/ProjectType`.
+        ProjectTypeName:
+          type: string
+          readOnly: true
+          description: |-
+            Project type name; "" when none.
+
+            Set by TimeLog.
+        ProjectCategoryId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Project category; 0 when none.
+
+            Set by TimeLog.
+
+            Refers to `ProjectCategoryRead.ProjectCategoryID`. Look up valid values with `GET /v1/ProjectCategory`.
+
+            Filterable via `projectCategoryIds` (in).
+
+            Valid values come from `GET /v1/ProjectCategory`.
+        ProjectCategoryName:
+          type: string
+          readOnly: true
+          description: |-
+            Project category name; "" when none.
+
+            Set by TimeLog.
+        ProjectStageId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The project's current stage; 0 when none (captured). Set with PUT /v2/projects/stage.
+
+            Set by TimeLog.
+
+            Refers to `ProjectStageID`. Look up valid values with `GET /v2/projects/actions`.
+
+            Filterable via `projectStageIds` (in).
+
+            Valid values come from `GET /v2/projects/actions`.
+        ProjectStageName:
+          type: string
+          readOnly: true
+          description: |-
+            Stage name; "" when none.
+
+            Set by TimeLog.
+        BudgetWorkHours:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            The project's budgeted work hours.
+
+            Set by TimeLog.
+
+            Unit: hours
+        ProjectActualHours:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Sum of RegQuantity of every time registration on the project's tasks (all employees, all dates, any approval state).
+
+            Set by TimeLog.
+
+            Unit: hours
+        TasksBudgetHours:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Sum of the budget hours of every task of the project — parent and leaf tasks alike.
+
+            Set by TimeLog.
+
+            Unit: hours
+        AllocationsBudgetHours:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Sum of the allocated hours of every allocation on the project's tasks.
+
+            Set by TimeLog.
+
+            Unit: hours
+        StatusId:
+          type: integer
+          format: int32
+          enum:
+          - 0
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
+          x-enum-descriptions:
+          - Quote (offer stage).
+          - Approved; time registration open only if the project's own flag says so.
+          - In progress; open for time registration.
+          - On hold; closed for time registration.
+          - Completed; closed for time registration, contracts completed.
+          - Archived; closed for time registration, contracts completed.
+          - Cancelled; closed for time registration, contracts cancelled.
+          readOnly: true
+          description: |-
+            The project status as the OrderStatus integer 0–6. NOTE: the projectStatusIds filter does NOT take these values — it takes the page-filter codes (StatusId + 1) and groups.
+
+            Set by TimeLog.
+
+            Filterable via `projectStatusIds` (in).
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | Quote | Quote (offer stage). |
+            | `1` | Approved | Approved; time registration open only if the project's own flag says so. |
+            | `2` | InProgress | In progress; open for time registration. |
+            | `3` | OnHold | On hold; closed for time registration. |
+            | `4` | Completed | Completed; closed for time registration, contracts completed. |
+            | `5` | Archived | Archived; closed for time registration, contracts completed. |
+            | `6` | Cancelled | Cancelled; closed for time registration, contracts cancelled. |
+        StatusName:
+          type: string
+          readOnly: true
+          description: |-
+            The status name translated into the caller's language (OrderStatus resource text), e.g. "Approved" (captured, English tenant).
+
+            Set by TimeLog.
+        HasAccountingIssues:
+          type: boolean
+          readOnly: true
+          description: |-
+            true when at least one contract of the project has a pending booking issue.
+
+            Set by TimeLog.
+        Completion:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Computed in the API: floor(ProjectActualHours / BudgetWorkHours × 100); 100 when there is no budget but hours were registered; 0 when neither. Not capped at 100.
+
+            Set by TimeLog.
+
+            Unit: percent
+        ContractModels:
+          type: array
+          items: {}
+          readOnly: true
+          description: |-
+            The distinct ContractModelType values of the project's contracts, as STRINGS (e.g. ["1"], captured); [""] when the project has no contract. Model meanings: ContractModelRead.
+
+            Set by TimeLog.
+
+            Filterable via `contractModelIds` (in).
+
+            Valid values come from `GET /v1/ContractModel`.
+      description: 'A non-template project as listed on the project overview: identity, customer, people, classification,
+        stage and status, plus hour aggregates (task budgets, allocations, registered hours) and the contract models used.
+        Delivered as the Properties of a TAF list entity.'
+    TafAction:
+      type: object
+      description: A hypermedia action the caller may take on the object. Present only where the operation registers actions.
+    TafLink:
+      type: object
+      properties:
+        Href:
+          type: string
+        Rel:
+          type: string
+    TafListPaging:
+      type: object
+      description: 'Paging values. They are returned as STRINGS, for example `"TotalRecord": "12"`.'
+      properties:
+        TotalRecord:
+          type: string
+        TotalPage:
+          type: string
+        PageNumber:
+          type: string
+    UnallocatedEmployeeRead:
+      type: object
+      properties:
+        UserId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The user — echo of the userId query parameter.
+
+            Set by TimeLog.
+
+            Refers to `UserRead.UserID`.
+
+            Filterable via `userId` (eq).
+        SuggestedHourlyRateId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            ContractHourlyRateID TimeLog resolves for this employee on this task: the task's own rate, else (T&M contract or 'Allocated' rate model) the contract team member's rate, the resource-group rate, the project standard rate, the employee's standard rate matched by service, and finally the contract's first rate.
+
+            Set by TimeLog.
+
+            Refers to `ContractHourlyRateReadV2.ContractHourlyRateID`. Look up valid values with `GET /v2/contract-hourly-rates/dropdown-content`.
+        SuggestedHourlyRateName:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: |-
+            Name of that rate.
+
+            Set by TimeLog.
+        SuggestedHourlyRateAmount:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Price per hour of that rate, in the rate's own price-group currency.
+
+            Set by TimeLog.
+
+            Unit: currency of the rate's price group per hour
+
+            Contains financial data.
+        HourlyRateCurrencyAbb:
+          type: string
+          readOnly: true
+          description: |-
+            Currency abbreviation of the project given in the path.
+
+            Set by TimeLog.
+        IsShownHourlyRateDropDown:
+          type: boolean
+          readOnly: true
+          description: |-
+            false only for a fixed-price task with the Calculated hourly-rate model (unless the tenant is StarterPSA with Invoicing) — the rate is then not chosen per allocation.
+
+            Set by TimeLog.
+      description: 'The suggested hourly rate for allocating one (not yet allocated) user to a task: the contract hourly rate
+        TimeLog would pick for that employee on that task, its amount, and whether the UI should let the user choose another
+        rate.'
+    UnallocatedTaskRead:
+      type: object
+      properties:
+        TaskID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            The task's integer ID.
+
+            Set by TimeLog.
+
+            Identifier of this object, unique per TimeLog site.
+        TaskName:
+          type: string
+          readOnly: true
+          description: |-
+            Task name.
+
+            Set by TimeLog.
+        TaskFullName:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: |-
+            Task name including its parent path.
+
+            Set by TimeLog.
+        TaskNo:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: |-
+            Task number; null when none.
+
+            Set by TimeLog.
+        WBSNo:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: |-
+            WBS number; second sort key after the task tree order.
+
+            Set by TimeLog.
+        TaskStartDate:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            Planned start date of the task (Startdato).
+
+            Set by TimeLog.
+
+            Date only — no time component.
+
+            > **Not yet documented:** nullable.
+        TaskEndDate:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            Planned end date of the task (Slutdato).
+
+            Set by TimeLog.
+
+            Date only — no time component.
+        TaskBudgetHour:
+          type:
+          - number
+          - 'null'
+          format: double
+          readOnly: true
+          description: |-
+            The task's hour budget (BudgetTimer); null when none.
+
+            Set by TimeLog.
+
+            Unit: hours
+        IsParent:
+          type: boolean
+          readOnly: true
+          description: |-
+            true = the task has sub-tasks (time cannot be registered on it). Parent tasks are only returned with isIncludeParentTask=true.
+
+            Set by TimeLog.
+
+            Filterable via `isIncludeParentTask` (eq).
+      description: An active, non-recurring task of a project that a given user is NOT yet allocated to — a candidate for
+        "assign this person to a task". Carries the task's identity, position in the task tree, plan dates and hour budget.
+x-timelog-service: ProjectManagement
