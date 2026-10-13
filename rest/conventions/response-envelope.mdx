@@ -1,0 +1,232 @@
+---
+title: Response envelope
+description: How every TimeLog REST API response wraps its data in Properties, Entities, Links and Actions, and how to read it in client code.
+---
+
+## Overview
+
+Every successful TimeLog REST API response that carries data is wrapped in a **response envelope**.
+The envelope is modelled on the Siren hypermedia format. In TimeLog material you may also see it called the **TAF** envelope.
+
+There are two shapes, one for a single object and one for a list. A few operations return no envelope at all.
+v1 and v2 use the same envelope.
+
+Knowing the envelope matters because the object you asked for is never the top-level JSON value.
+It is always one level down, under `Properties` or inside `Entities`.
+
+All property names are PascalCase.
+
+## Single object
+
+A single object has up to three members:
+
+| Member | Contains |
+|---|---|
+| `Properties` | The object itself, for example a project or a time tracker. |
+| `Links` | Hypermedia links, including a `self` link to the object. |
+| `Actions` | Hypermedia hints for operations related to the object. Only present on some operations. |
+
+Example: `GET /v1/project/1` (abbreviated: some properties and all but one action removed for length).
+
+```json
+{
+  "Properties": {
+    "ProjectID": 1,
+    "ID": "551b2bd9-da0a-4ebd-8240-4ad0f540846b",
+    "Name": "Test project for Goggle I/O 2020 2020",
+    "No": "1",
+    "CustomerID": 667,
+    "Customer": null,
+    "DepartmentID": 7,
+    "ProjectManagerID": 1,
+    "AccountManagerID": null,
+    "StartDate": "2017-03-31T00:00:00",
+    "EndDate": "2020-08-24T00:00:00"
+  },
+  "Links": [
+    { "Href": "https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/project/1", "Rel": "self" }
+  ],
+  "Actions": [
+    {
+      "Name": "create-from-template",
+      "Title": "Create project from template",
+      "Method": "Post",
+      "Href": "https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/project/create-from-template"
+    }
+  ]
+}
+```
+
+## List
+
+A list has up to three members:
+
+| Member | Contains |
+|---|---|
+| `Properties` | List-level values. On paged lists: `TotalRecord`, `TotalPage` and `PageNumber`. |
+| `Entities` | The items. Each item has its own `Properties`, and may have its own `Links` and `Actions`. |
+| `Links` | A `self` link to the list. |
+
+Example: `GET /v1/project/get-all` (abbreviated: one of ten entities shown, some properties and the entity actions removed).
+
+```json
+{
+  "Properties": {
+    "TotalRecord": "310",
+    "TotalPage": "31",
+    "PageNumber": "1"
+  },
+  "Entities": [
+    {
+      "Properties": {
+        "ProjectID": 9,
+        "ID": "e8f759f7-5e82-4464-88b5-6c8535034be0",
+        "Name": "20200821",
+        "CustomerID": 667,
+        "DepartmentID": null,
+        "StartDate": "2020-08-21T10:16:04.543",
+        "EndDate": "2020-11-21T00:00:00"
+      },
+      "Links": [
+        { "Href": "https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/project/9", "Rel": "self" }
+      ]
+    }
+  ]
+}
+```
+
+Things to note in the list shape:
+
+- **Paging values are strings**, not numbers: `"TotalRecord": "310"`. Convert them before doing arithmetic.
+- **Not every list is paged.** Many lists return the complete result with no paging values in `Properties`, and some return no list-level `Properties` at all. See [Pagination](/rest/conventions/pagination).
+- **List-level `Properties` can carry other values.** A few operations put totals or labels there instead of, or next to, paging values. The operation's reference page lists them.
+
+Example of an unpaged list: `GET /v2/competences`. There is no list-level `Properties` member.
+
+```json
+{
+  "Entities": [
+    {
+      "Properties": {
+        "Id": 1,
+        "Name": "Frontend",
+        "GroupId": 1,
+        "GroupName": "Skills",
+        "IsActive": true,
+        "CanBeDeleted": true
+      }
+    }
+  ],
+  "Links": [
+    { "Href": "https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/competences", "Rel": "self" }
+  ]
+}
+```
+
+## Null and empty values
+
+The envelope leaves out members that have no value. It does not send them as `null` or `[]`.
+This is the most common source of client errors, so check for each member before reading it.
+
+| Situation | What you receive |
+|---|---|
+| A member of the envelope has no value | The member is omitted. |
+| An empty list | `Entities` is omitted, **not** sent as `[]`. |
+| An empty unpaged list | `{"Links": [self]}` only. |
+| An empty paged list | `Properties` with `"TotalRecord": "0"`, plus `Links` (and `Actions` where the operation has them). No `Entities`. |
+| A single-object result with no object | `{"Links": [self]}` only. No `Properties`. |
+
+The omission rule applies to the **envelope members only**.
+Inside `Properties`, a field without a value is normally sent as `null` (see `"Customer": null` in the project example above).
+
+Example of an empty paged list: `GET /v1/time-tracker` for a user with no time trackers (actions abbreviated).
+
+```json
+{
+  "Properties": { "TotalRecord": "0", "TotalPage": "0", "PageNumber": "1" },
+  "Links": [
+    { "Href": "https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/time-tracker", "Rel": "self" }
+  ],
+  "Actions": [
+    {
+      "Name": "add-item",
+      "Title": "Add Item",
+      "Method": "Post",
+      "Href": "https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/time-tracker",
+      "Type": "application/json"
+    }
+  ]
+}
+```
+
+## Responses without an envelope
+
+Some operations succeed without returning an object. They use one of two shapes, and the two are not interchangeable:
+
+| Shape | Status | Body |
+|---|---|---|
+| Success without content | `200 OK` | The literal JSON value `null` |
+| No content | `204 No Content` | Empty. There is nothing to parse. |
+
+A `200` with `null` is a valid JSON document, so a JSON parser returns `null`.
+A `204` has no body at all, so calling a JSON parser on it fails in most HTTP clients.
+Check the status code before you parse.
+
+Examples:
+
+- `GET /v1/time-tracker/active-time-tracker` and `GET /v2/time-tracker/active` return `200` with body `null` when the caller has no running time tracker. They do not return `404`.
+- `DELETE /v2/competences/{id}` returns `204` with an empty body.
+
+Each operation's reference page states which success shape it returns.
+
+## Links and Actions
+
+`Links` and `Actions` are hypermedia hints. They describe related resources and operations the client may want to call next.
+
+- Their presence does not guarantee the call will be permitted. The request is checked when you make it, and it can still be rejected.
+- Their absence does not mean an operation is unavailable. Not every operation returns `Actions`, and the set of actions can vary with the object (for example, with the type of a registration).
+- `Href` values are absolute URLs on your TimeLog site.
+
+In the captured examples, an action carries `Name`, `Title`, `Method` and `Href`. Some actions also carry `Type` and `Fields`.
+
+<Callout kind="alert">
+**Not yet documented.** The complete structure of an action object, including the contents of `Fields`, is not yet documented.
+</Callout>
+
+## v1 and v2
+
+v2 uses the same response envelope as v1: the same members, the same null and empty rules, and the same `200 null` and `204` shapes.
+
+The one difference inside the envelope is how enum values are written. v1 generally returns enums as integers; v2 generally returns them as name strings.
+See [Data types](/rest/conventions/data-types) for the details and exceptions.
+
+## How to read a response in client code
+
+The rules above reduce to four steps:
+
+1. Check the status code. On `204`, stop: there is no body. Error statuses use a different body, described in [Errors](/rest/errors).
+2. Parse the body. A `200` body can be `null`.
+3. For a single object, read `Properties`. If `Properties` is missing, there is no object.
+4. For a list, iterate `Entities[].Properties`. If `Entities` is missing, the list is empty.
+
+A generic sketch in JavaScript:
+
+```javascript
+// Returns the parsed body, or null for 204 / literal null.
+async function readBody(response) {
+  if (response.status === 204) return null;
+  return await response.json(); // may be null
+}
+
+// Single object: the object, or null when there is none.
+function unwrapSingle(body) {
+  return body && body.Properties ? body.Properties : null;
+}
+
+// List: always an array. A missing Entities member means an empty list.
+function unwrapList(body) {
+  return (body && body.Entities ? body.Entities : []).map((entity) => entity.Properties);
+}
+```
+
+Error handling is left out of this sketch. Handle non-success status codes before calling these helpers.

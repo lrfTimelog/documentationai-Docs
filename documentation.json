@@ -71,6 +71,17 @@
         "icon": "braces",
         "groups": [
           {
+            "group": "Conventions",
+            "icon": "ruler",
+            "pages": [
+              {
+                "title": "Response envelope",
+                "path": "rest/conventions/response-envelope",
+                "icon": "package"
+              }
+            ]
+          },
+          {
             "group": "API reference — v1",
             "icon": "book-open",
             "expandable": true,
