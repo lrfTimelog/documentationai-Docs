@@ -93,6 +93,11 @@
                 "title": "Writing data",
                 "path": "rest/conventions/writing-data",
                 "icon": "pencil"
+              },
+              {
+                "title": "Errors",
+                "path": "rest/errors",
+                "icon": "triangle-alert"
               }
             ]
           },
