@@ -1,0 +1,68 @@
+---
+title: REST API overview
+description: What the TimeLog REST API is, what you can do with it per service group, and where to start.
+---
+
+## What the REST API is
+
+The TimeLog REST API lets your integration read and change data in a TimeLog site with JSON requests over HTTPS.
+Every request carries a personal access token as a bearer token and acts as that token's TimeLog user.
+The API has two public versions, **v1** and **v2**, selected by a segment in the URL. Both versions share the same authentication, response envelope and error body.
+Every response that carries data wraps it in a response envelope: the object you asked for is under `Properties`, and list items are under `Entities`.
+
+TimeLog also offers a Transactional API (SOAP). It is a separate API and is not covered in this tab.
+
+<Callout kind="alert">**Not yet documented.** Guidance on choosing between the REST, Transactional and Reporting APIs is not yet available.</Callout>
+
+## What you can do
+
+The REST API is organised in service groups. Each group has its own section in **API reference — v1** and **API reference — v2** in the sidebar.
+The counts are the number of published operations per version.
+
+| Service group | What it covers | v1 | v2 |
+|---|---|---|---|
+| Time registrations | Register, read, change and delete time and absence registered by employees, and run the time tracker. | 25 | 2 |
+| Projects | Projects with their tasks, allocations, contracts and billing-plan instalments, project templates, and the project and task type lookups. In v2 also milestones, contract hourly rates and moving registered hours. | 75 | 16 |
+| Employees | v1: read where an employee's timesheet stands and submit it for approval, working norms, employee types and workload bookings. v2: the competence (skills) catalogue and employees' competence ratings. | 14 | 16 |
+| Expenses | Employee expenses with their receipts, project expenses, mileage registrations, and the lookups behind them: expense types, payment methods, mileage rates and products. In v2 also exchange rates. | 34 | 10 |
+| Customers | Create, read, search and change customers, create and list contacts, and read the customer status and industry value sets. | 14 | — |
+| Invoicing | Pricing data: contract hourly rates, price-list hourly rates, employee cost prices and payment terms. | 7 | — |
+| Salary and absence | Absence codes and registering your own absence, salary accounts and their balances, salary groups, allowance legislations and holiday calendars. | 12 | — |
+| Users and organisation | Read and create users and change their details, and read legal entities, departments and daily employee norms. In v2 the current user. | 11 | 1 |
+| Integrations | Register the external systems your external keys belong to, and record sync conflicts TimeLog cannot resolve on its own. | 7 | — |
+| Timesheet (time tracking items) | Read your own time registrations the way the timesheet shows them, including a weekly view, and mark favourites. | 5 | — |
+| Roles and privileges | List roles, add or remove a privilege on a role, and read your own data-scope privileges. | 4 | — |
+| Reference data and tenant settings | Countries, currencies and unit types, and the settings a client needs at start-up. | 4 | — |
+| Settings | Feature flags and typed settings, mileage cars and CRM barrier types. In v2 also the front page and per-user page settings. | 13 | 11 |
+| Global search | Search customers, contacts, projects, invoices and employees by prefix. | — | 3 |
+| Saved filter views | A user's named, saved filter selections per page of the TimeLog web app. | — | 4 |
+| Navigation (menus, bookmarks, pages, filters) | The menus, bookmarks, pages and filter definitions of the TimeLog web app. | — | 37 |
+| Dashboard widgets and reports | The data behind the front-page widgets, and a project report table. | — | 10 |
+| API root | The entry point of each version, with links to its resources. In v2 also a news feed. | 1 | 2 |
+| **Total** | | **226** | **112** |
+
+Global search, saved filter views, navigation and dashboard widgets return data shaped for the TimeLog web app. For most integrations, the groups at the top of the table are the ones you need.
+
+Most resources exist in one version only. To choose the version for an operation, see [Base URL and versioning](/rest/conventions/versioning#which-version-to-use).
+
+## Start here
+
+<Columns cols={2}>
+  <Card title="Get started" icon="rocket" href="/rest/quickstart">
+    Create your first time registration in six calls, from token to verified result.
+  </Card>
+  <Card title="Authentication" icon="key-round" href="/rest/authentication">
+    Get a personal access token, build your base URL and test the token.
+  </Card>
+  <Card title="Conventions" icon="ruler" href="/rest/conventions/versioning">
+    Versions, the response envelope, pagination, data types, writing data and errors.
+  </Card>
+  <Card title="Reference" icon="book-open" href="/rest/conventions/versioning#service-groups-per-version">
+    Every published operation, per service group, in **API reference — v1** and **API reference — v2** in the sidebar.
+  </Card>
+</Columns>
+
+## How this documentation is built
+
+This documentation is generated from a field-by-field review of the API source code.
+Anything that has not yet been verified is marked **Not yet documented** instead of being guessed.

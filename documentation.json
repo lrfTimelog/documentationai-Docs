@@ -75,6 +75,11 @@
             "icon": "rocket",
             "pages": [
               {
+                "title": "Overview",
+                "path": "rest/overview",
+                "icon": "compass"
+              },
+              {
                 "title": "Your first time registration",
                 "path": "rest/quickstart",
                 "icon": "clock"
