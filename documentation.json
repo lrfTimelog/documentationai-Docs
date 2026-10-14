@@ -1,5 +1,7 @@
 {
-  "name": "Timelog",
+  "name": "TimeLog",
+  "logo-light": "https://timelog.com/hubfs/timelog-logo-2023.png",
+  "logo-dark": "https://timelog.com/hubfs/timelog-logo-2023.png",
   "colors": {
     "light": {
       "brand": "#e84895"
