@@ -88,6 +88,11 @@
                 "title": "Data types",
                 "path": "rest/conventions/data-types",
                 "icon": "binary"
+              },
+              {
+                "title": "Writing data",
+                "path": "rest/conventions/writing-data",
+                "icon": "pencil"
               }
             ]
           },
