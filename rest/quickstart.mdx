@@ -1,0 +1,233 @@
+---
+title: "Get started: your first time registration"
+description: Authenticate, find a task, create a time registration, read it back and clean up, using the TimeLog REST API and curl.
+---
+
+## Overview
+
+This guide takes you from a token to a verified time registration in six calls:
+
+1. Get a token and build the base URL.
+2. `GET /v1/user/me` to confirm the token and read your `UserID`.
+3. `GET /v1/task/search-for-time-tracking` to find a task you can register on.
+4. `POST /v1/time-registration` to create the registration.
+5. `GET /v1/time-registration/{timeRegistrationID}` to read it back.
+6. Optional: `DELETE /v1/time-registration/{id}` to remove it again.
+
+You register time for **yourself**: the token's user. That keeps the guide independent of registration privileges.
+
+**What you need:**
+
+- A TimeLog user that is allocated to at least one active task.
+- `curl`, and a way to generate a GUID (for example `uuidgen` on macOS and Linux, or `[guid]::NewGuid()` in PowerShell).
+
+The examples use shell variables. Set `TIMELOG_TOKEN` and `TIMELOG_BASE` in step 1, then reuse them.
+
+## Register time, step by step
+
+<Steps>
+  <Step title="Get a token and build the base URL" icon="key-round">
+    Generate a personal access token and build your site's base URL as described in [Authentication](/rest/authentication#base-url). This guide uses v1 throughout.
+
+    ```bash
+    export TIMELOG_TOKEN='<your-personal-access-token>'
+    export TIMELOG_BASE='https://{region-node}.timelog.com/{account}/api/v1'
+    ```
+
+    Every request below sends the token as `Authorization: Bearer <token>`.
+  </Step>
+
+  <Step title="Confirm the token and read your UserID" icon="user">
+    `GET /v1/user/me` returns the user the token acts as. It changes nothing.
+
+    ```bash
+    curl "$TIMELOG_BASE/user/me" \
+      -H "Authorization: Bearer $TIMELOG_TOKEN" \
+      -H "Accept: application/json"
+    ```
+
+    A `200` response (abbreviated, e-mail redacted):
+
+    ```json
+    {
+      "Properties": {
+        "UserID": 1,
+        "ID": "1b9afd4f-5ea9-4447-94bf-2bfd7ce96a25",
+        "FirstName": "FirstName_Admin1",
+        "LastName": "LastName",
+        "IsActive": true,
+        "UserType": "Employee",
+        "Email": "<redacted>"
+      },
+      "Links": [
+        { "Href": "https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/user/me", "Rel": "self" }
+      ]
+    }
+    ```
+
+    Keep **`Properties.UserID`** (the integer). It is the `UserID` of your time registration in step 4. Do not use `ID`: that is the user's GUID.
+
+    A `401` means the token was not accepted. See [Troubleshooting 401 responses](/rest/authentication#troubleshooting-401-responses).
+  </Step>
+
+  <Step title="Find a task you can register on" icon="search">
+    `GET /v1/task/search-for-time-tracking` searches the tasks **you are allocated to**, by task name or task number. Without `searchAll`, it needs no extra privilege. See [Permissions and data scope](/rest/permissions#search-operations-your-allocations-or-all-tasks-with-a-privilege).
+
+    ```bash
+    curl -G "$TIMELOG_BASE/task/search-for-time-tracking" \
+      --data-urlencode "searchText=<part-of-a-task-name-or-number>" \
+      -H "Authorization: Bearer $TIMELOG_TOKEN" \
+      -H "Accept: application/json"
+    ```
+
+    | Query parameter | Default | Meaning |
+    |---|---|---|
+    | `searchText` | empty | Matched as a substring against the task name and task number. Empty means no text filter. `%` and `_` act as wildcards. |
+    | `searchAll` | `false` | `true` searches all tasks, not only your allocations. Needs the privilege 'all tasks'. Leave it out in this guide. |
+    | `includeFavouriteOnly` | `false` | `true` returns only tasks you marked as favourite. |
+    | `$expand` | none | `project` fills `Project` (and its customer) on each task. |
+    | `$page`, `$pagesize` | `1`, `10` | Paging. See [Pagination](/rest/conventions/pagination). |
+
+    Results are ordered by `TaskID`, newest task first. A `200` response (one of ten entities shown, `Actions` removed):
+
+    ```json
+    {
+      "Properties": { "TotalRecord": "1488", "TotalPage": "149", "PageNumber": "1" },
+      "Entities": [
+        {
+          "Properties": {
+            "TaskID": 4335,
+            "ID": "57ebf93f-79a6-44d1-be44-a11803e90391",
+            "Name": "TMSA006111",
+            "No": "4303",
+            "IsFixedPrice": false,
+            "IsDefaultBillable": true,
+            "AdditionalTextIsRequired": false,
+            "ParentFullName": "TMSA006 » TMSA0061 » TMSA00611",
+            "ProjectID": 450,
+            "Project": null,
+            "ParentTaskID": 4334,
+            "IsTravelTimeTask": false,
+            "IsFavourite": true
+          },
+          "Links": [
+            { "Href": "https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/task/4335", "Rel": "self" }
+          ]
+        }
+      ]
+    }
+    ```
+
+    Keep the task's **`TaskID`** (the integer, not the GUID `ID`). Also note `IsFixedPrice`: you need it in step 4.
+
+    No results is not an error: you get `200` with `TotalRecord` `"0"`. It means no task you are allocated to matches `searchText`.
+  </Step>
+
+  <Step title="Create the time registration" icon="clock">
+    `POST /v1/time-registration` creates the registration. **You choose its ID**: generate a GUID on the client and send it as `ID`.
+
+    ```bash
+    REGISTRATION_GUID=$(uuidgen)
+
+    curl -X POST "$TIMELOG_BASE/time-registration" \
+      -H "Authorization: Bearer $TIMELOG_TOKEN" \
+      -H "Content-Type: application/json" \
+      -H "Accept: application/json" \
+      -d '{
+        "ID": "'"$REGISTRATION_GUID"'",
+        "UserID": <user-id-from-step-2>,
+        "TaskID": <task-id-from-step-3>,
+        "GroupType": 1,
+        "Date": "2026-10-14T00:00:00",
+        "Hours": 1.5
+      }'
+    ```
+
+    These are the fields a project-time registration needs:
+
+    | Field | Type | Required | Value |
+    |---|---|---|---|
+    | `ID` | string (GUID) | Yes | A new GUID you generate. It is **not** the integer `TimeRegistrationID`. |
+    | `UserID` | integer | Yes | `UserID` from step 2. |
+    | `GroupType` | integer | Yes | `1` = Project (time worked on a task). Other values: `3` = Absence, `6` = TravelTime. |
+    | `TaskID` | integer | When `GroupType` is `1` or `6` | `TaskID` from step 3. Must be non-zero. |
+    | `Date` | string (date-time) | Yes | The date the time belongs to. Send midnight: `YYYY-MM-DDT00:00:00`. |
+    | `Hours` | number | When `GroupType` is `1`, or `TimeTrackingFormat` is `0` | Decimal hours: `1.5` is 1 hour 30 minutes. Must be non-zero. |
+
+    A few things to get right:
+
+    - **Date:** send the local date you want stored. No timezone conversion is applied. See [Dates and times](/rest/conventions/data-types#dates-and-times).
+    - **Hours, not Minutes:** for project time, `Hours` always wins and `Minutes` is ignored. See [Numbers and units](/rest/conventions/data-types#numbers-and-units).
+    - **Fixed-price tasks:** `Billable` defaults to `false`, and a registration on a fixed-price task cannot be non-billable (ErrorCode `37620`). If the task's `IsFixedPrice` is `true`, add `"Billable": true`.
+    - **Tenant settings:** some sites require a `Comment` or an `AdditionalComment`. The create then fails with ErrorCode `300116` or `30048` until you send it.
+
+    The other body fields (`Billable`, `BillableHours`, `Comment`, `StartTime` and more) are optional and described in the operation reference.
+
+    **Response.** A `200` returns the created registration under `Properties`, in the [single-object envelope](/rest/conventions/response-envelope#single-object). Keep two values from it:
+
+    | Property | Use |
+    |---|---|
+    | `TimeRegistrationID` | The integer ID. You need it to read the registration in step 5. |
+    | `TimeRegistrationGUID` | The GUID you sent as `ID`. |
+
+    <Callout kind="alert">**Not yet documented.** A captured example of a successful create response is not yet available; the property list above comes from the response model.</Callout>
+
+    **Retrying safely.** Create is not idempotent, but the GUID makes it safe to retry. If the call times out, send it again with the **same** `ID`. A `422` with ErrorCode `38030` (duplicate ID) means the first attempt succeeded: treat it as "already created". A new GUID would create a second registration. See [Data types](/rest/conventions/data-types#ids-integer-id-and-guid) and [Safe retries](/rest/conventions/writing-data#safe-retries).
+
+    To migrate historical hours with their original hourly rates, see the `POST /v1/time-registration/import` reference. It also creates one registration per call, but the server generates the GUID, so it is not safe to retry.
+  </Step>
+
+  <Step title="Read the registration back" icon="circle-check">
+    `GET /v1/time-registration/{timeRegistrationID}` returns one registration by its **integer** ID.
+
+    ```bash
+    curl "$TIMELOG_BASE/time-registration/<time-registration-id-from-step-4>" \
+      -H "Authorization: Bearer $TIMELOG_TOKEN" \
+      -H "Accept: application/json"
+    ```
+
+    The `200` response has the same properties as the create response. Check that `UserID`, `Date` and `Hours` are what you sent, and that `TimeRegistrationGUID` is your GUID. `InterfaceCreated` is `50` for registrations created through this API.
+
+    Things to know:
+
+    - **Use the integer ID.** A GUID does not match the route and returns `404`.
+    - **An unknown ID returns `500` with `Code` `100`**, not `404`.
+    - **Some values can differ from what you sent.** For example, `IsBillable` can be set from the task, depending on tenant settings.
+  </Step>
+
+  <Step title="Clean up (optional)" icon="trash-2">
+    If this was a test, delete the registration. `DELETE /v1/time-registration/{id}` takes the integer `TimeRegistrationID` **or** the GUID you chose.
+
+    ```bash
+    curl -X DELETE "$TIMELOG_BASE/time-registration/$REGISTRATION_GUID" \
+      -H "Authorization: Bearer $TIMELOG_TOKEN" \
+      -H "Accept: application/json"
+    ```
+
+    A `200` response has the literal JSON body `null`. The delete is permanent.
+
+    Do not blindly retry a delete. A second delete returns `500` with `Code` `100`, the same as an unknown ID. If a delete times out, check with step 5: a `500` with `Code` `100` there means the registration is gone.
+  </Step>
+</Steps>
+
+## What can go wrong
+
+Branch on `Code` and `Details[].ErrorCode` in the error body, not only on the HTTP status. See [Errors](/rest/errors).
+
+| Step | Response | Cause | Fix |
+|---|---|---|---|
+| Any | `401`, body `{"Message": "Authorization has been denied for this request."}` | Token missing, wrong, expired, or for another site. | See [Troubleshooting 401 responses](/rest/authentication#troubleshooting-401-responses). |
+| 3 | `403`, `Code` `103`, `"User have no privilege to search all tasks."` | `searchAll=true` without the privilege 'all tasks'. | Omit `searchAll` to search your own allocations. |
+| 4 | `400`, `Code` `200`, `Details` lists each failed field | A required field is missing or zero, or `GroupType` is not `1`, `3` or `6`. | Fix every item in `Details` and resend. Do not match on the message text. |
+| 4 | `422`, `Code` `102`, ErrorCode `30012` or `30011` | The date is closed by a submitted or approved timesheet (`30012`), or lies in a closed accounting period (`30011`). | Register on an open date. |
+| 4 | `422`, `Code` `102`, ErrorCode `30010`, `30043` or `30045` | The task is inactive (`30010`), has sub-tasks (`30043`), or its project is not open for time registration (`30045`). | Choose an active task without sub-tasks, on an open project. |
+| 4 | `422`, `Code` `102`, ErrorCode `38030` | A registration with this `ID` already exists. | On a retry: it was already created. Otherwise generate a new GUID. |
+| 5, 6 | `403`, `Code` `103` | The registration belongs to another user, and your user has no registration privilege that covers that user. | Read and delete your own registrations, or see [Registering on behalf of other employees](/rest/permissions#registering-on-behalf-of-other-employees). |
+
+All time registration business-rule codes are listed in [Common business-rule error codes](/rest/errors#time-registrations).
+
+## Next steps
+
+- [Response envelope](/rest/conventions/response-envelope): how single objects and lists are wrapped.
+- [Writing data](/rest/conventions/writing-data): updates, retries and external keys, for example to link a registration to the ID in your own system.
+- [Permissions and data scope](/rest/permissions): registering for other employees.

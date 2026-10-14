@@ -71,6 +71,17 @@
         "icon": "braces",
         "groups": [
           {
+            "group": "Get started",
+            "icon": "rocket",
+            "pages": [
+              {
+                "title": "Your first time registration",
+                "path": "rest/quickstart",
+                "icon": "clock"
+              }
+            ]
+          },
+          {
             "group": "Authentication",
             "icon": "key-round",
             "pages": [
