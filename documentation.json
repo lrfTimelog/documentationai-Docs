@@ -135,6 +135,11 @@
                 "title": "Errors",
                 "path": "rest/errors",
                 "icon": "triangle-alert"
+              },
+              {
+                "title": "Rate limits and known limitations",
+                "path": "rest/limitations",
+                "icon": "circle-alert"
               }
             ]
           },
