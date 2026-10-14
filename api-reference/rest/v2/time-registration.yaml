@@ -1,0 +1,460 @@
+openapi: 3.1.0
+info:
+  title: Time registrations — REST API v2
+  version: v2
+  description: |-
+    Register, read, change and delete time and absence registered by employees.
+
+    Enums are strings (member names) in v2 responses.
+
+    **Conventions that apply to every operation in this file:**
+    - Property names are PascalCase.
+    - Successful bodies use the TAF envelope: one object in `Properties`, lists in `Entities[].Properties`.
+    - Some operations succeed without content: HTTP 200 with the literal body `null`, or HTTP 204.
+    - `PUT` replaces the whole object: omitted fields are reset.
+    - Treat error `Code` 102 as a business-rule violation, whether the HTTP status is 422 or 500.
+
+    > **Not yet documented:** rate limits.
+servers:
+- url: https://{region-node}.timelog.com/{account}/api
+  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
+    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
+    it.'
+  variables:
+    region-node:
+      default: app3
+    account:
+      default: your-account
+security:
+- bearer: []
+tags:
+- name: Time registrations
+  description: Register, read, change and delete time and absence registered by employees.
+paths:
+  /v2/time-tracker/active:
+    get:
+      operationId: getActiveTimeTrackerV2
+      summary: Get my running time tracker (v2)
+      description: |-
+        Returns the calling user's running time tracker, or null when none is running.
+
+        Looks up the caller's trackers with status ActiveTimeTracking, newest (highest TimeTrackerId) first, and returns the first one. The user is taken from the token — there is no user parameter. $expand fills the nested Task, AbsenceCode and/or TimeRegistration objects.
+
+        **Use it to:**
+        - Restore a timer UI after reload: what is being tracked, since when, and the TimeTrackerId to stop it.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `POST /v2/time-tracker/stop/{timeTrackerId}`
+
+        **See also:** `GET /v1/time-tracker/active-time-tracker`
+
+        > **Not yet documented:** examples (populated); response → variants.
+      tags:
+      - Time registrations
+      parameters:
+      - name: $expand
+        in: query
+        required: false
+        schema:
+          type: string
+        description: |-
+          task, absenceCode and/or timeRegistration: fills the nested object (Task only for task trackers, AbsenceCode only for absence trackers, TimeRegistration only when linked).
+
+          Several values: one string, separated by `,`.
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Not meant as a feature — normally omit.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: |-
+            **When `The caller has a running tracker (TimeTrackerStatus ActiveTimeTracking)` is sent:** The object, wrapped in the TAF envelope (`Properties`). Properties = TimeTrackerReadV2 (enums as names); Links = self + a 'stop' action link (TafActionRuleV2).
+
+            **When `No running tracker` is sent:** Success without content: HTTP 200 with the literal JSON body `null`. Literal JSON `null` (TafSuccessResult), not 404 — captured.
+
+            Empty result: 200 with body null
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - type: object
+                  description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                    [self]}` without `Properties`.'
+                  properties:
+                    Properties:
+                      $ref: '#/components/schemas/TimeTrackerReadV2'
+                    Links:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/TafLink'
+                    Actions:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/TafAction'
+                - type: 'null'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.timeregistration.timetracker.getactivetimetracker
+  /v2/time-tracker/stop/{timeTrackerId}:
+    post:
+      operationId: stopTimeTrackerV2
+      summary: Stop a time tracker (v2)
+      description: |-
+        Stops a running time tracker now and turns the tracked time into a time registration; answers 201 with a link to it.
+
+        Ends the tracker at the current server time, exactly like the v1 stop: a tracker that ran past midnight is split per day (start day plus at most the next day), the tracked time is saved as registration(s) — added to the linked registration when the tracker is linked to one — and the tracker is deleted. Unlike v1, the registration is NOT in the body: the response is 201 Created with body `null` and a Location header to GET /v1/time-registration/{id} of the LAST registration written (the v1 route, by design of the call — there is no v2 registration GET).
+
+        **Use it to:**
+        - Stop button of a timer UI; follow Location to show the resulting registration.
+
+        **Not for:**
+        - Discarding a tracker without registering time → DELETE /v1/time-tracker/{id}
+
+        **Behaviour:**
+        - Not idempotent.
+        - Not safe to retry blindly. A second call targets the deleted tracker and fails with 500.
+        - Side effect: Ends the tracker at server time; splits it across days when it ran past midnight (max 1 extra day).
+        - Side effect: Creates or updates time registration(s) with full registration side effects (work units, invoicing, salary, financials).
+        - Side effect: Deletes the tracker once converted.
+        - Side effect: Writes a Serilog information line (purpose MeasureTimeRegistrationServiceProcessingTime) with the tracker owner's user ID and hours.
+        - On failure: If conversion yields no registration, the ended tracker is saved and the call returns 500.
+        - Read-after-write consistency: not yet documented.
+
+        **Call first:** `GET /v2/time-tracker/active`, `POST /v1/time-tracker/task/start-time-tracker`, `POST /v1/time-tracker/absence/start-time-tracker`
+
+        **Next:** `GET /v1/time-registration/{timeRegistrationID}`
+
+        **See also:** `POST /v1/time-registration/stop-time-tracker/{timeTrackerId}`
+
+        > **Not yet documented:** behaviour → consistency; examples (success); response → success.
+      tags:
+      - Time registrations
+      parameters:
+      - name: timeTrackerId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: 'Integer ID of the tracker (TimeTrackerId from GET /v2/time-tracker/active), not a registration ID. No
+          {int} route constraint: a non-integer is a 400 model-state error.'
+      responses:
+        '201':
+          description: 'Success without content: HTTP 200 with the literal JSON body `null`. Body `null`; header Location
+            = {base}/api/v1/time-registration/{timeRegistrationID} of the last registration created or updated (CreatedAtRoute
+            "TimeRegistrationGetByID", version 1).'
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: timeTrackerId is
+            not an integer (model binding) — captured on v2. — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '422':
+          description: '- **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: Registration
+            business rules on save (e.g. timesheet closed, period closed).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: |-
+            - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: Registration business rules on save (e.g. timesheet closed, period closed).
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Unknown tracker
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'timeTrackerId: 1'
+                    Url: https://{region-node}.timelog.com/{account}/api/v2/time-tracker/stop/1
+      x-timelog-key: rest.v2.timeregistration.timetracker.stoptimetracker
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: |-
+        OAuth 2.0 bearer token, sent as `Authorization: Bearer <token>`. JWT and reference tokens are both accepted. The token must carry the required scope (default `tlp`).
+
+        The token's `sub` claim is the acting user. A token WITHOUT `sub` (client-credentials) acts as the system service user. If the `sub` user cannot log in (inactive, locked, deleted), the request is rejected with 401 — it is no longer let through without a user.
+
+        > **Not yet documented:** how to obtain a token.
+
+        > **Not yet documented:** token lifetime.
+  schemas:
+    MessageError:
+      type: object
+      description: Body of 401 and some framework errors — not the ResponseError shape.
+      properties:
+        Message:
+          type: string
+    ResponseError:
+      type: object
+      description: Error body for validation (400), privilege (403), business-rule (422/500) and other server errors. `Details`
+        lists strings for validation errors, or `{ErrorCode, Message}` objects for business-rule violations. `Parameters`
+        echoes the request arguments, including the full payload.
+      properties:
+        Code:
+          type: integer
+          description: 'TimeLog error class (not the HTTP status): 100 unexpected, 102 business rule, 103 privilege, 200 validation.'
+        Message:
+          type: string
+        Details:
+          type: array
+          items: {}
+        Parameters:
+          type:
+          - string
+          - object
+          - 'null'
+        Url:
+          type: string
+    TafAction:
+      type: object
+      description: A hypermedia action the caller may take on the object. Present only where the operation registers actions.
+    TafLink:
+      type: object
+      properties:
+        Href:
+          type: string
+        Rel:
+          type: string
+    TafListPaging:
+      type: object
+      description: 'Paging values. They are returned as STRINGS, for example `"TotalRecord": "12"`.'
+      properties:
+        TotalRecord:
+          type: string
+        TotalPage:
+          type: string
+        PageNumber:
+          type: string
+    TimeTrackerReadV2:
+      type: object
+      properties:
+        TimeTrackerId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            id_format: int
+          description: |-
+            Integer identifier of the tracker; the path parameter of POST /v2/time-tracker/stop/{timeTrackerId}. Same value as TimeTrackerRead.TimeTrackerID.
+
+            Identifier of this object, unique per TimeLog site.
+        Id:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: unknown
+            id_format: guid
+          description: |-
+            Server-generated GUID of the tracker (TimeTrackerRead.ID). No v2 operation looks a tracker up by it.
+
+            Alternate key, unique per TimeLog site.
+        UserId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The owner of the tracker — always the caller on this operation (the query is by the caller's user id).
+
+            Refers to `UserReadV2.UserId`. Look up valid values with `GET /v2/users/me`.
+        Date:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            The day the tracked time belongs to (time part midnight). See TimeTrackerRead.Date.
+
+            Time zone: not yet documented.
+        StartTime:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            When the current tracking interval started; elapsed time on stop = stop time − StartTime. See TimeTrackerRead.StartTime.
+
+            Time zone: not yet documented.
+        EntityType:
+          type: string
+          enum:
+          - Task
+          - AbsenceCode
+          - NotSpecified
+          x-enum-descriptions:
+          - Tracking project time; EntityId is a task ID (DomainType 98).
+          - Tracking absence; EntityId is an absence code ID (DomainType 149).
+          - No entity (DomainType 0). Rejected on save (60071), so a stored tracker should not carry it.
+          readOnly: true
+          description: |-
+            What EntityId points to. Serialized as the enum NAME in v2.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `Task` | Task | Tracking project time; EntityId is a task ID (DomainType 98). |
+            | `AbsenceCode` | AbsenceCode | Tracking absence; EntityId is an absence code ID (DomainType 149). |
+            | `NotSpecified` | NotSpecified | No entity (DomainType 0). Rejected on save (60071), so a stored tracker should not carry it. |
+        EntityId:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Task ID or absence code ID, depending on EntityType; null when the tracker has no entity yet.
+
+            Refers to `TaskRead.TaskID or AbsenceCodeRead.AbsenceCodeID (v1 shapes), by EntityType`.
+        Task:
+          type:
+          - object
+          - 'null'
+          readOnly: true
+          description: The task, only with $expand=task and EntityType Task; otherwise null. No V2 task schema is curated
+            yet.
+        AbsenceCode:
+          type:
+          - object
+          - 'null'
+          readOnly: true
+          description: The absence code, only with $expand=absenceCode and EntityType AbsenceCode; otherwise null. No V2 absence-code
+            schema is curated yet.
+        TimeRegistrationId:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The registration this tracker is LINKED to (stopping adds the minutes to it). Null when not linked. See TimeTrackerRead.TimeRegistrationID.
+
+            Refers to `TimeRegistrationRead.TimeRegistrationID`.
+        TimeRegistration:
+          type:
+          - object
+          - 'null'
+          readOnly: true
+          description: V2 only. The linked registration, filled only with $expand=timeRegistration AND a non-null TimeRegistrationId;
+            otherwise null. No V2 registration schema is curated yet.
+        Comment:
+          type: string
+          readOnly: true
+          description: Comment carried to the registration on stop; stored NULL is returned as an empty string.
+        Minute:
+          type: integer
+          format: int32
+          readOnly: true
+          description: |-
+            Minutes counted before StartTime (offset); elapsed minutes are added on stop. See TimeTrackerRead.Minute.
+
+            Unit: minutes
+        BillableMinute:
+          type: integer
+          format: int32
+          readOnly: true
+          description: |-
+            Billable minutes counted before StartTime; elapsed minutes are added on stop only when IsBillable is true.
+
+            Unit: minutes
+        IsBillable:
+          type:
+          - boolean
+          - 'null'
+          readOnly: true
+          description: Billable flag carried to the registration; null = not set (such a tracker is not converted on stop).
+        TimeTrackerStatus:
+          type: string
+          enum:
+          - ActiveTimeTracking
+          - EmptyTimeRegistration
+          x-enum-descriptions:
+          - 'Running: started and not yet stopped (integer 1).'
+          - Stopped but not turned into a registration (integer 2). Not returned by GET /v2/time-tracker/active.
+          readOnly: true
+          description: |-
+            Serialized as the enum NAME in v2. This operation only returns ActiveTimeTracking trackers.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `ActiveTimeTracking` | ActiveTimeTracking | Running: started and not yet stopped (integer 1). |
+            | `EmptyTimeRegistration` | EmptyTimeRegistration | Stopped but not turned into a registration (integer 2). Not returned by GET /v2/time-tracker/active. |
+        MonthlyPeriod:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: Monthly period label resolved from the tracker's MonthlyPeriodID (task trackers only; see TimeTrackerRead).
+        AdditionalTextField:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: Additional text carried to the registration.
+        Factor:
+          type: number
+          readOnly: true
+          description: |-
+            Overtime factor carried to the registration; 100.0 when the column is NULL.
+
+            Unit: percent
+      description: The caller's running time tracker (stopwatch) in the REST v2 shape. Same data as TimeTrackerRead, with
+        v2 property casing, string enums and an optional nested TimeRegistration (the registration the tracker is linked to,
+        filled with $expand=timeRegistration).
+x-timelog-service: TimeRegistration

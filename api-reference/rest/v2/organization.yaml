@@ -1,0 +1,284 @@
+openapi: 3.1.0
+info:
+  title: Users and organisation — REST API v2
+  version: v2
+  description: |-
+    Read and create users, change a user's name, licence, roles and approval manager, and read legal entities, departments and daily employee norms.
+
+    Enums are strings (member names) in v2 responses.
+
+    **Conventions that apply to every operation in this file:**
+    - Property names are PascalCase.
+    - Successful bodies use the TAF envelope: one object in `Properties`, lists in `Entities[].Properties`.
+    - Some operations succeed without content: HTTP 200 with the literal body `null`, or HTTP 204.
+    - `PUT` replaces the whole object: omitted fields are reset.
+    - Treat error `Code` 102 as a business-rule violation, whether the HTTP status is 422 or 500.
+
+    > **Not yet documented:** rate limits.
+servers:
+- url: https://{region-node}.timelog.com/{account}/api
+  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
+    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
+    it.'
+  variables:
+    region-node:
+      default: app3
+    account:
+      default: your-account
+security:
+- bearer: []
+tags:
+- name: Users and organisation
+  description: Read and create users, change a user's name, licence, roles and approval manager, and read legal entities,
+    departments and daily employee norms.
+paths:
+  /v2/users/me:
+    get:
+      operationId: getCurrentUserV2
+      summary: Get the calling user (v2)
+      description: |-
+        Returns the user the access token belongs to — IDs, name, initials, e-mail, user type, picture URL and legal entity.
+
+        "Who am I" for v2 clients. Always the caller; there is no parameter. Returns the caller's own personal data (name, initials, e-mail, profile-picture URL) plus the legal entity ID and name. For a client-credentials token this is the system user the token maps to.
+
+        **Use it to:**
+        - Show the signed-in user; obtain the caller's UserId for later calls
+        - Check that a token works (200)
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **See also:** `GET /v1/user/me`, `GET /v2`
+      tags:
+      - Users and organisation
+      responses:
+        '200':
+          description: The object, wrapped in the TAF envelope (`Properties`).
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/UserReadV2'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.organization.users.getcurrentuser
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: |-
+        OAuth 2.0 bearer token, sent as `Authorization: Bearer <token>`. JWT and reference tokens are both accepted. The token must carry the required scope (default `tlp`).
+
+        The token's `sub` claim is the acting user. A token WITHOUT `sub` (client-credentials) acts as the system service user. If the `sub` user cannot log in (inactive, locked, deleted), the request is rejected with 401 — it is no longer let through without a user.
+
+        > **Not yet documented:** how to obtain a token.
+
+        > **Not yet documented:** token lifetime.
+  schemas:
+    MessageError:
+      type: object
+      description: Body of 401 and some framework errors — not the ResponseError shape.
+      properties:
+        Message:
+          type: string
+    ResponseError:
+      type: object
+      description: Error body for validation (400), privilege (403), business-rule (422/500) and other server errors. `Details`
+        lists strings for validation errors, or `{ErrorCode, Message}` objects for business-rule violations. `Parameters`
+        echoes the request arguments, including the full payload.
+      properties:
+        Code:
+          type: integer
+          description: 'TimeLog error class (not the HTTP status): 100 unexpected, 102 business rule, 103 privilege, 200 validation.'
+        Message:
+          type: string
+        Details:
+          type: array
+          items: {}
+        Parameters:
+          type:
+          - string
+          - object
+          - 'null'
+        Url:
+          type: string
+    TafAction:
+      type: object
+      description: A hypermedia action the caller may take on the object. Present only where the operation registers actions.
+    TafLink:
+      type: object
+      properties:
+        Href:
+          type: string
+        Rel:
+          type: string
+    TafListPaging:
+      type: object
+      description: 'Paging values. They are returned as STRINGS, for example `"TotalRecord": "12"`.'
+      properties:
+        TotalRecord:
+          type: string
+        TotalPage:
+          type: string
+        PageNumber:
+          type: string
+    UserReadV2:
+      type: object
+      properties:
+        UserId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer user ID — same value as UserRead.UserID.
+
+            Identifier of this object, unique per TimeLog site.
+        Id:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: false
+            id_format: guid
+          description: |-
+            The user's GUID — same value as UserRead.ID (the key PUT /v1/user addresses).
+
+            Alternate key, unique per TimeLog site.
+        FullName:
+          type: string
+          readOnly: true
+          description: |-
+            Display name from the user profile (UserProfile.FullName); in the capture "<FirstName> <LastName>".
+
+            Contains personal data.
+        FirstName:
+          type: string
+          readOnly: true
+          description: |-
+            First name (see UserRead.FirstName).
+
+            Contains personal data.
+        LastName:
+          type: string
+          readOnly: true
+          description: |-
+            Last name (see UserRead.LastName).
+
+            Contains personal data.
+        Initials:
+          type: string
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: false
+            id_format: string
+          description: |-
+            Initials — TimeLog's short user handle (see UserRead.Initials).
+
+            Alternate key, unique per TimeLog site.
+
+            Contains personal data.
+        Email:
+          type: string
+          format: email
+          readOnly: true
+          description: |-
+            E-mail address of the user profile.
+
+            Contains personal data.
+        IsActive:
+          type: boolean
+          readOnly: true
+          description: Active flag of the user (always true for a caller who could log in, unless the token outlives a deactivation
+            — not established).
+        UserType:
+          type: string
+          enum:
+          - Employee
+          - ApiUser
+          - ExternalRessource
+          - AnonymizedEmployee
+          - All
+          x-enum-descriptions:
+          - A person working in the tenant (the normal case). Integer 0.
+          - Technical account (e.g. SYSTEM, ECNuser); not a person. Integer 1.
+          - Obsolete external-resource type (integer 2); see UserRead.UserType.
+          - Placeholder account for anonymized (GDPR) employee data. Integer 3.
+          - Filter value (integer -1) of the enum; not a stored user type, never expected on a user.
+          readOnly: true
+          description: |-
+            Kind of user account, serialized as the enum NAME. Same members as UserRead.UserType.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `Employee` | Employee | A person working in the tenant (the normal case). Integer 0. |
+            | `ApiUser` | ApiUser | Technical account (e.g. SYSTEM, ECNuser); not a person. Integer 1. |
+            | `ExternalRessource` | ExternalRessource | Obsolete external-resource type (integer 2); see UserRead.UserType. |
+            | `AnonymizedEmployee` | AnonymizedEmployee | Placeholder account for anonymized (GDPR) employee data. Integer 3. |
+            | `All` | All | Filter value (integer -1) of the enum; not a stored user type, never expected on a user. |
+        ProfilePicture:
+          type:
+          - string
+          - 'null'
+          format: uri
+          readOnly: true
+          description: |-
+            Absolute URL of the uploaded profile picture at 24 px, only when the picture type is UploadedPicture; otherwise null (also null when building the URL throws — the error is swallowed).
+
+            Contains personal data.
+        LegalEntityId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Legal entity the user is employed in (see UserRead.LegalEntityID).
+
+            Refers to `LegalEntityRead.LegalEntityID`. Look up valid values with `GET /v1/legal-entity`.
+
+            Valid values come from `GET /v1/legal-entity`.
+        LegalEntityName:
+          type: string
+          readOnly: true
+          description: Name of that legal entity.
+      description: 'The calling user as REST v2 returns it: identifiers, name, initials, e-mail, active flag, user type, a
+        profile-picture URL and the legal entity with its name. Only ever the caller (there is no v2 user lookup by id). See
+        UserRead for the user/employee distinction.'
+x-timelog-service: Organization

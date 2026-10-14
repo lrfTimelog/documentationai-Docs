@@ -1,0 +1,178 @@
+openapi: 3.1.0
+info:
+  title: API root — REST API v1
+  version: v1
+  description: |-
+    The REST v1 entry point — build version, server time zone and a hypermedia link to every v1 controller.
+
+    Enums are integers in v1.
+
+    **Conventions that apply to every operation in this file:**
+    - Property names are PascalCase.
+    - Successful bodies use the TAF envelope: one object in `Properties`, lists in `Entities[].Properties`.
+    - Some operations succeed without content: HTTP 200 with the literal body `null`, or HTTP 204.
+    - `PUT` replaces the whole object: omitted fields are reset.
+    - Treat error `Code` 102 as a business-rule violation, whether the HTTP status is 422 or 500.
+
+    > **Not yet documented:** rate limits.
+servers:
+- url: https://{region-node}.timelog.com/{account}/api
+  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
+    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
+    it.'
+  variables:
+    region-node:
+      default: app3
+    account:
+      default: your-account
+security:
+- bearer: []
+tags:
+- name: API root
+  description: The REST v1 entry point — build version, server time zone and a hypermedia link to every v1 controller.
+paths:
+  /v1:
+    get:
+      operationId: getApiRootV1
+      summary: Get the REST v1 root document
+      description: |-
+        Returns the build version, the server time zone and a link to every REST v1 controller the caller may use.
+
+        The entry point of REST v1 in the TAF (hypermedia) style: Properties tell which TimeLog build answered (IndexRead), and Links list the v1 API one controller at a time, each with its actions. Link semantics (how the list is built, per request): A controller that serves v1 and another version is NOT listed; v2-only controllers are listed by GET /v2. - Rel = the controller class name without "Controller" (e.g. "ContactPerson", "TaskExtended", "ExchangeRate") — a code name, not a resource name; two Rels can share a path (Task and TaskExtended are both /task). - Href = the request URL + "/" + the controller's route prefix without "v{version:apiVersion}/". - Actions = each public action returning IHttpActionResult: Name = the route name (null when the route is unnamed), Method = its first HTTP method attribute, Href = controller Href + "/" + the raw route template (placeholders such as {id:int} are left in; an empty template gives a trailing "/"). - Controllers and actions carrying privilege / page / feature policy attributes are listed only when the caller and tenant pass those policies, so the link set can differ per user and per tenant. Versioning: the path segment selects the API version (/v1 here). The root does not list versions; Version in Properties is the TimeLog build, not the API version.
+
+        **Use it to:**
+        - Smoke test of credentials and connectivity: 200 means the token works on this tenant
+        - Record the TimeLog build (Version / ChangeSet) in integration logs for support cases
+
+        **Not for:**
+        - A machine-readable contract — use the OpenAPI document; Rel names and action Names are code names.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `GET /v1/user/me`
+
+        > **Not yet documented:** examples (success); response → success.
+      tags:
+      - API root
+      responses:
+        '200':
+          description: The object, wrapped in the TAF envelope (`Properties`). Properties = IndexRead; Links = self link +
+            one link per listed v1 controller, each with Actions.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/IndexRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.root.index.get
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: |-
+        OAuth 2.0 bearer token, sent as `Authorization: Bearer <token>`. JWT and reference tokens are both accepted. The token must carry the required scope (default `tlp`).
+
+        The token's `sub` claim is the acting user. A token WITHOUT `sub` (client-credentials) acts as the system service user. If the `sub` user cannot log in (inactive, locked, deleted), the request is rejected with 401 — it is no longer let through without a user.
+
+        > **Not yet documented:** how to obtain a token.
+
+        > **Not yet documented:** token lifetime.
+  schemas:
+    IndexRead:
+      type: object
+      properties:
+        Version:
+          type: string
+          readOnly: true
+          description: The application version string of the TimeLog installation (AppSetting MyVersion), e.g. a 7.x build
+            number.
+        ChangeSet:
+          type: string
+          readOnly: true
+          description: 'The source change set the build was made from: the trimmed content of DLL\Version.txt in the folder
+            above the web root. When that file cannot be read, the field holds the exception MESSAGE instead (e.g. "Could
+            not find file ''<server path>\DLL\Version.txt''."), which discloses a server file path.'
+        ServerTimeZoneId:
+          type: string
+          readOnly: true
+          description: |-
+            The Windows time-zone ID of the web server (TimeZoneInfo.Local.Id, e.g. "W. Europe Standard Time") — the zone of server-side DateTime.Now values.
+
+            > **Not yet documented:** description.
+      description: 'The Properties of the REST v1 root document: which build of TimeLog answered and the web server''s time
+        zone. The useful part of the root document is its Links array (one link per v1 controller), documented on `GET /v1`.'
+    MessageError:
+      type: object
+      description: Body of 401 and some framework errors — not the ResponseError shape.
+      properties:
+        Message:
+          type: string
+    ResponseError:
+      type: object
+      description: Error body for validation (400), privilege (403), business-rule (422/500) and other server errors. `Details`
+        lists strings for validation errors, or `{ErrorCode, Message}` objects for business-rule violations. `Parameters`
+        echoes the request arguments, including the full payload.
+      properties:
+        Code:
+          type: integer
+          description: 'TimeLog error class (not the HTTP status): 100 unexpected, 102 business rule, 103 privilege, 200 validation.'
+        Message:
+          type: string
+        Details:
+          type: array
+          items: {}
+        Parameters:
+          type:
+          - string
+          - object
+          - 'null'
+        Url:
+          type: string
+    TafAction:
+      type: object
+      description: A hypermedia action the caller may take on the object. Present only where the operation registers actions.
+    TafLink:
+      type: object
+      properties:
+        Href:
+          type: string
+        Rel:
+          type: string
+    TafListPaging:
+      type: object
+      description: 'Paging values. They are returned as STRINGS, for example `"TotalRecord": "12"`.'
+      properties:
+        TotalRecord:
+          type: string
+        TotalPage:
+          type: string
+        PageNumber:
+          type: string
+x-timelog-service: Root

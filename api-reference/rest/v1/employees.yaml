@@ -1,0 +1,2989 @@
+openapi: 3.1.0
+info:
+  title: Employees — REST API v1
+  version: v1
+  description: |-
+    Track and drive the approval of employees' timesheets — the gate between registered time and payroll — plus working norms, employee types and Resource Planner bookings.
+
+    Enums are integers in v1.
+
+    **Conventions that apply to every operation in this file:**
+    - Property names are PascalCase.
+    - Successful bodies use the TAF envelope: one object in `Properties`, lists in `Entities[].Properties`.
+    - Some operations succeed without content: HTTP 200 with the literal body `null`, or HTTP 204.
+    - `PUT` replaces the whole object: omitted fields are reset.
+    - Treat error `Code` 102 as a business-rule violation, whether the HTTP status is 422 or 500.
+
+    > **Not yet documented:** rate limits.
+servers:
+- url: https://{region-node}.timelog.com/{account}/api
+  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
+    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
+    it.'
+  variables:
+    region-node:
+      default: app3
+    account:
+      default: your-account
+security:
+- bearer: []
+tags:
+- name: Employees
+  description: Track and drive the approval of employees' timesheets — the gate between registered time and payroll — plus
+    working norms, employee types and Resource Planner bookings.
+paths:
+  /v1/approval/timesheets/get-status-by-dates:
+    get:
+      operationId: getApprovalTimesheetStatusByDates
+      summary: Get timesheet approval status for days
+      description: |-
+        Returns, for each requested day, where one employee's timesheet is in the approval flow.
+
+        For every date in `dates` returns one ApprovalTimesheetDayRead: the day's approval status (Empty, Open, PendingApproval, Approved, Rejected, PartiallyApproved), the hours registered, whether rejected time was resubmitted, and — for rejected days — the latest rejection comment and, with $expand=RejectedRegistrations, the rejected registrations. Days need not be consecutive. Status is computed live per day; long lists cost several database calls per day.
+
+        **Use it to:**
+        - Payroll export: before exporting a day's hours, check that every day of the pay period is Approved.
+        - Reminder bot: find days still Open (not submitted) for an employee.
+
+        **Not for:**
+        - A contiguous range — use `GET /v1/approval/timesheets/get-status-by-period`, which adds an aggregated period status.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Duplicates: A date sent twice is reported twice.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/user`
+
+        **Next:** `POST /v1/approval/timesheets/submit-dates`, `POST /v1/approval/timesheets/resubmit-rejected-time-registrations`
+
+        **See also:** `GET /v1/approval/timesheets/get-status-by-period`, `GET /v1/employee-projection/get-in-period`
+
+        > **Not yet documented:** examples (success); request → query params; response → empty result.
+      tags:
+      - Employees
+      parameters:
+      - name: employeeUserId
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: |-
+          User ID of the employee. Omitted -> 404 action-not-matched.
+
+          Refers to `UserRead.UserID`. Look up valid values with `GET /v1/user`.
+      - name: dates
+        in: query
+        required: true
+        schema:
+          type: array
+          items:
+            type: string
+            format: date-time
+        description: 'Days to report, one parameter per day: ?dates=2026-10-05&dates=2026-10-07. Returned in the order sent.'
+      - name: $expand
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - RejectedRegistrations
+          x-enum-descriptions:
+          - Fill RejectedRegistrations on Rejected days (case-insensitive; other values are ignored).
+        description: |-
+          Expansion of the per-day rejected registrations.
+
+          Allowed values:
+
+          | Value | Name | Meaning |
+          |---|---|---|
+          | `RejectedRegistrations` | RejectedRegistrations | Fill RejectedRegistrations on Rejected days (case-insensitive; other values are ignored). |
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Does NOT page the response; applied to each Rejected day's RejectedRegistrations list.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: 'As $page: page size of each day''s RejectedRegistrations list.'
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). One entry per requested date, in request order.
+
+            Order: Order of the dates parameters
+
+            Empty result: 200 with no Entities when no dates are sent (not tested)
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/ApprovalTimesheetDayRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: employeeUserId or
+            a date not parseable (Web API model binding) — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: employeeUserId omitted (captured with no parameters)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: No parameters
+                  value:
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/get-status-by-dates'.
+                    MessageDetail: No action was found on the controller 'ApprovalTimesheet' that matches the request.
+        '500':
+          description: |-
+            - **Code 37967** — Same rights rule as 37966, applied to reading another employee's approval status. — When: employeeUserId is another user the caller may not see — Fix: Read your own status, or use a user with an approval privilege covering the employee.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.employees.approvaltimesheet.getstatusbydates
+  /v1/approval/timesheets/get-status-by-period:
+    get:
+      operationId: getApprovalTimesheetStatusByPeriod
+      summary: Get timesheet approval status for a period
+      description: |-
+        Returns the approval status of every day of a period of one employee's timesheet, plus an aggregated period status.
+
+        Computes ApprovalTimesheetDayRead for each day from startDate to endDate (inclusive) and wraps them in an ApprovalTimesheetPeriodRead with PeriodStatus and, when the period has rejected days, the latest rejection comment. PeriodStatus is a mechanical aggregate that can mislead — decide on WeekDays, not on PeriodStatus. There is no limit on the period length; every day costs several database calls.
+
+        **Use it to:**
+        - Payroll cut-off: confirm every day of a pay period is Approved before exporting hours (check each WeekDays entry).
+        - Show an employee which days of the month still need submitting or fixing.
+
+        **Not for:**
+        - ISO weeks — `GET /v1/approval/timesheets/get-status-by-week-of-year` computes the Monday–Sunday range for you.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/user`
+
+        **Next:** `POST /v1/approval/timesheets/submit-period`, `POST /v1/approval/timesheets/resubmit-rejected-time-registrations`
+
+        **See also:** `GET /v1/approval/timesheets/get-status-by-dates`, `GET /v1/approval/timesheets/get-status-by-week-of-year`
+
+        > **Not yet documented:** examples (success).
+      tags:
+      - Employees
+      parameters:
+      - name: employeeUserId
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: |-
+          User ID of the employee. Omitted -> 404 action-not-matched.
+
+          Refers to `UserRead.UserID`. Look up valid values with `GET /v1/user`.
+      - name: startDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+        description: First day, inclusive. Omitted -> 404 action-not-matched.
+      - name: endDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+        description: Last day, inclusive. Before startDate -> 200 with no WeekDays and PeriodStatus Open.
+      - name: $expand
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - RejectedRegistrations
+          x-enum-descriptions:
+          - Fill RejectedRegistrations on each Rejected day (case-insensitive; other values ignored).
+        description: |-
+          Expansion of the per-day rejected registrations.
+
+          Allowed values:
+
+          | Value | Name | Meaning |
+          |---|---|---|
+          | `RejectedRegistrations` | RejectedRegistrations | Fill RejectedRegistrations on each Rejected day (case-insensitive; other values ignored). |
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: 'Not a response pager: applied to each Rejected day''s RejectedRegistrations list.'
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Page size of each Rejected day's RejectedRegistrations list.
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). The period with one WeekDays entry per day in date order.
+
+            Order: WeekDays in ascending date order
+
+            Empty result: 200 with WeekDays empty and PeriodStatus Open when endDate < startDate
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/ApprovalTimesheetPeriodRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: a parameter not parseable
+            (Web API model binding) — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: employeeUserId, startDate or endDate omitted (captured with none)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: No parameters
+                  value:
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/get-status-by-period'.
+                    MessageDetail: No action was found on the controller 'ApprovalTimesheet' that matches the request.
+        '500':
+          description: |-
+            - **Code 37967** — Same rights rule as 37966, applied to reading another employee's approval status. — When: employeeUserId is another user the caller may not see — Fix: Read your own status, or use a user with an approval privilege covering the employee.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.employees.approvaltimesheet.getstatusbyperiod
+  /v1/approval/timesheets/get-status-by-period-with-rejected-time-tracking-items:
+    get:
+      operationId: getApprovalTimesheetStatusByPeriodWithRejectedTimeTrackingItems
+      summary: Get timesheet approval status for a period (obsolete variant)
+      description: |-
+        Obsolete alias of get-status-by-period; returns exactly the same response.
+
+        Despite its name it does not add rejected registrations by itself: send $expand=RejectedRegistrations, as on get-status-by-period. New integrations should call get-status-by-period.
+
+        **Not for:**
+        - New integrations — use `GET /v1/approval/timesheets/get-status-by-period`.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/user`
+
+        **See also:** `GET /v1/approval/timesheets/get-status-by-period`
+
+        > **Not yet documented:** examples (success).
+      tags:
+      - Employees
+      parameters:
+      - name: employeeUserId
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: |-
+          User ID of the employee. Omitted -> 404 action-not-matched.
+
+          Refers to `UserRead.UserID`. Look up valid values with `GET /v1/user`.
+      - name: startDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+        description: First day, inclusive.
+      - name: endDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+        description: Last day, inclusive.
+      - name: $expand
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - RejectedRegistrations
+          x-enum-descriptions:
+          - Fill RejectedRegistrations on each Rejected day. Without it the list is empty, whatever the route name says.
+        description: |-
+          Expansion of the per-day rejected registrations.
+
+          Allowed values:
+
+          | Value | Name | Meaning |
+          |---|---|---|
+          | `RejectedRegistrations` | RejectedRegistrations | Fill RejectedRegistrations on each Rejected day. Without it the list is empty, whatever the route name says. |
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Applied to each Rejected day's RejectedRegistrations list.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Page size of each Rejected day's RejectedRegistrations list.
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). Identical to get-status-by-period.
+
+            Order: WeekDays in ascending date order
+
+            Empty result: 200 with WeekDays empty and PeriodStatus Open when endDate < startDate
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/ApprovalTimesheetPeriodRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: a parameter not parseable
+            (Web API model binding) — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: a required parameter omitted (captured with none)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: No parameters
+                  value:
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/get-status-by-period-with-rejected-time-tracking-items'.
+                    MessageDetail: No action was found on the controller 'ApprovalTimesheet' that matches the request.
+        '500':
+          description: |-
+            - **Code 37967** — Same rights rule as 37966, applied to reading another employee's approval status. — When: employeeUserId is another user the caller may not see — Fix: Read your own status, or use a user with an approval privilege covering the employee.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.employees.approvaltimesheet.getstatusbyperiodwithrejectedtimetrackingitems
+  /v1/approval/timesheets/get-status-by-week-of-year:
+    get:
+      operationId: getApprovalTimesheetStatusByWeekOfYear
+      summary: Get timesheet approval status for an ISO week
+      description: |-
+        Returns the approval status of the seven days of one ISO week of an employee's timesheet.
+
+        Turns year + week into the ISO 8601 week (Monday to Sunday) and returns the same ApprovalTimesheetPeriodRead as get-status-by-period for that range. Week numbers outside 1..52/53 are not rejected: they are counted on from week 1 of `year` (week 0 = the last week of the previous year, week 53 in a 52-week year = week 1 of the next).
+
+        **Use it to:**
+        - Weekly timesheet UI or bot: 'is week 41 submitted and approved?'
+
+        **Not for:**
+        - Several weeks at once — use `GET /v1/approval/timesheets/get-status-range-by-nearby-week-of-year`.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/user`
+
+        **Next:** `POST /v1/approval/timesheets/submit-period`
+
+        **See also:** `GET /v1/approval/timesheets/get-status-by-period`, `GET /v1/approval/timesheets/get-status-range-by-nearby-week-of-year`
+
+        > **Not yet documented:** examples (success); request → query params → description.
+      tags:
+      - Employees
+      parameters:
+      - name: employeeUserId
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: |-
+          User ID of the employee. Omitted -> 404 action-not-matched.
+
+          Refers to `UserRead.UserID`. Look up valid values with `GET /v1/user`.
+      - name: year
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: ISO week-numbering year as a calendar year (1..9999; outside -> 500).
+      - name: week
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: 'ISO week number. Not range-checked: values outside the year''s weeks roll into the neighbouring year.'
+      - name: $expand
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - RejectedRegistrations
+          x-enum-descriptions:
+          - Fill RejectedRegistrations on each Rejected day (case-insensitive; other values ignored).
+        description: |-
+          Expansion of the per-day rejected registrations.
+
+          Allowed values:
+
+          | Value | Name | Meaning |
+          |---|---|---|
+          | `RejectedRegistrations` | RejectedRegistrations | Fill RejectedRegistrations on each Rejected day (case-insensitive; other values ignored). |
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Applied to each Rejected day's RejectedRegistrations list.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Page size of each Rejected day's RejectedRegistrations list.
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). The ISO week: seven WeekDays, Monday first.
+
+            Order: WeekDays Monday to Sunday
+
+            Empty result: Never empty: always seven days (days without data are Empty).
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/ApprovalTimesheetPeriodRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: a parameter not parseable
+            (Web API model binding) — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: employeeUserId, year or week omitted (captured with none)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: No parameters
+                  value:
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/get-status-by-week-of-year'.
+                    MessageDetail: No action was found on the controller 'ApprovalTimesheet' that matches the request.
+        '500':
+          description: |-
+            - **Code 37967** — Same rights rule as 37966, applied to reading another employee's approval status. — When: employeeUserId is another user the caller may not see — Fix: Read your own status, or use a user with an approval privilege covering the employee.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.employees.approvaltimesheet.getstatusbyweekofyear
+  /v1/approval/timesheets/get-status-range-by-nearby-week-of-year:
+    get:
+      operationId: getApprovalTimesheetStatusRangeByNearbyWeekOfYear
+      summary: Get timesheet approval status for a range of ISO weeks
+      description: |-
+        Returns one ISO week's approval status plus up to N weeks before and after it, one period per week.
+
+        Returns a list of ApprovalTimesheetPeriodRead: prevCount weeks before `week` (oldest first), `week` itself, then nextCount weeks after it. Without prevCount and nextCount the list holds only `week`. Weeks crossing a year end are counted on from week 1 of `year` (see get-status-by-week-of-year), so the range is continuous.
+
+        **Use it to:**
+        - Timesheet navigator: show the status of the current week and the four weeks before it.
+
+        **Not for:**
+        - A single week — `GET /v1/approval/timesheets/get-status-by-week-of-year` returns an object instead of a list.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/user`
+
+        **Next:** `POST /v1/approval/timesheets/submit-period`
+
+        **See also:** `GET /v1/approval/timesheets/get-status-by-week-of-year`
+
+        > **Not yet documented:** examples (success); request → query params.
+      tags:
+      - Employees
+      parameters:
+      - name: employeeUserId
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: |-
+          User ID of the employee. Omitted -> 404 action-not-matched.
+
+          Refers to `UserRead.UserID`. Look up valid values with `GET /v1/user`.
+      - name: year
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: Year of the centre week.
+      - name: week
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: ISO week number of the centre week (not range-checked).
+      - name: prevCount
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+        description: Number of weeks before the centre week. Negative -> 500 (Enumerable.Range).
+      - name: nextCount
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+        description: Number of weeks after the centre week. Negative -> 500.
+      - name: $expand
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - RejectedRegistrations
+          x-enum-descriptions:
+          - Fill RejectedRegistrations on each Rejected day (case-insensitive; other values ignored).
+        description: |-
+          Expansion of the per-day rejected registrations.
+
+          Allowed values:
+
+          | Value | Name | Meaning |
+          |---|---|---|
+          | `RejectedRegistrations` | RejectedRegistrations | Fill RejectedRegistrations on each Rejected day (case-insensitive; other values ignored). |
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: 'Not a response pager: applied to each Rejected day''s RejectedRegistrations list.'
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Page size of each Rejected day's RejectedRegistrations list.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). prevCount + 1 + nextCount weeks, oldest first.
+
+            Order: Weeks ascending
+
+            Empty result: Never empty: at least the centre week.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/ApprovalTimesheetPeriodRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: a parameter not parseable
+            (Web API model binding) — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: employeeUserId, year or week omitted (captured with none)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: No parameters
+                  value:
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/get-status-range-by-nearby-week-of-year'.
+                    MessageDetail: No action was found on the controller 'ApprovalTimesheet' that matches the request.
+        '500':
+          description: |-
+            - **Code 37967** — Same rights rule as 37966, applied to reading another employee's approval status. — When: employeeUserId is another user the caller may not see — Fix: Read your own status, or use a user with an approval privilege covering the employee.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.employees.approvaltimesheet.getstatusrangebynearbyweekofyear
+  /v1/approval/timesheets/resubmit-rejected-time-registrations:
+    post:
+      operationId: resubmitApprovalTimesheetRejectedTimeRegistrations
+      summary: Resubmit rejected time registrations
+      description: |-
+        Sends registrations that a manager rejected back for approval after the employee fixed them.
+
+        The second half of the rejection loop: a manager rejects (day status Rejected, registrations re-opened), the employee corrects the registrations, and this call submits them again. They are marked 'rejected and resubmitted' (employee-manager or project-manager variant), which the day status reports as HasResubmittedRejectedRegistration = true. Validation, partial success and errors are exactly those of submit-time-registrations; the call does NOT check that the registrations were actually rejected.
+
+        **Use it to:**
+        - After get-status-by-dates?$expand=RejectedRegistrations shows rejected items and the integration has corrected them, resubmit those IDs.
+
+        **Not for:**
+        - First-time submission — use `POST /v1/approval/timesheets/submit-time-registrations`.
+
+        **Behaviour:**
+        - Not idempotent.
+        - Safe to retry only under a condition. As submit-time-registrations: partly failed calls have already resubmitted the valid registrations.
+        - Side effect: Valid registrations: status Closed; approval status 'rejected and resubmitted' on their approval context items.
+        - Side effect: One approval-dialogue entry (SubmitTimeRegistration) spanning the registration dates; projection flags recalculated per date.
+        - On failure: Valid registrations are resubmitted even when the call returns 500 Code 102 for others.
+        - Changes are visible to the next read immediately.
+        - Batch: partial
+
+        **Call first:** `GET /v1/approval/timesheets/get-status-by-dates`, `PUT /v1/time-registration`
+
+        **Next:** `GET /v1/approval/timesheets/get-status-by-dates`
+
+        **See also:** `POST /v1/approval/timesheets/submit-time-registrations`
+
+        > **Not yet documented:** behaviour → side effects; examples (success).
+      tags:
+      - Employees
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalTimesheetSubmitTimeRegistrations.create'
+      responses:
+        '200':
+          description: 'Success without content: HTTP 200 with the literal JSON body `null`. Literal JSON `null`.'
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: EmployeeUserID 0
+            / missing (captured for an empty body) — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Empty body
+                  value:
+                    Code: 200
+                    Details:
+                    - '''Employee User ID'' must be greater than ''0''.'
+                    Message: Invalid model state error.
+                    Parameters: 'model: {"TimeRegistrationIds":null,"EmployeeUserID":0}'
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/resubmit-rejected-time-registrations
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: Captured. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 37966** — EmployeeUserID is not the caller, and the caller has neither 'all registrations' nor a timesheet-approval right covering that employee (nor, with project-manager approval on, a project-time approval right covering them). — When: EmployeeUserID is another user the caller may not submit for; nothing is saved — Fix: Submit as the employee, or give the integration user the 'all registrations' privilege or an approval privilege that covers the employee.
+
+            - **Code 37972** — A registration in TimeRegistrationIds belongs to another user than EmployeeUserID. Only that registration is refused; the others are still submitted. — When: A registration of another user; the valid ones are still resubmitted — Fix: Send one request per employee, with only that employee's registrations.
+
+            - **Code 37615** — On these operations: the registration is already approved by the employee manager and cannot be submitted again. Shared code with project-manager rejection (hence the message). — When: A registration approved by the employee manager in the meantime — Fix: Leave the registration out; it needs no submission.
+
+            - **Code 37971** — The registration is closed and has no approval decision yet (already waiting for approval). — When: A registration closed and without a decision (e.g. already resubmitted) — Fix: Leave it out; it is already with the approver.
+
+            - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: A registration fails its own domain validation
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: No body
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'model: null'
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/resubmit-rejected-time-registrations
+      x-timelog-key: rest.v1.employees.approvaltimesheet.resubmitrejectedtimeregistrations
+  /v1/approval/timesheets/submit-dates:
+    post:
+      operationId: submitApprovalTimesheetDates
+      summary: Submit timesheet days for approval
+      description: |-
+        Closes the listed days of an employee's timesheet and sends each one for approval.
+
+        Like submit-period, but for an explicit set of days that need not be consecutive. The close checks (running time tracker, tenant zero-hours / below-standard-time rule) are evaluated once over all listed days together; if they pass, each day is then closed and announced separately — one dialogue entry and one TimesheetClosed* event per day.
+
+        **Use it to:**
+        - Submit only the working days that the source system has finalised.
+        - Resubmit a day after fixing a rejected registration.
+
+        **Not for:**
+        - A contiguous range — `POST /v1/approval/timesheets/submit-period` does it in one batch and one event.
+
+        **Behaviour:**
+        - Not idempotent.
+        - Safe to retry only under a condition. Re-submitting adds another dialogue entry and event per day; nothing checks that a day is already submitted.
+        - Duplicates: Not deduplicated.
+        - Side effect: Per listed day: the employee's project-time and absence registrations get status Closed; the projection day is marked closed; the time tracker is notified.
+        - Side effect: Per listed day: an approval-dialogue entry with Comment; approval context items set to Submitted.
+        - On failure: Days are closed one at a time after the up-front checks; an unexpected failure on a later day leaves the earlier days submitted.
+        - Changes are visible to the next read immediately.
+        - Batch: partial
+
+        **Call first:** `GET /v1/approval/timesheets/get-status-by-dates`
+
+        **Next:** `GET /v1/approval/timesheets/get-status-by-dates`
+
+        **See also:** `POST /v1/approval/timesheets/submit-period`
+
+        > **Not yet documented:** behaviour → side effects on failure; examples (success).
+      tags:
+      - Employees
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalTimesheetSubmitDates.create'
+      responses:
+        '200':
+          description: 'Success without content: HTTP 200 with the literal JSON body `null`. Literal JSON `null` (TafSuccessResult).
+            Read the result back with get-status-by-dates.'
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: EmployeeUserID 0
+            / missing (captured for an empty body) — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Empty body
+                  value:
+                    Code: 200
+                    Details:
+                    - '''Employee User ID'' must be greater than ''0''.'
+                    Message: Invalid model state error.
+                    Parameters: 'model: {"Dates":null,"Comment":null,"EmployeeUserID":0}'
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/submit-dates
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: Captured. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 37966** — EmployeeUserID is not the caller, and the caller has neither 'all registrations' nor a timesheet-approval right covering that employee (nor, with project-manager approval on, a project-time approval right covering them). — When: EmployeeUserID is another user the caller may not submit for — Fix: Submit as the employee, or give the integration user the 'all registrations' privilege or an approval privilege that covers the employee.
+
+            - **Code 37992** — The employee has a running time tracker that started on one of the days being submitted. — When: A running time tracker started on one of the dates — Fix: Stop (or delete) the running time tracker, then submit again.
+
+            - **Code 37654** — Tenant setting 'timetracking warning' = do not close with zero hours, and the submitted days hold no hours (project time and absence together). The message says 'this week' whatever days were sent. — When: Tenant forbids closing with zero hours and the listed days have none in total — Fix: Register time on the days first, or submit a range that contains registrations.
+
+            - **Code 37655** — Tenant setting 'timetracking warning' = do not close below standard time, and the submitted days hold fewer hours (or minutes, per the site's time format) than the employee's normal working time on those days. — When: Tenant forbids closing below standard time and the listed days are short in total — Fix: Register the missing time (or absence) on the days, then submit again.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: No body
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'model: null'
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/submit-dates
+      x-timelog-key: rest.v1.employees.approvaltimesheet.submitdates
+  /v1/approval/timesheets/submit-period:
+    post:
+      operationId: submitApprovalTimesheetPeriod
+      summary: Submit a timesheet period for approval
+      description: |-
+        Closes every day from StartDate to EndDate of an employee's timesheet and sends it for approval.
+
+        The API equivalent of the employee pressing "submit" on a week or month. All the employee's project time and absence registrations in the period are closed (no longer editable by the employee), the days are marked closed in the employee's projection, a submit entry with the optional comment is added to the approval dialogue, and a TimesheetClosed event (or its project-manager-approval variant) starts the approval workflow. Refused as a whole when the employee has a time tracker running on one of the days, or when the tenant forbids closing a period with zero hours / below standard time. Can be called for another employee by a user with the rights described below.
+
+        **Use it to:**
+        - Auto-submit timesheets at the end of the week for employees whose hours come from another system.
+        - A manager or integration user closes the month for employees before payroll.
+
+        **Not for:**
+        - Submitting single registrations — use `POST /v1/approval/timesheets/submit-time-registrations`.
+        - Approving or rejecting — no REST operation in this service does that.
+
+        **Rules across fields:**
+        - R1: StartDate must not be after EndDate; otherwise the day list is empty and the call fails with 500. Not validated.
+
+        **Behaviour:**
+        - Not idempotent.
+        - Safe to retry only under a condition. Re-submitting closes nothing new but adds another dialogue entry and raises the event again (no 'already submitted' check on this path).
+        - Duplicates: Not deduplicated (see safe_to_retry_detail).
+        - Side effect: Every project-time and absence registration of the employee in the period gets status Closed (employee can no longer edit).
+        - Side effect: The employee's projection days in the period are marked closed; the time tracker is notified of the closed period.
+        - Side effect: An approval-dialogue entry (CloseTimeTrackingPeriod) with Comment is stored; approval context items are set to Submitted.
+        - Changes are visible to the next read immediately.
+        - Batch: all_or_nothing
+
+        **Call first:** `GET /v1/approval/timesheets/get-status-by-period`
+
+        **Next:** `GET /v1/approval/timesheets/get-status-by-period`
+
+        **See also:** `POST /v1/approval/timesheets/submit-dates`, `POST /v1/approval/timesheets/submit-time-registrations`
+
+        > **Not yet documented:** behaviour → batch semantics; behaviour → side effects; examples (success).
+      tags:
+      - Employees
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalTimesheetSubmitPeriod.create'
+      responses:
+        '200':
+          description: 'Success without content: HTTP 200 with the literal JSON body `null`. Literal JSON `null` (TafSuccessResult).
+            Read the result back with get-status-by-period.'
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: EmployeeUserID 0
+            / missing (captured for an empty body) — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Empty body
+                  value:
+                    Code: 200
+                    Details:
+                    - '''Employee User ID'' must be greater than ''0''.'
+                    Message: Invalid model state error.
+                    Parameters: 'model: {"StartDate":"0001-01-01T00:00:00","EndDate":"0001-01-01T00:00:00","Comment":null,"EmployeeUserID":0}'
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/submit-period
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: Captured. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 37966** — EmployeeUserID is not the caller, and the caller has neither 'all registrations' nor a timesheet-approval right covering that employee (nor, with project-manager approval on, a project-time approval right covering them). — When: EmployeeUserID is another user the caller may not submit for — Fix: Submit as the employee, or give the integration user the 'all registrations' privilege or an approval privilege that covers the employee.
+
+            - **Code 37992** — The employee has a running time tracker that started on one of the days being submitted. — When: A time tracker of the employee started on a day of the period — Fix: Stop (or delete) the running time tracker, then submit again.
+
+            - **Code 37654** — Tenant setting 'timetracking warning' = do not close with zero hours, and the submitted days hold no hours (project time and absence together). The message says 'this week' whatever days were sent. — When: Tenant forbids closing with zero hours and the period has none — Fix: Register time on the days first, or submit a range that contains registrations.
+
+            - **Code 37655** — Tenant setting 'timetracking warning' = do not close below standard time, and the submitted days hold fewer hours (or minutes, per the site's time format) than the employee's normal working time on those days. — When: Tenant forbids closing below standard time and the period is short — Fix: Register the missing time (or absence) on the days, then submit again.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: No body
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'model: null'
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/submit-period
+      x-timelog-key: rest.v1.employees.approvaltimesheet.submitperiod
+  /v1/approval/timesheets/submit-time-registrations:
+    post:
+      operationId: submitApprovalTimesheetTimeRegistrations
+      summary: Submit time registrations for approval
+      description: |-
+        Submits selected time registrations of one employee for approval, without closing whole days.
+
+        Used where approval runs per registration (registration-level approval, project-manager approval). Each listed registration is checked on its own: it must belong to EmployeeUserID, must not be approved by the employee manager already, and must not be waiting for approval already. Registrations that pass are closed and marked Submitted even if others fail — the call then answers 500 with one violation per refused registration and does not say which ones were saved. Unknown IDs are skipped silently. Unlike submit-period, no zero-hours / standard-time / running-tracker check applies.
+
+        **Use it to:**
+        - Submit the registrations an integration just created for an employee.
+
+        **Not for:**
+        - Resubmitting rejected registrations — use `POST /v1/approval/timesheets/resubmit-rejected-time-registrations` so they are marked rejected-and-resubmitted.
+
+        **Behaviour:**
+        - Not idempotent.
+        - Safe to retry only under a condition. A retry of a partly failed call refuses the already-submitted registrations with 37971; inspect the violations rather than retrying blindly.
+        - Duplicates: A registration already submitted is refused with 37971.
+        - Side effect: Valid registrations: status Closed; approval status Submitted on their approval context items.
+        - Side effect: One approval-dialogue entry (SubmitTimeRegistration) spanning the first to last registration date.
+        - Side effect: Per registration date: projection IsApproved cleared and HasRejectedTime recalculated.
+        - On failure: All of the above for the registrations that passed, even though the call returns 500 Code 102 for the others.
+        - Changes are visible to the next read immediately.
+        - Batch: partial
+
+        **Call first:** `POST /v1/time-registration`, `GET /v1/time-registration/{timeRegistrationID}`
+
+        **Next:** `GET /v1/approval/timesheets/get-status-by-dates`
+
+        **See also:** `POST /v1/approval/timesheets/resubmit-rejected-time-registrations`, `POST /v1/approval/timesheets/submit-dates`
+
+        > **Not yet documented:** examples (success).
+      tags:
+      - Employees
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalTimesheetSubmitTimeRegistrations.create'
+      responses:
+        '200':
+          description: 'Success without content: HTTP 200 with the literal JSON body `null`. Literal JSON `null`: every listed
+            (existing) registration was submitted — or none of the IDs existed.'
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: EmployeeUserID 0
+            / missing (captured for an empty body) — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Empty body
+                  value:
+                    Code: 200
+                    Details:
+                    - '''Employee User ID'' must be greater than ''0''.'
+                    Message: Invalid model state error.
+                    Parameters: 'model: {"TimeRegistrationIds":null,"EmployeeUserID":0}'
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/submit-time-registrations
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: Captured. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 37966** — EmployeeUserID is not the caller, and the caller has neither 'all registrations' nor a timesheet-approval right covering that employee (nor, with project-manager approval on, a project-time approval right covering them). — When: EmployeeUserID is another user the caller may not submit for; nothing is saved — Fix: Submit as the employee, or give the integration user the 'all registrations' privilege or an approval privilege that covers the employee.
+
+            - **Code 37972** — A registration in TimeRegistrationIds belongs to another user than EmployeeUserID. Only that registration is refused; the others are still submitted. — When: A registration of another user; the valid ones are still submitted — Fix: Send one request per employee, with only that employee's registrations.
+
+            - **Code 37615** — On these operations: the registration is already approved by the employee manager and cannot be submitted again. Shared code with project-manager rejection (hence the message). — When: A registration already approved by the employee manager; the valid ones are still submitted — Fix: Leave the registration out; it needs no submission.
+
+            - **Code 37971** — The registration is closed and has no approval decision yet (already waiting for approval). — When: A registration already waiting for approval; the valid ones are still submitted — Fix: Leave it out; it is already with the approver.
+
+            - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: A registration fails its own domain validation (TimeRegistration.Validate); the valid ones are still submitted
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: No body
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'model: null'
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/submit-time-registrations
+      x-timelog-key: rest.v1.employees.approvaltimesheet.submittimeregistrations
+  /v1/employee-type:
+    get:
+      operationId: listEmployeeTypes
+      summary: List employee types
+      description: |-
+        Lists all employee types of the tenant (HR classifications such as full time / part time), by name.
+
+        The value set for EmployeeTypeID on user create. Returns every employee type, active or not, in one response (no paging).
+
+        **Use it to:**
+        - Map an HR system's employment categories to TimeLog EmployeeTypeIDs before creating users.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `POST /v1/user/create`
+
+        **See also:** `GET /v1/normal-working-time`
+      tags:
+      - Employees
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). All employee types, without per-entity links and WITHOUT the Properties paging block (TotalRecord / TotalPage are absent).
+
+            Order: Name ascending
+
+            Empty result: 200 with an empty Entities list (not observed)
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/EmployeeTypeRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+              examples:
+                example1:
+                  summary: All employee types
+                  value:
+                    Entities:
+                    - Properties:
+                        EmployeeTypeID: 1
+                        ID: 77182991-ddaa-4339-9267-ea938073baca
+                        IsActive: true
+                        Name: Full time employee
+                    - Properties:
+                        EmployeeTypeID: 3
+                        ID: 49fc3f62-cd04-4467-830b-fb259c5a472b
+                        IsActive: true
+                        Name: Part time employee
+                    - Properties:
+                        EmployeeTypeID: 2
+                        ID: 1db73cbe-e1f0-4c48-ae9f-449fa2f12069
+                        IsActive: true
+                        Name: Student assistant
+                    Links:
+                    - Href: https://{region-node}.timelog.com/{account}/api/v1/employee-type
+                      Rel: self
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
+            a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+      x-timelog-key: rest.v1.employees.employeetype.list
+  /v1/normal-working-time:
+    get:
+      operationId: listNormalWorkingTimes
+      summary: List normal working times
+      description: |-
+        Lists the tenant's normal working time definitions (working-hour norms), active and inactive.
+
+        The value set for NormalWorkingTimeId on assign-to-employee and NormalWorkingTimeID on user create. Returns the header of each norm (ID, name, one- or two-week pattern, active, default) — not the hours per day, so the norm cannot be inspected or matched by hours through this API. Inactive norms are included; filter on IsActive before assigning.
+
+        **Use it to:**
+        - Map an HR system's working-time schemes to TimeLog NormalWorkingTimeIDs before calling assign-to-employee.
+
+        **Not for:**
+        - Reading the expected hours per day of a norm or of an employee — use `GET /v1/employee-projection/get-in-period` for daily norm hours.
+        - Creating or editing norms — not available in REST v1.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `POST /v1/normal-working-time/assign-to-employee`
+
+        **See also:** `GET /v1/employee-type`
+      tags:
+      - Employees
+      parameters:
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size. No maximum enforced in the API layer.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). Normal working times without per-entity links.
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: NormalWorkingTimeID descending (newest first)
+
+            Empty result: 200 with TotalRecord "0" and no Entities (not expected: a tenant always has a default norm)
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/NormalWorkingTimeRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
+            a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.employees.normalworkingtime.list
+  /v1/normal-working-time/assign-to-employee:
+    post:
+      operationId: assignNormalWorkingTimeToEmployee
+      summary: Assign a normal working time to an employee
+      description: |-
+        Puts an employee on a normal working time (working-hour norm) from a given date, past or future.
+
+        Adds an entry to the employee's working-norm history: "from StartsAt, this employee works NormalWorkingTimeId". It is the API equivalent of changing the norm on the employee card in TimeLog. Effective-date semantics (the integrator-critical part): - Only the date of StartsAt counts. The entry runs from that date until the day before the next entry. - The new entry REPLACES every history entry that starts on or after the same date: those entries are marked obsolete (kept in the table, no longer in force). Assigning norm C from 1 March to an employee who had A since January and a scheduled change to B from 1 May leaves A (Jan - 28 Feb) and C (from 1 March) — the May change to B is gone. There is never an overlap; the latest call wins for its date onwards. - Backdating is allowed without limit and without any check against submitted, approved or payroll-exported periods. The employee's daily expected hours (projection) and flex norm postings are regenerated from the effective date (or the employment / calculation start date, if later), so flex balances of past weeks change retroactively. - StartsAt today or earlier: the employee's current norm switches immediately. StartsAt in the future: only the history entry is stored now; the nightly user update switches the current norm on that date. - There is no delete: to undo, assign the previous norm again with the same StartsAt.
+
+        **Use it to:**
+        - HR system pushes a contract change (e.g. 37 h to 30 h per week) with its effective date.
+        - Schedule a future reduction of working hours (parental leave, part-time arrangement).
+
+        **Not for:**
+        - Correcting a past norm when the affected weeks have been paid — the API recalculates flex silently; agree a process with payroll first.
+        - Reading an employee's norm history — no REST v1 operation returns it.
+
+        **Behaviour:**
+        - Idempotent.
+        - Same effective state on a repeat, but each call writes a new history row, obsoletes the previous identical one, raises the events and triggers the recalculation again.
+        - Safe to retry.
+        - Duplicates: A repeat call supersedes the previous identical entry (see idempotent_detail).
+        - Side effect: If StartsAt <= today: the employee's profile norm is switched now; otherwise on StartsAt by the nightly user update.
+        - Side effect: Background (after the response): the employee projection (expected hours per day) and flex norm postings are regenerated from StartsAt (not before the employment / calculation start date); the salary-account posting aggregation is re-run.
+        - Side effect: Resource Planner capacity of the employee is updated (EmployeeCapacitiesUpdated events from the projection regeneration).
+        - On failure: None expected: both checks run before the first write. If a later history update or the profile update fails, rows already written stay (no transaction around the loop).
+        - Consistency: eventual — the response returns before the projection, flex postings and aggregations are regenerated (background work item); the profile norm itself is immediate when StartsAt <= today
+
+        **Call first:** `GET /v1/normal-working-time`, `GET /v1/user`
+
+        **Next:** `GET /v1/employee-projection/get-in-period`
+
+        **See also:** `PUT /v1/user`
+
+        > **Not yet documented:** behaviour → side effects; behaviour → side effects on failure; examples (success).
+      tags:
+      - Employees
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NormalWorkingTimeAssign.create'
+      responses:
+        '200':
+          description: 'Success without content: HTTP 204 with an empty body. HTTP 200 with an empty body (Ok()). Nothing
+            to read back: no REST v1 operation returns an employee''s norm history.'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
+            a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 37040** — UserId is 0, omitted or not an existing user. The check has no active-flag test of its own. — When: UserId 0 / omitted / unknown (captured for every malformed body) — Fix: Send the UserID of an existing user (`GET /v1/user`).
+
+            - **Code 37922** — NormalWorkingTimeId refers to a normal working time that is inactive (or, presumably, does not exist). — When: NormalWorkingTimeId is an inactive norm — Fix: Pick an active norm from GET /v1/normal-working-time (IsActive true).
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Empty body
+                  value:
+                    Code: 102
+                    Details:
+                    - Message: 'No user with UserID: 0 exist'
+                      ErrorCode: 37040
+                    Message: Business rules exception.
+                    Parameters: 'assignment: {"UserId":0,"NormalWorkingTimeId":0,"StartsAt":"0001-01-01T00:00:00"}'
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/normal-working-time/assign-to-employee
+                example2:
+                  summary: No body
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'assignment: null'
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/normal-working-time/assign-to-employee
+      x-timelog-key: rest.v1.employees.normalworkingtime.assigntoemployee
+  /v1/timesheet-status/weekly:
+    get:
+      operationId: getWeeklyTimesheetStatus
+      summary: Get the weekly timesheet status of employees
+      description: |-
+        Lists, per employee the caller may see, the timesheet status (Empty / Open / Closed / Approved) of each week in a date range.
+
+        The API form of TimeLog's timesheet status report: a manager's or payroll's overview of who has not submitted or not been approved yet. Each employee comes back once per page with their current approval manager and department and a Details list of weeks. The statuses are read from the pre-computed timesheet-status aggregation (refreshed in the background after registrations / approvals change), not computed live like `GET /v1/approval/timesheets/get-status-by-period`, and they are coarser: rejected weeks show as Open (or Empty), and every "submitted but not fully approved by the employee manager" state shows as Closed. Paging is per employee-WEEK row, not per employee: with the default page size of 10 a four-week range returns only two or three employees per page, an employee can be split across two pages, and TotalRecord counts rows. Ask for a large $pagesize (no maximum is enforced) and merge Details by EmployeeUserID.
+
+        **Use it to:**
+        - Payroll cut-off dashboard: which employees still have Open or Closed weeks in the pay period.
+        - Weekly reminder bot: employees with Open weeks, grouped by approval manager.
+
+        **Not for:**
+        - Exact, real-time per-day status before exporting time — use `GET /v1/approval/timesheets/get-status-by-period` (live, per day, distinguishes Rejected).
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+
+        **Call first:** `GET /v1/user`
+
+        **Next:** `GET /v1/approval/timesheets/get-status-by-period`
+
+        **See also:** `GET /v1/approval/timesheets/get-status-range-by-nearby-week-of-year`
+
+        > **Not yet documented:** behaviour → consistency; examples (success); request → query params → description.
+      tags:
+      - Employees
+      parameters:
+      - name: startDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+        description: |-
+          First day of the range (time part dropped). Weeks overlapping the range are returned whole. Omitted -> 404 action-not-matched.
+
+          Date only — no time component.
+      - name: endDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+        description: |-
+          Last day of the range (time part dropped). Not checked against startDate.
+
+          Date only — no time component.
+      - name: legalEntityId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          x-timelog-filter:
+            operators:
+            - eq
+        description: |-
+          Only employees of this legal entity. 0 / omitted = no filter.
+
+          Filters on `employee's legal entity` (eq).
+      - name: departmentId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          x-timelog-filter:
+            operators:
+            - eq
+        description: |-
+          Only employees of this department OR any of its sub-departments. 0 / omitted = no filter.
+
+          Filters on `employee's department` (eq).
+      - name: approverId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          x-timelog-filter:
+            operators:
+            - eq
+        description: |-
+          Only employees whose current approval manager has this EMPLOYEE ID — not a user ID, unlike userId. 0 / omitted = no filter.
+
+          Filters on `employee's current approval manager` (eq).
+      - name: userId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          x-timelog-filter:
+            operators:
+            - eq
+        description: |-
+          Only this employee (user ID). 0 / omitted = no filter.
+
+          Filters on `TimesheetStatusRead.EmployeeUserID` (eq).
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number — of employee-week rows.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Employee-week ROWS per page, not employees. No maximum enforced.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). One TimesheetStatusRead per employee present on this page, each with that page's weeks in Details.
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: Employees by EmployeeUserID ascending; Details by WeekNumber (rows are paged in EmployeeUserID, week StartDate order)
+
+            Empty result: 200 with TotalRecord "0" and no Entities
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/TimesheetStatusRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: A parameter that
+            cannot be parsed (Web API model binding) — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No / invalid token WITH both dates present (without
+            them route matching fails first, 404) — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '403':
+          description: '- **Code 103** — The authenticated user lacks a privilege the operation requires. On time registrations
+            this is raised when the caller is not the registration''s owner and has no registration privilege that covers
+            the owner. — When: Caller has neither an Employee view privilege nor a timesheet approval privilege. Message:
+            "Current user does not have access to view employees'' timesheet status."'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: startDate or endDate omitted (captured: every scenario sent no parameters, including
+            the one without a token)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: No parameters
+                  value:
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/timesheet-status/weekly'.
+                    MessageDetail: No action was found on the controller 'TimesheetStatus' that matches the request.
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.employees.timesheetstatus.weeklytimesheetstatus
+  /v1/workload/book:
+    post:
+      operationId: bookWorkload
+      summary: Book workload for an employee on a task
+      description: |-
+        Asks Resource Planner to book (plan) a number of hours for an employee on a task over a date range.
+
+        TimeLog itself stores nothing; there is no booking ID in the response and no REST v1 operation to read, change or delete the booking afterwards. What Resource Planner does with it — how Hours is spread over the days, whether an existing booking for the same employee / task / period is replaced or added to, whether the employee is added to the project team (a TimeLog allocation) — is decided in that service and is not established here (see gaps). Note EmployeeId is an EMPLOYEE ID, not the user ID used by the other Employees operations.
+
+        **Use it to:**
+        - A staffing or PSA tool pushes planned hours for a person on a task into TimeLog Resource Planner.
+
+        **Not for:**
+        - Registering actual time — use the TimeRegistration service.
+
+        **Rules across fields:**
+        - R1: EndDate must be on or after StartDate.
+
+        **Behaviour:**
+        - Side effect: TimeLog: none — validations are reads; the only action is the HTTP PUT to Resource Planner.
+        - Side effect: Resource Planner: a workload booking for EmployeeId on TaskId / its project over StartDate..EndDate with Hours (semantics owned by RP, see gaps).
+        - On failure: On a 500 caused by an RP timeout or dropped connection the booking may or may not have been stored by RP — and there is no read operation to check.
+        - Consistency: Visibility of the booking in Resource Planner views is RP-side and not established.
+
+        **Call first:** `GET /v1/task/{taskID}`
+
+        **See also:** `POST /v1/task/{taskID}/allocation`
+
+        > **Not yet documented:** behaviour → duplicate handling; behaviour → idempotent; behaviour → safe to retry; behaviour → side effects; examples (success).
+      tags:
+      - Employees
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkloadBook.create'
+      responses:
+        '202':
+          description: 'Success without content: HTTP 204 with an empty body. 202 Accepted, empty body: Resource Planner answered
+            with a success status. No booking ID or result is returned.'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: Missing / non-positive
+            EmployeeId, TaskId or Hours; invalid dates; EndDate before StartDate (captured: all eight messages for an empty
+            body) — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Empty body
+                  value:
+                    Code: 200
+                    Details:
+                    - '''Employee Id'' must not be empty.'
+                    - '''Employee Id'' must be greater than ''0''.'
+                    - '''Task Id'' must not be empty.'
+                    - '''Task Id'' must be greater than ''0''.'
+                    - '''Hours'' must not be empty.'
+                    - '''Hours'' must be greater than ''0''.'
+                    - StartDate is not a valid date.
+                    - EndDate is not a valid date.
+                    Message: Invalid model state error.
+                    Parameters: 'model: {"StartDate":"0001-01-01T00:00:00","EndDate":"0001-01-01T00:00:00","Hours":0.0,"EmployeeId":0,"TaskId":0}'
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/workload/book
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
+            a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 37001** — The taskID in the path (external keys) or TaskId in the body (allocation) is not an existing task. Not a 404. — When: TaskId is not an existing task — Fix: Use an existing task ID.
+
+            - **Code 37968** — The task's project does not have 'available in Resource Planner' switched on. — When: The task's project is not enabled for Resource Planner — Fix: Enable the project for Resource Planner in TimeLog, or book on a task of an enabled project.
+
+            - **Code 37040** — EmployeeId is not an existing employee — OR the employee's user is inactive: the inactive check (37931) is raised inside a try whose catch-all replaces it with 37040. {0} is the EmployeeId, although the message says UserID. — When: EmployeeId unknown or the employee is inactive — Fix: Send the EMPLOYEE ID of an active employee.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: No body
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'model: null'
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/workload/book
+      x-timelog-key: rest.v1.employees.workload.bookworkload
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: |-
+        OAuth 2.0 bearer token, sent as `Authorization: Bearer <token>`. JWT and reference tokens are both accepted. The token must carry the required scope (default `tlp`).
+
+        The token's `sub` claim is the acting user. A token WITHOUT `sub` (client-credentials) acts as the system service user. If the `sub` user cannot log in (inactive, locked, deleted), the request is rejected with 401 — it is no longer let through without a user.
+
+        > **Not yet documented:** how to obtain a token.
+
+        > **Not yet documented:** token lifetime.
+  schemas:
+    ApprovalTimesheetDayRead:
+      type: object
+      properties:
+        ApprovalStatus:
+          type: string
+          enum:
+          - Empty
+          - Open
+          - Approved
+          - PendingApproval
+          - Rejected
+          - PartiallyApproved
+          - PartiallyRejected
+          x-enum-descriptions:
+          - TimeLog returned no approval row for the employee on that day, so there is nothing to approve (Hours is 0). Integer
+            0.
+          - 'Not submitted: the employee has not closed the day (navigation status NotSubmitted, which also covers a partially
+            approved day that is no longer closed). Registrations can still be edited. Integer 1.'
+          - The employee manager approved the day. ALSO returned when project-manager approval is switched on for timesheet
+            approval and the project manager(s) approved — in the 'project manager, then employee manager' setup the employee
+            manager may not have approved yet. Integer 2.
+          - 'Submitted and waiting: the day is closed and not yet approved — including a day still missing a project manager''s
+            approval, and a project-manager-approved day when project-manager approval is not switched on. Integer 3.'
+          - A manager rejected time on the day (the day has rejected time). The rejected registrations are re-opened for the
+            employee to fix and resubmit; RecentRejectedComment carries the comment. Integer 4.
+          - 'On a day: closed, some of the day''s time approved by the employee manager and the rest still waiting. On a PERIOD
+            (PeriodStatus) it means something else — see ApprovalTimesheetPeriodRead.PeriodStatus. Integer 5.'
+          - 'Never returned for a single day. Only a period aggregate: the period mixes Rejected days with days in another
+            status. Integer 6.'
+          readOnly: true
+          description: |-
+            Where the day is in the approval flow. Derived per day from the employee's approval navigation row (closed / approved / rejected / partially-approved / project-manager-approved flags), not stored as such. Serialized as the member NAME (string), not the integer.
+
+            Contains personal data.
+
+            - project-manager approval of timesheets switched on (PM-then-employee-manager or PM-only) — A project-manager-approved day reads Approved; otherwise it reads PendingApproval.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `Empty` | Empty | TimeLog returned no approval row for the employee on that day, so there is nothing to approve (Hours is 0). Integer 0. |
+            | `Open` | Open | Not submitted: the employee has not closed the day (navigation status NotSubmitted, which also covers a partially approved day that is no longer closed). Registrations can still be edited. Integer 1. |
+            | `Approved` | Approved | The employee manager approved the day. ALSO returned when project-manager approval is switched on for timesheet approval and the project manager(s) approved — in the 'project manager, then employee manager' setup the employee manager may not have approved yet. Integer 2. |
+            | `PendingApproval` | PendingApproval | Submitted and waiting: the day is closed and not yet approved — including a day still missing a project manager's approval, and a project-manager-approved day when project-manager approval is not switched on. Integer 3. |
+            | `Rejected` | Rejected | A manager rejected time on the day (the day has rejected time). The rejected registrations are re-opened for the employee to fix and resubmit; RecentRejectedComment carries the comment. Integer 4. |
+            | `PartiallyApproved` | PartiallyApproved | On a day: closed, some of the day's time approved by the employee manager and the rest still waiting. On a PERIOD (PeriodStatus) it means something else — see ApprovalTimesheetPeriodRead.PeriodStatus. Integer 5. |
+            | `PartiallyRejected` | PartiallyRejected | Never returned for a single day. Only a period aggregate: the period mixes Rejected days with days in another status. Integer 6. |
+        Hours:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Hours registered by the employee on the day, as counted by the approval overview (RegisteredHours of the navigation row). 0 for Empty days.
+
+            Unit: hours
+
+            Contains personal data.
+
+            > **Not yet documented:** description.
+        Date:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            The day this status is for — the requested date (get-status-by-dates) or a day of the requested period / ISO week, echoed back.
+
+            Date only — no time component.
+
+            > **Not yet documented:** constraints → timezone.
+        LastRejectedComment:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'Obsolete. Never filled by the adapter: always null. Use RecentRejectedComment.'
+        RecentRejectedComment:
+          $ref: '#/components/schemas/ApprovalTimesheetRejectedCommentRead'
+          readOnly: true
+          description: |-
+            The latest non-empty rejection comment on the day (time, time-registration, absence or absence-registration rejection). Only looked up when ApprovalStatus is Rejected; null otherwise and when the rejection had no comment.
+
+            Contains personal data.
+        RejectedRegistrations:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimeTrackingItemRead'
+          readOnly: true
+          description: |-
+            The day's rejected time registrations. Always an array; it is filled only when ApprovalStatus is Rejected AND the request carries $expand=RejectedRegistrations, and is empty otherwise.
+
+            Contains personal data.
+
+            - $expand does not contain RejectedRegistrations (case-insensitive) — Empty array.
+
+            - $page / $pagesize sent — Passed to the rejected-registrations procedure for EVERY day, so the per-day list is paged by the request's paging parameters.
+
+            > **Not yet documented:** multiple.
+        HasResubmittedRejectedRegistration:
+          type: boolean
+          readOnly: true
+          description: true when at least one registration on the day was rejected (by the employee manager or a project manager)
+            and has since been resubmitted.
+      description: 'The approval state of ONE day of one employee''s timesheet: has the employee submitted the day, and has
+        a manager approved or rejected it. Returned as a list by get-status-by-dates and inside ApprovalTimesheetPeriodRead.WeekDays
+        by the period / week operations. The object has no ID of its own: it is identified by (employee, Date).'
+    ApprovalTimesheetPeriodRead:
+      type: object
+      properties:
+        WeekDays:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalTimesheetDayRead'
+          readOnly: true
+          description: One ApprovalTimesheetDayRead per calendar day from the first to the last day of the period, both inclusive,
+            in date order. Empty when the end date is before the start date.
+        PeriodStatus:
+          type: string
+          enum:
+          - Empty
+          - Open
+          - Approved
+          - PendingApproval
+          - Rejected
+          - PartiallyApproved
+          - PartiallyRejected
+          x-enum-descriptions:
+          - TimeLog returned no approval row for the employee on that day, so there is nothing to approve (Hours is 0). Integer
+            0.
+          - 'Not submitted: the employee has not closed the day (navigation status NotSubmitted, which also covers a partially
+            approved day that is no longer closed). Registrations can still be edited. Integer 1.'
+          - The employee manager approved the day. ALSO returned when project-manager approval is switched on for timesheet
+            approval and the project manager(s) approved — in the 'project manager, then employee manager' setup the employee
+            manager may not have approved yet. Integer 2.
+          - 'Submitted and waiting: the day is closed and not yet approved — including a day still missing a project manager''s
+            approval, and a project-manager-approved day when project-manager approval is not switched on. Integer 3.'
+          - A manager rejected time on the day (the day has rejected time). The rejected registrations are re-opened for the
+            employee to fix and resubmit; RecentRejectedComment carries the comment. Integer 4.
+          - 'On a day: closed, some of the day''s time approved by the employee manager and the rest still waiting. On a PERIOD
+            (PeriodStatus) it means something else — see ApprovalTimesheetPeriodRead.PeriodStatus. Integer 5.'
+          - 'Never returned for a single day. Only a period aggregate: the period mixes Rejected days with days in another
+            status. Integer 6.'
+          readOnly: true
+          description: |-
+            One status for the whole period, aggregated from the distinct day statuses. The rule is mechanical and does NOT read like the day meanings: if every day has the same status, that status; otherwise PartiallyRejected when any day is Rejected, else PartiallyApproved when any day is Open, else Open. So Approved + PendingApproval days give Open, Open + PendingApproval days give PartiallyApproved, and a period with no days gives Open. Always inspect WeekDays before acting on a period.
+
+            Contains personal data.
+
+            - all days share one status — That status (Empty, Open, Approved, PendingApproval, Rejected or PartiallyApproved).
+
+            - mixed statuses, at least one Rejected — PartiallyRejected.
+
+            - mixed statuses, no Rejected, at least one Open — PartiallyApproved — even when nothing in the period is approved.
+
+            - mixed statuses, no Rejected, no Open (e.g. Approved + PendingApproval, Empty + Approved) — Open.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `Empty` | Empty | TimeLog returned no approval row for the employee on that day, so there is nothing to approve (Hours is 0). Integer 0. |
+            | `Open` | Open | Not submitted: the employee has not closed the day (navigation status NotSubmitted, which also covers a partially approved day that is no longer closed). Registrations can still be edited. Integer 1. |
+            | `Approved` | Approved | The employee manager approved the day. ALSO returned when project-manager approval is switched on for timesheet approval and the project manager(s) approved — in the 'project manager, then employee manager' setup the employee manager may not have approved yet. Integer 2. |
+            | `PendingApproval` | PendingApproval | Submitted and waiting: the day is closed and not yet approved — including a day still missing a project manager's approval, and a project-manager-approved day when project-manager approval is not switched on. Integer 3. |
+            | `Rejected` | Rejected | A manager rejected time on the day (the day has rejected time). The rejected registrations are re-opened for the employee to fix and resubmit; RecentRejectedComment carries the comment. Integer 4. |
+            | `PartiallyApproved` | PartiallyApproved | On a day: closed, some of the day's time approved by the employee manager and the rest still waiting. On a PERIOD (PeriodStatus) it means something else — see ApprovalTimesheetPeriodRead.PeriodStatus. Integer 5. |
+            | `PartiallyRejected` | PartiallyRejected | Never returned for a single day. Only a period aggregate: the period mixes Rejected days with days in another status. Integer 6. |
+        LastRejectedComment:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: 'Obsolete. Never filled by the adapter: always null. Use RecentRejectedComment.'
+        RecentRejectedComment:
+          $ref: '#/components/schemas/ApprovalTimesheetRejectedCommentRead'
+          readOnly: true
+          description: |-
+            The latest non-empty rejection comment in the whole period. Looked up only when PeriodStatus is Rejected or PartiallyRejected; null otherwise.
+
+            Contains personal data.
+      description: 'The approval state of a run of consecutive days of one employee''s timesheet (a period or an ISO week):
+        every day''s status in WeekDays plus one aggregated PeriodStatus. No ID: identified by (employee, first day, last
+        day).'
+    ApprovalTimesheetRejectedCommentRead:
+      type: object
+      properties:
+        ManagerName:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: |-
+            Intended as the rejecting manager's full name. ACTUAL value: the full name of the user the dialogue entry is about — the employee whose timesheet was rejected — because it is resolved from the dialogue's EmployeeUserID, not from its author (CreatedBy). Do not display it as the manager.
+
+            Contains personal data.
+        ManagerComment:
+          type: string
+          readOnly: true
+          description: |-
+            The comment the manager entered when rejecting (free text; never empty — entries without a comment are skipped).
+
+            Contains personal data.
+      description: The text a manager wrote when rejecting time, taken from the employee's approval dialogue (the latest rejection
+        with a non-empty comment in the requested day or period).
+    ApprovalTimesheetSubmitDates.create:
+      type: object
+      properties:
+        EmployeeUserID:
+          type: integer
+          format: int32
+          writeOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            User ID of the employee whose days are submitted.
+
+            Refers to `UserRead.UserID`. Look up valid values with `GET /v1/user`.
+
+            - 0, negative or omitted — 400 "'Employee User ID' must be greater than '0'."
+
+            - another user than the caller, without the needed rights — 500 Code 102, ErrorCode 37966.
+        Dates:
+          type: array
+          format: date-time
+          items: {}
+          writeOnly: true
+          description: |-
+            The days to close. Each day is closed and announced (TimesheetClosed event) separately, in the order sent.
+
+            Date only — no time component.
+
+            - omitted, null or empty — No validation rule: fails inside the engine → 500 Code 100.
+
+            - a date with a time-of-day — Compared as sent: the active-time-tracker check matches only midnight values (x == StartTime.Date).
+
+            > **Not yet documented:** multiple.
+        Comment:
+          type:
+          - string
+          - 'null'
+          writeOnly: true
+          description: |-
+            Optional free text stored on the submit dialogue entry of every submitted day.
+
+            Contains personal data.
+
+            > **Not yet documented:** constraints.
+      required:
+      - EmployeeUserID
+      - Dates
+      description: Submits (closes) an employee's timesheet for an explicit list of days, each day separately, with an optional
+        comment to the approver.
+    ApprovalTimesheetSubmitPeriod.create:
+      type: object
+      properties:
+        EmployeeUserID:
+          type: integer
+          format: int32
+          writeOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            User ID of the employee whose period is submitted.
+
+            Refers to `UserRead.UserID`. Look up valid values with `GET /v1/user`.
+
+            - 0, negative or omitted — 400 "'Employee User ID' must be greater than '0'."
+
+            - another user than the caller, without the needed rights — 500 Code 102, ErrorCode 37966.
+        StartDate:
+          type: string
+          format: date-time
+          writeOnly: true
+          description: |-
+            First day of the period, inclusive.
+
+            Date only — no time component.
+
+            - omitted — Binds to 0001-01-01 (no validation rule); with a real EndDate the period then spans two millennia.
+
+            - later than EndDate — No validation rule: the day list is empty and the engine fails → 500 Code 100.
+
+            > **Not yet documented:** behaviour.
+        EndDate:
+          type: string
+          format: date-time
+          writeOnly: true
+          description: |-
+            Last day of the period, inclusive.
+
+            Date only — no time component.
+        Comment:
+          type:
+          - string
+          - 'null'
+          writeOnly: true
+          description: |-
+            Optional free text stored on the period's submit dialogue entry.
+
+            Contains personal data.
+      required:
+      - EmployeeUserID
+      - StartDate
+      - EndDate
+      description: Submits (closes) an employee's timesheet for every day from StartDate to EndDate as one period, with an
+        optional comment to the approver.
+    ApprovalTimesheetSubmitTimeRegistrations.create:
+      type: object
+      properties:
+        EmployeeUserID:
+          type: integer
+          format: int32
+          writeOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            User ID of the employee who owns the registrations. Every registration must belong to this user.
+
+            Refers to `UserRead.UserID`. Look up valid values with `GET /v1/user`.
+
+            - 0, negative or omitted — 400 "'Employee User ID' must be greater than '0'."
+
+            - another user than the caller, without the needed rights — 500 Code 102, ErrorCode 37966; nothing is submitted.
+        TimeRegistrationIds:
+          type: array
+          format: int32
+          items: {}
+          writeOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            IDs of the registrations to submit. Each is validated on its own; valid ones are submitted even when others fail.
+
+            Refers to `TimeRegistrationRead.TimeRegistrationID`. Look up valid values with `GET /v1/time-registration/{timeRegistrationID}`.
+
+            - ID that does not exist — Not returned by the lookup, so silently skipped.
+
+            - registration of another user than EmployeeUserID — ErrorCode 37972 for that registration.
+
+            - registration already approved by the employee manager — ErrorCode 37615.
+
+            - registration already submitted and not rejected — ErrorCode 37971.
+
+            - null or omitted — No validation rule: fails in the lookup → 500.
+
+            > **Not yet documented:** multiple.
+
+            > **Not yet documented:** behaviour.
+      required:
+      - EmployeeUserID
+      - TimeRegistrationIds
+      description: Submits — or resubmits after rejection — individual time registrations of one employee instead of whole
+        days.
+    EmployeeTypeRead:
+      type: object
+      properties:
+        EmployeeTypeID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier. Send it as EmployeeTypeID on user create.
+
+            Identifier of this object, unique per TimeLog site.
+        ID:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: unknown
+            id_format: guid
+          description: |-
+            GUID of the employee type (database default NEWID()). Not accepted by any REST v1 operation read so far.
+
+            Alternate key, unique per TimeLog site.
+
+            > **Not yet documented:** identity → uniqueness enforced.
+        IsActive:
+          type: boolean
+          readOnly: true
+          description: |-
+            Inactive employee types are listed too; the list is not filtered.
+
+            > **Not yet documented:** nullable.
+        Name:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          maxLength: 500
+          description: Display name, as entered by the administrator (not translated).
+      description: An employee type of the tenant — an HR classification such as "Full time employee", "Part time employee",
+        "Student assistant", maintained by the administrator. It is the value set for EmployeeTypeID on user create.
+    MessageError:
+      type: object
+      description: Body of 401 and some framework errors — not the ResponseError shape.
+      properties:
+        Message:
+          type: string
+    NormalWorkingTimeAssign.create:
+      type: object
+      properties:
+        UserId:
+          type: integer
+          format: int32
+          writeOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            User ID of the employee whose norm changes. Only existence is checked — not the active flag in the C# path, and not who the caller may edit.
+
+            Refers to `UserRead.UserID`. Look up valid values with `GET /v1/user`.
+
+            - 0, omitted or not an existing user — 500 Code 102, ErrorCode 37040 "No user with UserID: {0} exist" (captured for an empty body).
+
+            - inactive user — Expected to be accepted: the existence check tests for null only (the user DAO procedure was not read).
+
+            > **Not yet documented:** behaviour.
+        NormalWorkingTimeId:
+          type: integer
+          format: int32
+          writeOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            NormalWorkingTimeID of the norm to put the employee on (from GET /v1/normal-working-time). Must be active.
+
+            Refers to `NormalWorkingTimeRead.NormalWorkingTimeID`. Look up valid values with `GET /v1/normal-working-time`.
+
+            - norm exists but IsActive is false — 500 Code 102, ErrorCode 37922 "Normal working time with ID:{0} is not active".
+
+            Valid values come from `GET /v1/normal-working-time`.
+
+            > **Not yet documented:** behaviour.
+        StartsAt:
+          type: string
+          format: date-time
+          writeOnly: true
+          description: |-
+            First day the norm applies (inclusive). Only the date is used; any time part is dropped. Past, today and future dates are all accepted — there is no lower bound and no check against approved, closed or payroll-exported periods. The new entry supersedes every history entry starting on or after this date.
+
+            Date only — no time component.
+
+            - date is today or in the past — The employee's current norm is switched immediately, and the projection / flex postings are regenerated from this date (asynchronously).
+
+            - date is in the future — Only the history entry is stored; the nightly user update switches the employee's current norm on that date. Projections from that date are regenerated now.
+
+            - omitted — Binds to 0001-01-01. No validator: the history row insert into a DATETIME column is expected to fail -> 500 Code 100.
+
+            > **Not yet documented:** behaviour.
+      required:
+      - UserId
+      - NormalWorkingTimeId
+      - StartsAt
+      description: 'Puts an employee on a normal working time from a given date: adds an entry to the employee''s working-norm
+        history.'
+    NormalWorkingTimeRead:
+      type: object
+      properties:
+        NormalWorkingTimeID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier. Send it as NormalWorkingTimeId on assign-to-employee and as NormalWorkingTimeID on user create.
+
+            Identifier of this object, unique per TimeLog site.
+        Name:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          maxLength: 255
+          description: Display name given by the tenant administrator, e.g. "Normal week 1", "50 hours bi weeks". Free text;
+            the name is not guaranteed to describe the hours.
+        ID:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: unknown
+            id_format: guid
+          description: |-
+            GUID of the norm. Not accepted by any operation of this service (assign takes the integer ID).
+
+            Alternate key, unique per TimeLog site.
+
+            > **Not yet documented:** identity → uniqueness enforced.
+        NormalWorkingTimeType:
+          type: integer
+          enum:
+          - 0
+          - 1
+          x-enum-descriptions:
+          - A 7-day pattern that repeats every week.
+          - A 14-day pattern of two alternating weeks (e.g. 40 h / 30 h).
+          readOnly: true
+          description: |-
+            Whether the day pattern repeats every week or alternates over two weeks.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | OneWeek | A 7-day pattern that repeats every week. |
+            | `1` | TwoWeeks | A 14-day pattern of two alternating weeks (e.g. 40 h / 30 h). |
+        IsActive:
+          type: boolean
+          readOnly: true
+          description: Inactive norms are still listed but cannot be assigned (assign-to-employee fails with 37922).
+        IsDefault:
+          type: boolean
+          readOnly: true
+          description: |-
+            Marks the tenant's default norm. On editions limited to one norm only the default may be used (error 37923 on user create).
+
+            > **Not yet documented:** description.
+      description: 'A normal working time ("norm") definition of the tenant: a named, repeating pattern of expected working
+        hours per day, either one week (7 days) or two alternating weeks (14 days). An employee has exactly one norm in force
+        on any date; it drives the employee''s daily expected hours (projection), flex balance, the "less than standard time"
+        submit check and the capacity Resource Planner shows. Assign one to an employee with `POST /v1/normal-working-time/assign-to-employee`.
+        The model carries only the header — the hours per day are not returned by any operation of this service.'
+    ResponseError:
+      type: object
+      description: Error body for validation (400), privilege (403), business-rule (422/500) and other server errors. `Details`
+        lists strings for validation errors, or `{ErrorCode, Message}` objects for business-rule violations. `Parameters`
+        echoes the request arguments, including the full payload.
+      properties:
+        Code:
+          type: integer
+          description: 'TimeLog error class (not the HTTP status): 100 unexpected, 102 business rule, 103 privilege, 200 validation.'
+        Message:
+          type: string
+        Details:
+          type: array
+          items: {}
+        Parameters:
+          type:
+          - string
+          - object
+          - 'null'
+        Url:
+          type: string
+    TafAction:
+      type: object
+      description: A hypermedia action the caller may take on the object. Present only where the operation registers actions.
+    TafLink:
+      type: object
+      properties:
+        Href:
+          type: string
+        Rel:
+          type: string
+    TafListPaging:
+      type: object
+      description: 'Paging values. They are returned as STRINGS, for example `"TotalRecord": "12"`.'
+      properties:
+        TotalRecord:
+          type: string
+        TotalPage:
+          type: string
+        PageNumber:
+          type: string
+    TimeTrackingItemRead:
+      type: object
+      properties:
+        CustomerID:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Customer of the project the registration's task belongs to. null on absence rows.
+
+            Refers to `CustomerRead.CustomerID`. Look up valid values with `GET /v1/customer/search-for-time-tracking`.
+
+            Null: null = absence registration (no project).
+        CustomerName:
+          type: string
+          readOnly: true
+          description: Customer's company name. Empty string (not null) on absence rows.
+        CustomerNo:
+          type: string
+          readOnly: true
+          description: Customer number. Empty string on absence rows.
+        ProjectID:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Project of the registration's task. null on absence rows.
+
+            Refers to `ProjectRead.ProjectID`.
+        ProjectName:
+          type: string
+          readOnly: true
+          description: Project name. Empty string on absence rows.
+        ProjectNo:
+          type: string
+          readOnly: true
+          description: The project's contract number, shown as the project number. Empty string on absence rows.
+        TaskID:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Task the time is registered on (the task of the employee's allocation). null on absence rows.
+
+            Refers to `TaskRead.TaskID`.
+        TaskName:
+          type: string
+          readOnly: true
+          description: Task name. Empty string on absence rows.
+        TaskFullName:
+          type: string
+          readOnly: true
+          description: |-
+            The task's stored full name. Empty string on absence rows.
+
+            > **Not yet documented:** description.
+        IsFixedPrice:
+          type:
+          - boolean
+          - 'null'
+          readOnly: true
+          description: true when the task is fixed-price. null on absence rows.
+        TaskNo:
+          type: string
+          readOnly: true
+          description: The task's number. Empty string on absence rows.
+        TaskIsActive:
+          type:
+          - boolean
+          - 'null'
+          readOnly: true
+          description: Whether the task is active. null on absence rows. Inactive-task registrations are still returned.
+        AbsenceCodeID:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Absence code of an absence registration. null on project rows. The way to tell the two kinds of row apart (together with EntityType).
+
+            Refers to `AbsenceCodeRead.AbsenceCodeID`.
+        AbsenceName:
+          type: string
+          readOnly: true
+          description: Absence code name. Empty string on project rows.
+        AbsenceCode:
+          type: string
+          readOnly: true
+          description: The absence code's short code. Empty string on project rows.
+        AbsenceIsActive:
+          type:
+          - boolean
+          - 'null'
+          readOnly: true
+          description: Whether the absence code is active. null on project rows.
+        AdditionalTextIsRequired:
+          type: boolean
+          readOnly: true
+          description: The task requires the additional text field to be filled when registering. Always false on absence
+            rows.
+        DefaultBillable:
+          type: boolean
+          readOnly: true
+          description: The task's default for the billable flag of new registrations. Always false on absence rows.
+        IsETCProject:
+          type: boolean
+          readOnly: true
+          description: |-
+            The project's IsETCProject flag. Always false on absence rows.
+
+            > **Not yet documented:** description.
+        ShowBillable:
+          type: boolean
+          readOnly: true
+          description: |-
+            Computed in the procedure: true when the billable flag may be shown/changed for this row — i.e. the task is NOT fixed-price (false for fixed-price tasks, where registrations are always billable). Always false on absence rows.
+
+            > **Not yet documented:** description.
+        AllocatedHour:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          readOnly: true
+          description: |-
+            The hours the EMPLOYEE is allocated on the task — a per-employee, per-task budget figure, NOT the hours of this registration and NOT a remaining or used figure. 0 when the allocation has no hours; null on absence rows. Truncated to a whole number: the stored float is converted with Convert.ToInt32, which rounds to the nearest whole hour (ties to even). Identical on every registration of the same allocation.
+
+            Unit: hours
+        TimeRegistrationID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: unknown
+            id_format: int
+          description: |-
+            The registration's integer ID — the same ID TimeRegistrationRead exposes and GET /v1/time-tracking-item/{timeRegistrationID} takes. The registration's GUID is read but NOT exposed by this model.
+
+            Identifier of this object, unique per TimeLog site.
+
+            > **Not yet documented:** identity → uniqueness enforced.
+        EntityID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            What the time is booked on: an allocation ID (EntityType 43) or an absence code ID (EntityType 149).
+
+            Refers to `Allocation | AbsenceCodeRead (see EntityType)`.
+        EntityType:
+          type: integer
+          format: int32
+          enum:
+          - 43
+          - 149
+          x-enum-descriptions:
+          - Project (or travel) time booked through the employee's task allocation; EntityID is the allocation ID. Such rows
+            also get a 'start-time-tracker' TAF action.
+          - Absence; EntityID is the absence code ID.
+          readOnly: true
+          description: |-
+            Kind of thing EntityID points to. Only 43 and 149 occur: the procedures return no other registration kinds.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `43` | Allocation | Project (or travel) time booked through the employee's task allocation; EntityID is the allocation ID. Such rows also get a 'start-time-tracker' TAF action. |
+            | `149` | AbsenceCode | Absence; EntityID is the absence code ID. |
+        UserID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The employee (user) who owns the registration.
+
+            Refers to `UserRead.UserID`.
+
+            Contains personal data.
+        Created:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            When the registration row was created. Also the paging order of the list operations.
+
+            Time zone: not yet documented.
+
+            > **Not yet documented:** constraints → timezone.
+        CreatedBy:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            User ID of the creator, as stored on the registration.
+
+            Refers to `UserRead.UserID`.
+        LastModified:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            When the registration was last changed.
+
+            Time zone: not yet documented.
+
+            > **Not yet documented:** constraints → timezone.
+        LastModifiedBy:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            User ID of the last modifier.
+
+            Refers to `UserRead.UserID`.
+        IsBillable:
+          type: boolean
+          readOnly: true
+          description: Whether this registration is billable.
+        Status:
+          type: boolean
+          readOnly: true
+          description: true when the registration is CLOSED — the employee has submitted (closed) the day in the timesheet;
+            false when open. The stored column is the TimeRegistrationStatus number (0 Open, 1 Closed) converted to a boolean
+            (any non-zero value = true). Note TimeRegistrationRead.Status exposes the same column as an integer.
+        Date:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            The day the time is registered on.
+
+            Date only — no time component.
+
+            Filterable via `startDate / endDate` (between).
+
+            > **Not yet documented:** constraints → timezone.
+        MonthlyPeriod:
+          type: string
+          readOnly: true
+          description: The salary / accounting month the registration belongs to, as a 6-character string MMYYYY (e.g. "102026"
+            = October 2026; month zero-padded). Empty string when the registration has no monthly period (ID 0). Looked up
+            from the stored MonthlyPeriodID.
+        Comment:
+          type: string
+          readOnly: true
+          description: |-
+            The registration's comment. Empty string (never null) when none.
+
+            Contains personal data.
+        Hours:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            The registered duration in decimal hours (e.g. 1.5 = 1 h 30 min). The same duration is also stored in Minutes; each is rounded from the other per registration, so summing Hours vs summing Minutes over many registrations can drift slightly.
+
+            Unit: hours
+
+            Contains personal data.
+        AdditionalTextField:
+          type: string
+          readOnly: true
+          description: The registration's additional text (the task's extra field). Empty string when none.
+        InvoiceStatus:
+          type: boolean
+          readOnly: true
+          description: true when the registration has been added to a voucher OR to an invoice; false when it is still bookable.
+            The stored column is the 3-valued RegistrationInvoicedStatus (0 Bookable, 1 AddedToVoucher, 2 AddedToInvoice)
+            collapsed to a boolean, so voucher vs invoice cannot be told apart here. TimeRegistrationRead.InvoiceStatus exposes
+            the 3 values.
+        TimeRegistrationApprovalStatus:
+          type: integer
+          format: int32
+          enum:
+          - 0
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
+          - 7
+          - 8
+          - 9
+          x-enum-descriptions:
+          - 'Open: not submitted and not in any approval state.'
+          - Rejected by the employee manager; the employee must correct and resubmit.
+          - Rejected by the employee manager, then edited; the timesheet is still open (not yet resubmitted).
+          - Approved by the employee manager.
+          - Rejected by a project manager.
+          - Rejected by a project manager, then edited; the timesheet is still open.
+          - Approved by the project manager. Depending on the tenant's approval setup the employee manager may still have
+            to approve.
+          - 'Closed / pending approval: submitted, no approval decision yet. Never stored — derived from Status = closed.'
+          - Rejected by the employee manager, corrected and submitted again (stored value 7).
+          - Rejected by a project manager, corrected and submitted again (stored value 8).
+          readOnly: true
+          description: |-
+            Where the registration is in the approval flow. COMPUTED: the stored approval status, except that a stored 'NotSpecified' is reported as Submitted (7) when the registration is closed (Status true). Integer on the wire. ⚠ The numbers differ from the STORED enum for the resubmitted states (stored 7/8 are reported as 8/9).
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | NotSpecified | Open: not submitted and not in any approval state. |
+            | `1` | EmployeeManagerRejected | Rejected by the employee manager; the employee must correct and resubmit. |
+            | `2` | EmployeeManagerRejectedAndResolved | Rejected by the employee manager, then edited; the timesheet is still open (not yet resubmitted). |
+            | `3` | EmployeeManagerApproved | Approved by the employee manager. |
+            | `4` | ProjectManagerRejected | Rejected by a project manager. |
+            | `5` | ProjectManagerRejectedAndResolved | Rejected by a project manager, then edited; the timesheet is still open. |
+            | `6` | ProjectManagerApproved | Approved by the project manager. Depending on the tenant's approval setup the employee manager may still have to approve. |
+            | `7` | Submitted | Closed / pending approval: submitted, no approval decision yet. Never stored — derived from Status = closed. |
+            | `8` | EmployeeManagerRejectedAndResubmitted | Rejected by the employee manager, corrected and submitted again (stored value 7). |
+            | `9` | ProjectManagerRejectedAndResubmitted | Rejected by a project manager, corrected and submitted again (stored value 8). |
+        TimeTrackingFormat:
+          type: integer
+          format: int32
+          enum:
+          - 0
+          - 1
+          - 2
+          - 3
+          - 4
+          x-enum-descriptions:
+          - Duration in hours/minutes.
+          - Absence for a full day (hours from normal working time).
+          - Absence for half a day (hours from normal working time).
+          - 'Salary-code (supplement) format: a registration posts a count of 1.'
+          - 'Salary-code (supplement) format: a registration posts the entered number as a count.'
+          readOnly: true
+          description: |-
+            How the duration was entered: hours, full day, half day, or a salary-code count format.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | Hours | Duration in hours/minutes. |
+            | `1` | FullDay | Absence for a full day (hours from normal working time). |
+            | `2` | HalfDay | Absence for half a day (hours from normal working time). |
+            | `3` | YesNo | Salary-code (supplement) format: a registration posts a count of 1. |
+            | `4` | Count | Salary-code (supplement) format: a registration posts the entered number as a count. |
+        Minutes:
+          type: integer
+          format: int32
+          readOnly: true
+          description: |-
+            The registered duration in whole minutes (the same duration as Hours, stored separately).
+
+            Unit: minutes
+
+            Contains personal data.
+        BillableHours:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Billable duration of the registration in decimal hours (stored; may differ from Hours, e.g. after billable rounding or a non-billable registration).
+
+            Unit: hours
+
+            > **Not yet documented:** description.
+        BillableMinutes:
+          type: integer
+          format: int32
+          readOnly: true
+          description: |-
+            Billable duration in whole minutes (stored).
+
+            Unit: minutes
+        IsFavourite:
+          type: boolean
+          readOnly: true
+          description: Whether the task / absence code is marked as a favourite in the timesheet (toggled with POST /v1/time-tracking-item/save-favourite).
+            For ABSENCE rows it is the owner's own favourite. For PROJECT rows it is true when ANY user has favourited the
+            task.
+        StartTime:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: |-
+            Clock time the work started, when timestamps are used (the registration's timestamp). null when the registration has no timestamp.
+
+            Time zone: not yet documented.
+
+            > **Not yet documented:** constraints → timezone.
+        EndTime:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: |-
+            Clock time the work ended. null when the registration has no timestamp.
+
+            Time zone: not yet documented.
+
+            > **Not yet documented:** constraints → timezone.
+        IsTimestampOverlapping:
+          type: boolean
+          readOnly: true
+          description: |-
+            COMPUTED warning flag: true when this registration's StartTime–EndTime interval overlaps another registration's (or both have identical timestamps). Only computed when timestamps are active for the employee (feature TimeRegistrationTimestamp + setting 'for all' or the employee's own timestamp flags) AND feature ShowWarningWhenTimestampOverlap is on; false otherwise. On the list operations the comparison is made only against the registrations IN THE SAME RESPONSE PAGE; on get-by-ID it is checked against all the employee's registrations.
+
+            - timestamps not active for the owner, or feature ShowWarningWhenTimestampOverlap off — Always false.
+      description: 'One time registration (project time or absence) of an employee, flattened together with the customer,
+        project, task (or absence code) it is registered on, the employee''s allocation on that task, and the registration''s
+        approval / invoicing state. It is the row model of TimeLog''s timesheet grid: everything a time-tracking client needs
+        to render a registration line without further lookups. Identified by TimeRegistrationID. Absence rows carry the absence
+        fields and NULL customer / project / task fields; project rows the reverse.'
+    TimesheetStatusRead:
+      type: object
+      properties:
+        EmployeeUserID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            User ID of the employee. Unique within ONE page of the response only — an employee whose weeks straddle a page boundary appears on both pages.
+
+            Refers to `UserRead.UserID`. Look up valid values with `GET /v1/user`.
+
+            Filterable via `userId` (eq).
+        Initials:
+          type: string
+          readOnly: true
+          description: |-
+            The employee's initials.
+
+            Contains personal data.
+        DisplayName:
+          type: string
+          readOnly: true
+          description: |-
+            "<Initials> (<FirstName> <LastName>)", composed by the server.
+
+            Contains personal data.
+        ManagerInitials:
+          type: string
+          readOnly: true
+          description: |-
+            Initials of the employee's CURRENT approval manager (not the manager at the time of each week). Empty string when the employee has none.
+
+            Contains personal data.
+        ManagerDisplayName:
+          type: string
+          readOnly: true
+          description: |-
+            "<Initials> (<FullName>)" of the current approval manager, or an empty string when there is none.
+
+            Contains personal data.
+        EmployeeDepartmentName:
+          type: string
+          readOnly: true
+          description: Name of the employee's current department; empty string when none.
+        AggregationType:
+          type: integer
+          enum:
+          - 1
+          - 2
+          - 3
+          - 4
+          x-enum-descriptions:
+          - Details are weeks. The only value this operation returns.
+          - Details are months (used by the monthly report in the UI; not returned here).
+          - Quarters (aggregation framework value; not returned here).
+          - Years (aggregation framework value; not returned here).
+          readOnly: true
+          description: |-
+            Granularity of Details. Always 1 (Weekly) on this operation: the controller requests weekly grouping.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `1` | Weekly | Details are weeks. The only value this operation returns. |
+            | `2` | Monthly | Details are months (used by the monthly report in the UI; not returned here). |
+            | `3` | Quarterly | Quarters (aggregation framework value; not returned here). |
+            | `4` | Yearly | Years (aggregation framework value; not returned here). |
+        ShowSendEmailRequest:
+          type: boolean
+          readOnly: true
+          description: 'Always false on this operation: the API data path never sets it (the UI report sets it itself).'
+        Details:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimesheetStatusWeekRead'
+          readOnly: true
+          description: The employee's weeks on THIS page, ordered by WeekNumber (not by date — see TimesheetStatusWeekRead.WeekNumber).
+      description: 'The weekly timesheet status overview of one employee (the "timesheet status" report): who the employee
+        and their approval manager are, and per week whether the timesheet is empty, open, submitted or approved. Read from
+        the pre-computed timesheet-status aggregation, not from the live approval data.'
+    TimesheetStatusWeekRead:
+      type: object
+      properties:
+        WeekNumber:
+          type: integer
+          readOnly: true
+          description: |-
+            Number of the week as stored on the tenant's weekly aggregation unit. Details are sorted by it, so a range across New Year lists week 1 before week 52 — sort by StartDate if order matters.
+
+            > **Not yet documented:** description.
+        TimesheetStatus:
+          type: string
+          enum:
+          - Empty
+          - Open
+          - Closed
+          - Approved
+          x-enum-descriptions:
+          - 'No hours registered and not submitted; also: week outside the employee''s employment, or status could not be
+            determined.'
+          - Hours registered but not submitted — OR submitted and then rejected by the employee or project manager (rejections
+            are not distinguished).
+          - Submitted and awaiting approval, including partially approved, approved by the project manager(s) only, or waiting
+            for project-manager approval.
+          - Approved by the employee manager.
+          readOnly: true
+          description: |-
+            Aggregated status of the week, derived from the employee-manager approval overview of the week.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `Empty` | Empty | No hours registered and not submitted; also: week outside the employee's employment, or status could not be determined. |
+            | `Open` | Open | Hours registered but not submitted — OR submitted and then rejected by the employee or project manager (rejections are not distinguished). |
+            | `Closed` | Closed | Submitted and awaiting approval, including partially approved, approved by the project manager(s) only, or waiting for project-manager approval. |
+            | `Approved` | Approved | Approved by the employee manager. |
+        StartDate:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            First day of the week (aggregation unit start).
+
+            Date only — no time component.
+        EndDate:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            Last day of the week (aggregation unit end).
+
+            Date only — no time component.
+      description: The aggregated timesheet status of one employee for one week.
+    WorkloadBook.create:
+      type: object
+      properties:
+        StartDate:
+          type: string
+          format: date-time
+          writeOnly: true
+          description: |-
+            First day of the booking period.
+
+            Date only — no time component.
+
+            - omitted, or outside 1753-01-01..9999-12-31 — 400 "StartDate is not a valid date."
+
+            > **Not yet documented:** constraints → timezone.
+        EndDate:
+          type: string
+          format: date-time
+          writeOnly: true
+          description: |-
+            Last day of the booking period. Must not be before StartDate.
+
+            Date only — no time component.
+
+            - omitted or outside the SQL date range — 400 "EndDate is not a valid date."
+
+            - before StartDate — 400 "EndDate must be after StartDate" (equal dates are allowed).
+
+            > **Not yet documented:** constraints → timezone.
+        Hours:
+          type: number
+          format: double
+          writeOnly: true
+          description: |-
+            Number of hours to book for the employee on the task in the period. Whether this is a total spread over the period or hours per day is decided by Resource Planner (the TLP UI calls the same value TotalHours).
+
+            Unit: hours
+
+            - 0, negative or omitted — 400 "'Hours' must not be empty." / "'Hours' must be greater than '0'."
+
+            > **Not yet documented:** description.
+        EmployeeId:
+          type: integer
+          format: int32
+          writeOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            EMPLOYEE ID of the person to book — not the user ID used by most other Employees operations. Must be an active employee.
+
+            Refers to `EmployeeID`.
+
+            - 0, negative or omitted — 400 "'Employee Id' must not be empty." / "must be greater than '0'".
+
+            - no such employee, or the employee's user is inactive — 500 Code 102, ErrorCode 37040 "No user with UserID: {EmployeeId} exist" — inactive is reported as not-existing.
+
+            > **Not yet documented:** identity → references.
+        TaskId:
+          type: integer
+          format: int32
+          writeOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Task to book on. Its project must be enabled for Resource Planner.
+
+            Refers to `TaskRead.TaskID`.
+
+            - 0, negative or omitted — 400 "'Task Id' must not be empty." / "must be greater than '0'".
+
+            - not an existing task — 500 Code 102, ErrorCode 37001.
+
+            - task's project is not available in Resource Planner — 500 Code 102, ErrorCode 37968.
+
+            > **Not yet documented:** behaviour.
+      required:
+      - StartDate
+      - EndDate
+      - Hours
+      - EmployeeId
+      - TaskId
+      description: Books (plans) a number of hours of an employee on a task over a date range in Resource Planner.
+x-timelog-service: Employees

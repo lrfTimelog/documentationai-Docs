@@ -1,0 +1,2347 @@
+openapi: 3.1.0
+info:
+  title: Salary and absence — REST API v1
+  version: v1
+  description: |-
+    Absence codes and self-service absence registration, salary accounts (payroll balances) and their postings, and allowance legislations.
+
+    Enums are integers in v1.
+
+    **Conventions that apply to every operation in this file:**
+    - Property names are PascalCase.
+    - Successful bodies use the TAF envelope: one object in `Properties`, lists in `Entities[].Properties`.
+    - Some operations succeed without content: HTTP 200 with the literal body `null`, or HTTP 204.
+    - `PUT` replaces the whole object: omitted fields are reset.
+    - Treat error `Code` 102 as a business-rule violation, whether the HTTP status is 422 or 500.
+
+    > **Not yet documented:** rate limits.
+servers:
+- url: https://{region-node}.timelog.com/{account}/api
+  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
+    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
+    it.'
+  variables:
+    region-node:
+      default: app3
+    account:
+      default: your-account
+security:
+- bearer: []
+tags:
+- name: Salary and absence
+  description: Absence codes and self-service absence registration, salary accounts (payroll balances) and their postings,
+    and allowance legislations.
+paths:
+  /v1/absence-code/get-recently-registered:
+    get:
+      operationId: listRecentlyRegisteredAbsenceCodes
+      summary: List the caller's recently used absence codes
+      description: |-
+        Lists every absence code the calling user has ever registered absence on, most recently used first.
+
+        Returns the distinct absence codes found on the caller's own absence registrations, ordered by the newest registration on each (highest TimeRegistrationID, i.e. most recently CREATED — not latest absence date). There is no time window, no active filter and no salary-group scope: inactive codes, and codes the caller can no longer register on, are included. Limited-licence users, the Time product and PSA Starter plans get an empty list.
+
+        **Use it to:**
+        - Show 'recently used' absence codes at the top of a self-service picker.
+
+        **Not for:**
+        - Codes the caller may register on — use `GET /v1/absence-code/{status}` (and check IsActive).
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `POST /v1/absence-code/registration-by-hours`, `POST /v1/absence-code/registration-by-half-day`, `POST /v1/absence-code/registration-by-full-day`
+
+        **See also:** `GET /v1/absence-code/{status}`
+      tags:
+      - Salary and absence
+      parameters:
+      - name: includeFavouriteOnly
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          x-timelog-filter:
+            operators:
+            - eq
+        description: |-
+          true → only the caller's favourite codes.
+
+          Filters on `AbsenceCodeRead.IsFavourite` (eq).
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size. No maximum enforced in the API layer.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). One page of absence codes with the same hypermedia Actions as GET /v1/absence-code/{status}.
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: Most recently created registration per code first (MAX(TimeRegistrationID) descending)
+
+            Empty result: 200 with no Entities (also for limited users, the Time product and PSA Starter)
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/AbsenceCodeRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+              examples:
+                example1:
+                  summary: Recently used codes (first entity shown)
+                  value:
+                    Properties:
+                      TotalRecord: '12'
+                      TotalPage: '2'
+                      PageNumber: '1'
+                    Entities:
+                    - Properties:
+                        AbsenceCodeID: 3
+                        AbsenceCode: '20'
+                        Name: Vacation
+                        Description: Registration of vacation
+                        IsActive: true
+                        FlexPositiveFactor: 1.0
+                        SalaryAccountFactor: 1.0
+                        SalaryAccountFactorEffect: -1
+                        SalaryAccountID: 5
+                        AbsenceCodeTypeID: 2
+                        DeductCapacity: false
+                        TimeTrackingFormat: 2
+                        RequireApproval: true
+                        IsPublicVisible: true
+                        IsFavourite: true
+                        ID: b0f671b5-81b8-46d5-adeb-d7ab064a2adc
+                      Actions:
+                      - Name: add-registration
+                        Title: Add Registration
+                        Method: Post
+                        Href: https://{region-node}.timelog.com/{account}/api/v1/absence-code/registration-by-half-day
+                        Type: application/json
+                        Fields:
+                        - Name: Type
+                          Type: AbsenceCodeHalfDayValueTypes
+                          Enums:
+                          - HalfDay
+                          - FullDay
+                        - Name: AbsenceID
+                          Type: Number
+                        - Name: Date
+                          Type: DateTime
+                        - Name: Comment
+                          Type: Text
+                    - … 9 more
+                    Links:
+                    - Href: https://{region-node}.timelog.com/{account}/api/v1/absence-code/get-recently-registered
+                      Rel: self
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
+            a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.salary.absencecode.getrecentlyregistered
+  /v1/absence-code/registration-by-full-day:
+    post:
+      operationId: createAbsenceRegistrationByFullDay
+      summary: Register a full day of absence (for the caller)
+      description: |-
+        Registers a full day of absence for the calling user on an absence code; the hours are the user's normal working time that day.
+
+        Creates an absence time registration for the authenticated user on Date with the caller's full normal working hours for that date (employee projection, else the weekday of the normal working time). Type in the body is ignored. On a full/half-day absence CODE a second registration on the same code and date is refused (37954). Returns no body.
+
+        **Use it to:**
+        - Self-service sick-day or vacation-day registration from an employee app.
+
+        **Not for:**
+        - Absence for another employee — use `POST /v1/time-registration` (GroupType 3, TimeTrackingFormat 1).
+        - Several days at once — call once per day (no range parameter).
+
+        **Behaviour:**
+        - Not idempotent.
+        - Safe to retry only under a condition. On a full/half-day CODE a retry after success is refused with 37954. On an hours-format code a retry duplicates.
+        - Duplicates: Same code + same date refused (37954) only when the absence CODE's own format is full/half day.
+        - Side effect: Creates an absence time registration for the caller and posts it to the code's salary account.
+        - Side effect: Same save path as `POST /v1/time-registration` (TimeRegistrationCreated event).
+        - Read-after-write consistency: not yet documented.
+
+        **Call first:** `GET /v1/absence-code/{status}`
+
+        **See also:** `POST /v1/time-registration/update-full-day-absence`, `POST /v1/absence-code/registration-by-half-day`
+
+        > **Not yet documented:** behaviour → consistency; examples (success).
+      tags:
+      - Salary and absence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AbsenceRegistrationCreate.create.createAbsenceRegistrationByFullDay'
+      responses:
+        '200':
+          description: 'Success without content: HTTP 200 with the literal JSON body `null`. Body is the literal JSON `null`;
+            the registration''s ID is not returned.'
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: AbsenceID ≤ 0 / missing,
+            Date missing (captured) — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
+            a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '422':
+          description: |-
+            - **Code 38034** — EntityID is not a valid absence code (GroupType = Absence).
+
+            - **Code 37588** — zero-norm-hours-day — When: The caller's norm is 0 on Date (37982 is raised as well)
+
+            - **Code 37982** — Hours and minutes are both zero. — When: Derived duration is 0
+
+            - **Code 37954** — absence-already-exists-on-date — When: Full/half-day code with an existing posting for the caller on Date
+
+            - **Code 37977** — salary-account-inactive
+
+            - **Code 70023** — Absence registration is not available on the Time product.
+
+            - **Code 300116** — comment-required
+
+            - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: General registration rules (30012, 30011, 37740, 37565 …)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.salary.absencecode.createregistrationbyfullday
+  /v1/absence-code/registration-by-half-day:
+    post:
+      operationId: createAbsenceRegistrationByHalfDay
+      summary: Register a half or full day of absence (for the caller)
+      description: |-
+        Registers half a day (Type 0) or a full day (Type 1) of absence for the calling user on an absence code.
+
+        Creates an absence time registration for the authenticated user on Date. The duration is not sent: it is half (or all) of the caller's normal working hours on that date — from the employee projection when one exists, else from the weekday of the caller's normal working time. Any Type other than 1 means half day. On a full/half-day absence CODE a second registration on the same code and date is refused (37954). Returns no body.
+
+        **Use it to:**
+        - Self-service: register a half day off (morning appointment) from an employee app.
+
+        **Not for:**
+        - Absence for another employee — use `POST /v1/time-registration` (GroupType 3, TimeTrackingFormat 1/2).
+
+        **Behaviour:**
+        - Not idempotent.
+        - Safe to retry only under a condition. On a full/half-day CODE a retry after success is refused with 37954 (no duplicate). On an hours-format code a retry creates a second registration.
+        - Duplicates: Same code + same date refused (37954) only when the absence CODE's own format is full/half day.
+        - Side effect: Creates an absence time registration for the caller and posts it to the code's salary account.
+        - Side effect: Same save path as `POST /v1/time-registration` (TimeRegistrationCreated event).
+        - Read-after-write consistency: not yet documented.
+
+        **Call first:** `GET /v1/absence-code/{status}`
+
+        **See also:** `POST /v1/time-registration/update-half-or-full-day-absence`, `POST /v1/absence-code/registration-by-full-day`
+
+        > **Not yet documented:** behaviour → consistency; examples (success).
+      tags:
+      - Salary and absence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AbsenceRegistrationCreate.create.createAbsenceRegistrationByHalfDay'
+      responses:
+        '200':
+          description: 'Success without content: HTTP 200 with the literal JSON body `null`. Body is the literal JSON `null`;
+            the registration''s ID is not returned.'
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: AbsenceID ≤ 0 / missing,
+            Date missing (captured) — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
+            a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '422':
+          description: |-
+            - **Code 38034** — EntityID is not a valid absence code (GroupType = Absence).
+
+            - **Code 37588** — zero-norm-hours-day — When: The caller's norm is 0 on Date (the derived duration is then 0 and 37982 is raised as well)
+
+            - **Code 37982** — Hours and minutes are both zero. — When: Derived duration is 0 (no normal working time that day)
+
+            - **Code 37954** — absence-already-exists-on-date — When: The code is a full/half-day code and the caller already has a posting on it on Date
+
+            - **Code 37977** — salary-account-inactive
+
+            - **Code 70023** — Absence registration is not available on the Time product.
+
+            - **Code 300116** — comment-required
+
+            - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: General registration rules (30012, 30011, 37740, 37565 …)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.salary.absencecode.createregistrationbyhalffullday
+  /v1/absence-code/registration-by-hours:
+    post:
+      operationId: createAbsenceRegistrationByHours
+      summary: Register absence in hours (for the caller)
+      description: |-
+        Registers absence for the calling user on one date, as a number of minutes, on an absence code.
+
+        Creates an absence time registration for the authenticated user (never for someone else) on Date with absence code AbsenceID, TimeTrackingFormat Hours. The stored duration is Minutes: Hours must be sent and > 0 to pass validation, but Minutes is applied after it and replaces it — omit Minutes and the call fails with 37982. The code's own TimeTrackingFormat is not checked. Returns no body; the new registration's ID is not returned.
+
+        **Use it to:**
+        - Self-service: an employee app or HR portal registers the user's own partial-day absence (doctor's visit, 2 h).
+
+        **Not for:**
+        - Registering absence for another employee — use `POST /v1/time-registration` (GroupType 3, UserID).
+        - Full or half days — use `POST /v1/absence-code/registration-by-full-day` / createregistrationbyhalffullday.
+
+        **Rules across fields:**
+        - R1: Hours > 0 is required by validation, but the duration is Minutes (Minutes replaces Hours); Minutes 0 → 37982.
+
+        **Behaviour:**
+        - Not idempotent.
+        - Not safe to retry blindly.
+        - Duplicates: Not deduplicated: on an hours-format code every call adds another registration. (The same-day duplicate check 37954 runs only for full/half-day CODES.)
+        - Side effect: Creates an absence time registration for the caller (new GUID per call); posts it to the absence code's salary account (duration × SalaryAccountFactor × SalaryAccountFactorEffect).
+        - Side effect: Same save path as `POST /v1/time-registration`: TimeRegistrationCreated event, financial data recalculated after commit.
+        - Read-after-write consistency: not yet documented.
+
+        **Call first:** `GET /v1/absence-code/{status}`, `GET /v1/absence-code/get-recently-registered`
+
+        **See also:** `POST /v1/time-registration/update-hours-absence`, `POST /v1/time-registration`, `POST /v1/absence-code/time-tracker`
+
+        > **Not yet documented:** behaviour → consistency; examples (success); response (registration ID).
+      tags:
+      - Salary and absence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AbsenceRegistrationCreate.create.createAbsenceRegistrationByHours'
+      responses:
+        '200':
+          description: 'Success without content: HTTP 200 with the literal JSON body `null`. Body is the literal JSON `null`.
+            The registration''s ID is not returned; read it back with `GET /v1/time-registration/{timeRegistrationID}` … (no
+            list-by-date in this service).'
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: AbsenceID ≤ 0 / missing,
+            Date missing, Hours ≤ 0 (captured) — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
+            a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '422':
+          description: |-
+            - **Code 37982** — Hours and minutes are both zero. — When: Minutes omitted or 0 — even with Hours > 0
+
+            - **Code 38034** — EntityID is not a valid absence code (GroupType = Absence). — When: AbsenceID is not an absence code
+
+            - **Code 37588** — zero-norm-hours-day — When: The caller has no normal working time on Date
+
+            - **Code 37977** — salary-account-inactive — When: The code's salary account is inactive
+
+            - **Code 70023** — Absence registration is not available on the Time product.
+
+            - **Code 300116** — comment-required
+
+            - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: General registration rules — e.g.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.salary.absencecode.createregistrationbyhours
+  /v1/absence-code/time-tracker:
+    post:
+      operationId: createAbsenceTimeTracker
+      summary: Start a time tracker on an absence code (no response body)
+      description: |-
+        Starts a stopwatch for the calling user on an absence code; returns no body.
+
+        Creates a running, non-billable time tracker for the authenticated user on AbsenceCodeID, starting now (server clock). Any tracker the caller already has running is stopped first and converted into a time registration. With TimeRegistrationID, comment, factor and monthly period are copied from that registration and the tracker is linked to it when it is dated today. Behaviour is identical to `POST /v1/time-tracker/absence/start-time-tracker`, which also returns the new tracker — prefer that operation.
+
+        **Not for:**
+        - When you need the tracker's ID — use `POST /v1/time-tracker/absence/start-time-tracker` (returns TimeTrackerRead).
+
+        **Behaviour:**
+        - Not idempotent.
+        - Not safe to retry blindly.
+        - Side effect: Stops the caller's running tracker (if any) and converts it into time registration(s).
+        - Side effect: Creates the tracker (TimeTrackerCreated event); notifies invoicing potential.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/absence-code/{status}`
+
+        **Next:** `GET /v1/time-tracker/active-time-tracker`, `POST /v1/time-registration/stop-time-tracker/{timeTrackerId}`
+
+        **See also:** `POST /v1/time-tracker/absence/start-time-tracker`
+
+        > **Not yet documented:** examples (success).
+      tags:
+      - Salary and absence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimeTrackerStartForAbsence.create'
+      responses:
+        '200':
+          description: 'Success without content: HTTP 200 with the literal JSON body `null`. Body is the literal JSON `null`.
+            The tracker''s ID is not returned; read it with `GET /v1/time-tracker/active-time-tracker`.'
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: AbsenceCodeID ≤ 0
+            (also when omitted); Minute < 0 (captured) — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
+            a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 37588** — zero-norm-hours-day — When: The caller has no normal working time on the day (37588)
+
+            - **Code 37667** — The absence code does not use the hours time-tracking format, so it cannot be tracked with a stopwatch.
+
+            - **Code 37714** — The absence code requires approval, so it cannot be tracked with a stopwatch.
+
+            - **Code 37672** — The tracker's date is closed for the employee (employee projection IsClosed — e.g. a closed timesheet).
+
+            - **Code 37671** — The tracker's date is in a closed accounting period for the employee.
+
+            - **Code 37678** — Stopwatch time tracking is switched off: feature StopwatchTimeTracking is inactive while the time-tracking page setting UseStopwatchTimeTracking is 'True'.
+
+            - **Code 37704** — Feature MandatoryComment is on and a NEW tracker has no comment.
+
+            - **Code 37537** — invoiced-or-vouchered — When: Source registration dated today is invoiced (37537)
+
+            - **Code 30011** — closed-accounting-period — When: Source registration dated today is in a closed accounting period (30011)
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.salary.absencecode.createtimetracker
+  /v1/absence-code/{status}:
+    get:
+      operationId: listAbsenceCodesByStatus
+      summary: List absence codes available to the caller
+      description: |-
+        Lists the absence codes the calling user can register absence on, optionally by active status, favourites or a search text.
+
+        Returns the absence codes attached (through their salary account) to the caller's salary group, where that salary account is active. status filters on the code's own active flag (-1 all, 0 inactive, 1 active; default all). The result is per caller: two users can get different lists, and the IsFavourite flag is the caller's. Limited-licence users, the Time product and PSA Starter plans get an empty list. Each entity carries hypermedia actions pointing at the create endpoint matching the code's format.
+
+        **Use it to:**
+        - Populate an absence-code picker in an employee self-service app.
+        - Map an HR system's leave types to TimeLog AbsenceCodeIDs (call as a user in the relevant salary group).
+
+        **Not for:**
+        - A tenant-wide catalogue of every absence code — the list is filtered by the caller's salary group.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `POST /v1/absence-code/registration-by-hours`, `POST /v1/absence-code/registration-by-half-day`, `POST /v1/absence-code/registration-by-full-day`, `POST /v1/absence-code/time-tracker`
+
+        **See also:** `GET /v1/absence-code/get-recently-registered`
+
+        > **Not yet documented:** request → path params → status (names); request → query params → searchText (empty).
+      tags:
+      - Salary and absence
+      parameters:
+      - name: status
+        in: path
+        required: true
+        schema:
+          type: integer
+          enum:
+          - -1
+          - 0
+          - 1
+          x-enum-descriptions:
+          - Active and inactive codes (no filter).
+          - Only inactive codes.
+          - Only active codes.
+          default: -1
+          x-timelog-filter:
+            operators:
+            - eq
+        description: |-
+          Any other integer is treated as Active (non-zero → true).
+
+          Filters on `AbsenceCodeRead.IsActive` (eq).
+
+          Allowed values:
+
+          | Value | Name | Meaning |
+          |---|---|---|
+          | `-1` | All | Active and inactive codes (no filter). |
+          | `0` | Inactive | Only inactive codes. |
+          | `1` | Active | Only active codes. |
+      - name: includeFavouriteOnly
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          x-timelog-filter:
+            operators:
+            - eq
+        description: |-
+          true → only the caller's favourite codes.
+
+          Filters on `AbsenceCodeRead.IsFavourite` (eq).
+      - name: searchText
+        in: query
+        required: false
+        schema:
+          type: string
+          x-timelog-filter:
+            operators:
+            - contains
+        description: |-
+          Substring match on Name OR AbsenceCode (SQL LIKE '%text%'; % and _ in the text act as wildcards).
+
+          Filters on `AbsenceCodeRead.Name` (contains).
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size. No maximum enforced in the API layer.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). One page of absence codes. Each entity carries `Actions`: add-registration (POST to registration-by-hours, -by-half-day or -by-full-day according to the code's TimeTrackingFormat) and, for hours codes, time-tracker.
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: AbsenceCodeID ascending
+
+            Empty result: 200 with no Entities (also for limited users, the Time product and PSA Starter)
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/AbsenceCodeRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+              examples:
+                example1:
+                  summary: Active codes for the caller (first entity shown)
+                  value:
+                    Properties:
+                      TotalRecord: '10'
+                      TotalPage: '1'
+                      PageNumber: '1'
+                    Entities:
+                    - Properties:
+                        AbsenceCodeID: 2
+                        AbsenceCode: '30'
+                        Name: Illnes
+                        Description: Registration of ilnes
+                        IsActive: true
+                        FlexPositiveFactor: 1.0
+                        SalaryAccountFactor: 1.0
+                        SalaryAccountFactorEffect: 1
+                        SalaryAccountID: 2
+                        AbsenceCodeTypeID: 1
+                        DeductCapacity: false
+                        TimeTrackingFormat: 0
+                        RequireApproval: false
+                        IsPublicVisible: false
+                        IsFavourite: true
+                        ID: 84982c1c-634a-425c-abf3-82c465a610a2
+                      Actions:
+                      - Name: add-registration
+                        Title: Add Registration
+                        Method: Post
+                        Href: https://{region-node}.timelog.com/{account}/api/v1/absence-code/registration-by-hours
+                        Type: application/json
+                        Fields:
+                        - Name: Hours
+                          Type: Number
+                        - Name: Minutes
+                          Type: Number
+                        - Name: AbsenceID
+                          Type: Number
+                        - Name: Date
+                          Type: DateTime
+                        - Name: Comment
+                          Type: Text
+                      - Name: time-tracker
+                        Title: Create Time Tracker
+                        Method: Post
+                        Href: https://{region-node}.timelog.com/{account}/api/v1/absence-code/time-tracker
+                        Type: application/json
+                        Fields:
+                        - Name: AbsenceCodeID
+                          Type: Number
+                          Value: '2'
+                        - Name: Comment
+                          Type: Text
+                        - Name: Minute
+                          Type: Number
+                        - Name: TimeRegistrationID
+                          Type: Number
+                    - … 9 more
+                    Links:
+                    - Href: https://{region-node}.timelog.com/{account}/api/v1/absence-code/1
+                      Rel: self
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
+            a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.salary.absencecode.getbystatus
+  /v1/allowance-legislation:
+    get:
+      operationId: listAllowanceLegislations
+      summary: List allowance legislations
+      description: |-
+        Lists the tenant's allowance (per-diem) legislations — the value set for AllowanceLegislationID on user create.
+
+        Returns every allowance legislation, newest ID first. Initial tenant data has four (SE, DK, DE, FI). Map them by Description: the CountryID of the DK and SE rows is swapped in the initial data.
+
+        **Use it to:**
+        - Pick AllowanceLegislationID when creating users from an HR system (by the employee's country).
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `POST /v1/user/create`
+
+        **See also:** `GET /v1/country/get-all`
+      tags:
+      - Salary and absence
+      parameters:
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size. No maximum enforced in the API layer.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). One page of allowance legislations; entities carry no links.
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: AllowanceLegislationID descending
+
+            Empty result: 200 with no Entities (not observed)
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/AllowanceLegislationRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+              examples:
+                example1:
+                  summary: All allowance legislations (first entity shown)
+                  value:
+                    Properties:
+                      TotalRecord: '4'
+                      TotalPage: '1'
+                      PageNumber: '1'
+                    Entities:
+                    - Properties:
+                        AllowanceLegislationID: 4
+                        CountryID: 67
+                        Description: FI
+                    - Properties:
+                        AllowanceLegislationID: 3
+                        CountryID: 217
+                        Description: DE
+                    - Properties:
+                        AllowanceLegislationID: 2
+                        CountryID: 198
+                        Description: DK
+                    - … 1 more
+                    Links:
+                    - Href: https://{region-node}.timelog.com/{account}/api/v1/allowance-legislation
+                      Rel: self
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
+            a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.salary.allowancelegislation.list
+  /v1/holiday-calendar:
+    get:
+      operationId: listHolidayCalendars
+      summary: List holiday calendars
+      description: |-
+        Lists the tenant's holiday calendars, newest first.
+
+        The value set for HolidayCalendarID on user create. Returns names and descriptions only, not the holiday dates of a calendar.
+
+        **Use it to:**
+        - Map an HR system's country or site to a HolidayCalendarID before creating users
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `POST /v1/user/create`
+      tags:
+      - Salary and absence
+      parameters:
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size. No maximum in the API layer.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). One page of entries, without per-entity links.
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: HolidayCalendarID descending
+
+            Empty result: 200 with TotalRecord "0" and no Entities
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/HolidayCalendarRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+              examples:
+                example1:
+                  summary: Example
+                  value:
+                    Properties:
+                      TotalRecord: '2'
+                      TotalPage: '1'
+                      PageNumber: '1'
+                    Entities:
+                    - Properties:
+                        HolidayCalendarID: 3
+                        Name: Malaysia
+                        ID: f7ffdd4d-9ff9-49de-bf13-38001a7f81a3
+                        Description: Malaysia
+                    - Properties:
+                        HolidayCalendarID: 2
+                        Name: Default Holiday Calendar
+                        ID: 40810eae-4810-4289-9c6a-26ec1c678bb7
+                        Description: Default Holiday Calendar
+                    Links:
+                    - Href: https://{region-node}.timelog.com/{account}/api/v1/holiday-calendar
+                      Rel: self
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.salary.holidaycalendar.list
+  /v1/salary-account:
+    get:
+      operationId: listSalaryAccounts
+      summary: List salary accounts
+      description: |-
+        Lists every salary account of the tenant, active or not, newest first.
+
+        The value set for salaryAccountId on the posting and aggregation operations and for SalaryAccountID on absence codes. Returns account definitions only — no balances and no BalanceFormat (the unit of the account's balance).
+
+        **Use it to:**
+        - Map payroll balance types (flex, vacation, supplements) to TimeLog SalaryAccountIDs before reading balances.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `GET /v1/salary-account/{salaryAccountId}/aggregation`, `POST /v1/salary-account/{salaryAccountId}/posting`
+
+        **See also:** `GET /v1/absence-code/{status}`
+      tags:
+      - Salary and absence
+      parameters:
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size. No maximum enforced in the API layer.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). One page of salary accounts. Entities carry no links or actions.
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: SalaryAccountID descending
+
+            Empty result: 200 with no Entities (not observed)
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/SalaryAccountRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+              examples:
+                example1:
+                  summary: First page of salary accounts (first entity shown)
+                  value:
+                    Properties:
+                      TotalRecord: '12'
+                      TotalPage: '2'
+                      PageNumber: '1'
+                    Entities:
+                    - Properties:
+                        SalaryAccountID: 18
+                        Name: Addtional absence full day
+                        SalaryAccountGUID: 6471db1c-928c-4e23-a607-7f46fb8db0d6
+                        Description: Addtional absence full day
+                        IsActive: true
+                        IsSystemSalaryAccount: false
+                    - … 9 more
+                    Links:
+                    - Href: https://{region-node}.timelog.com/{account}/api/v1/salary-account
+                      Rel: self
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
+            a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.salary.salaryaccount.list
+  /v1/salary-account/{salaryAccountId}/aggregation:
+    get:
+      operationId: getSalaryAccountEmployeeBalances
+      summary: Get employees' salary account balances at a date
+      description: |-
+        Returns each active employee's balance on one salary account at the end of a date (or one employee's, with userId).
+
+        For salaryAccountId and balanceDate, returns one row per active employee of the tenant — user ID, first and last name and AccountBalance (balance at the end of balanceDate, 2 decimals), ordered by user ID and paged. With userId only that employee is returned. The balance unit follows the account's BalanceFormat, which no curated operation returns (hours, minutes or days). Inactive (deactivated) users are never included.
+
+        **Use it to:**
+        - Payroll export: read flex / vacation balances of all employees at period end.
+        - Show one employee's balance in an HR portal (with userId).
+
+        **Not for:**
+        - Posting history — this returns balances only.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Read-after-write consistency: not yet documented.
+
+        **Call first:** `GET /v1/salary-account`
+
+        **See also:** `POST /v1/salary-account/{salaryAccountId}/posting`
+
+        > **Not yet documented:** behaviour → consistency; examples (success).
+      tags:
+      - Salary and absence
+      parameters:
+      - name: salaryAccountId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: Unknown ID → 200 with no Entities.
+      - name: balanceDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+        description: |-
+          The date whose end-of-day balance is returned. Only the date part is used.
+
+          Date only — no time component.
+      - name: userId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+        description: Limit to one employee (must be > 0). Omitted → all active employees.
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size. No maximum enforced in the API layer.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). One page of employee balances.
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: UserID ascending
+
+            Empty result: 200 with no Entities (unknown salaryAccountId, inactive or unknown userId)
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/SalaryAccountAggregationRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: balanceDate missing
+            (''The BalanceDate field is required.'', captured) or not a valid date; userId ≤ 0 — Fix: Fix every item listed
+            in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: balanceDate missing
+                  value:
+                    Code: 200
+                    Details:
+                    - The BalanceDate field is required.
+                    Message: Invalid model state error.
+                    Parameters: 'model: {"UserId":null,"BalanceDate":"0001-01-01T00:00:00"}'
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/salary-account/1/aggregation
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
+            a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The URL did not match any route (including a route constraint such as {id:int} receiving a non-integer).
+            — When: salaryAccountId not an integer (captured, empty body)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.salary.salaryaccount.getemployeepostingsaggregation
+  /v1/salary-account/{salaryAccountId}/posting:
+    post:
+      operationId: createSalaryAccountBulkPosting
+      summary: Post manual salary account adjustments (bulk)
+      description: |-
+        Adds a manual posting (positive or negative, in hours) to one salary account for each listed employee, on one date.
+
+        Adjusts payroll balances (e.g. flex or vacation) in bulk: for every item in EmployeeUsers a Manual posting of HoursAdjustment is created on salaryAccountId at BalanceDate, with optional comments to the manager and the employee. Hours-format accounts get hours (and whole minutes); days-format accounts get the hours converted to days with each employee's average daily norm; count-format accounts get 0. Validation is all-or-nothing: if any employee fails, nothing is written and Details lists every failure. Returns 204.
+
+        **Use it to:**
+        - Import opening balances or year-end corrections of flex / vacation accounts from a payroll system.
+
+        **Not for:**
+        - Registering absence — use the absence registration operations, which post to the account themselves.
+
+        **Behaviour:**
+        - Not idempotent.
+        - Not safe to retry blindly.
+        - Duplicates: Not deduplicated: a retry or a repeated UserId posts again (the balance is adjusted twice).
+        - Side effect: Raises SalaryAccountEmployeePostingBatchCreated with the employee IDs, account and date (aggregation refresh).
+        - Read-after-write consistency: not yet documented.
+        - Batch: all_or_nothing
+
+        **Call first:** `GET /v1/salary-account`, `GET /v1/user`
+
+        **Next:** `GET /v1/salary-account/{salaryAccountId}/aggregation`
+
+        > **Not yet documented:** behaviour (closed / approved periods); behaviour → consistency; examples (success).
+      tags:
+      - Salary and absence
+      parameters:
+      - name: salaryAccountId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: Unknown ID → 37994 (HTTP 500).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalaryAccountManualPostingCreate.create'
+      responses:
+        '204':
+          description: 'Success without content: HTTP 204 with an empty body. No body. Posting IDs are not returned.'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: BalanceDate missing
+            / invalid, EmployeeUsers empty, UserId ≤ 0, HoursAdjustment 0 (captured: Details also contains an empty string)
+            — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Validation failure (empty body)
+                  value:
+                    Code: 200
+                    Details:
+                    - ''
+                    - Balance Date is not a valid date.
+                    - At least one employee is required.
+                    Message: Invalid model state error.
+                    Parameters: 'salaryAccountEmployeeManualPostingCreateModel: {"BalanceDate":"0001-01-01T00:00:00","EmployeeUsers":[]}'
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/salary-account/1/posting
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
+            a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The URL did not match any route (including a route constraint such as {id:int} receiving a non-integer).
+            — When: salaryAccountId not an integer (captured)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: |-
+            - **Code 37994** — The salaryAccountId in the path is not an existing salary account. — Fix: Use a SalaryAccountID from `GET /v1/salary-account`.
+
+            - **Code 37040** — An EmployeeUsers[].UserId is not an existing user. The whole batch is refused. — Fix: Send UserIDs from `GET /v1/user`.
+
+            - **Code 37931** — An EmployeeUsers[].UserId is an inactive user. The whole batch is refused. — Fix: Remove inactive employees from the batch.
+
+            - **Code 37995** — BalanceDate is later than today + N months, or on/before today − M months (tenant settings SalaryAccountEmployeePostingDateNoOfMonthsAhead / ...Backdate). — Fix: Use a posting date inside the tenant's permitted window.
+
+            - **Code 37993** — Header violation for one employee whose posting failed a business rule; the employee's own violations follow it in Details. — When: Header per failing employee, followed by 30181 / 30167 — Fix: Read the violations that follow; fix or remove that employee and resend the batch.
+
+            - **Code 30181** — BalanceDate is before the tenant's site creation date. — Fix: Use a later posting date.
+
+            - **Code 30167** — BalanceDate is before the employee's employment date or after the resignation date. — Fix: Remove the employee or use a date inside the employment period.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.salary.salaryaccount.create
+  /v1/salary-group:
+    get:
+      operationId: listSalaryGroups
+      summary: List salary groups
+      description: |-
+        Lists the tenant's salary groups, newest first.
+
+        The value set for SalaryGroupID on user create. Active and inactive groups are both returned. IsSystemSalaryGroup marks the group user create requires while the SalaryGroups feature is off.
+
+        **Use it to:**
+        - Pick the SalaryGroupID for users created from an HR or payroll system
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `POST /v1/user/create`
+      tags:
+      - Salary and absence
+      parameters:
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size. No maximum in the API layer.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). One page of entries, without per-entity links.
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: SalaryGroupID descending
+
+            Empty result: 200 with TotalRecord "0" and no Entities
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/SalaryGroupRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+              examples:
+                example1:
+                  summary: Example
+                  value:
+                    Properties:
+                      TotalRecord: '2'
+                      TotalPage: '1'
+                      PageNumber: '1'
+                    Entities:
+                    - Properties:
+                        SalaryGroupID: 2
+                        Name: You have nothing
+                        ID: bd680967-d8bb-4fec-bd29-ada113c6ac05
+                        Description: You have nothing
+                        IsActive: true
+                        IsSystemSalaryGroup: false
+                    - Properties:
+                        SalaryGroupID: 1
+                        Name: Standard
+                        ID: f03dfeb6-6975-440b-8bf7-72300582af92
+                        Description: Standard
+                        IsActive: true
+                        IsSystemSalaryGroup: true
+                    Links:
+                    - Href: https://{region-node}.timelog.com/{account}/api/v1/salary-group
+                      Rel: self
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.salary.salarygroup.list
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: |-
+        OAuth 2.0 bearer token, sent as `Authorization: Bearer <token>`. JWT and reference tokens are both accepted. The token must carry the required scope (default `tlp`).
+
+        The token's `sub` claim is the acting user. A token WITHOUT `sub` (client-credentials) acts as the system service user. If the `sub` user cannot log in (inactive, locked, deleted), the request is rejected with 401 — it is no longer let through without a user.
+
+        > **Not yet documented:** how to obtain a token.
+
+        > **Not yet documented:** token lifetime.
+  schemas:
+    AbsenceCodeRead:
+      type: object
+      properties:
+        AbsenceCodeID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier. Send it as AbsenceID on the absence registration creates, as AbsenceCodeID on absence time trackers, and as EntityID (GroupType 3) on time registration create/import.
+
+            Identifier of this object, unique per TimeLog site.
+        AbsenceCode:
+          type: string
+          readOnly: true
+          maxLength: 255
+          description: |-
+            The tenant's short code for the absence (e.g. "30", "20"); matched by searchText on GET /v1/absence-code/{status}.
+
+            Filterable via `searchText` (contains).
+
+            > **Not yet documented:** identity → role.
+        Name:
+          type: string
+          readOnly: true
+          maxLength: 255
+          description: |-
+            Display name of the absence code (e.g. "Vacation"). Matched by searchText.
+
+            Filterable via `searchText` (contains).
+        Description:
+          type: string
+          readOnly: true
+          maxLength: 1000
+          description: Free-text description. A NULL in the table is returned as an empty string.
+        IsActive:
+          type: boolean
+          readOnly: true
+          description: |-
+            Whether the code is active. GET /v1/absence-code/{status} filters on it; the recently-registered list does not.
+
+            Filterable via `status` (eq).
+        FlexPositiveFactor:
+          type: number
+          format: double
+          readOnly: true
+          description: '> **Not yet documented:** description.'
+        SalaryAccountFactor:
+          type: number
+          format: double
+          readOnly: true
+          description: 'Multiplier applied when an absence registration on this code posts to the salary account: posting
+            = duration × SalaryAccountFactor × SalaryAccountFactorEffect.'
+        SalaryAccountFactorEffect:
+          type: integer
+          enum:
+          - -1
+          - 1
+          x-enum-descriptions:
+          - Absence on this code is deducted from the salary account balance (factor × -1).
+          - Absence on this code is added to the salary account balance.
+          readOnly: true
+          description: |-
+            Sign of the posting to the salary account.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `-1` | Substract | Absence on this code is deducted from the salary account balance (factor × -1). |
+            | `1` | Add | Absence on this code is added to the salary account balance. |
+        SalaryAccountID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The salary account absence on this code posts to. Only codes whose salary account is active and in the caller's salary group are listed by GET /v1/absence-code/{status}.
+
+            Refers to `SalaryAccountRead.SalaryAccountID`. Look up valid values with `GET /v1/salary-account`.
+
+            Valid values come from `GET /v1/salary-account`.
+        AbsenceCodeTypeID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Reference to another object.
+
+            > **Not yet documented:** identity → references.
+
+            > **Not yet documented:** values → lookup op.
+
+            > **Not yet documented:** description.
+        DeductCapacity:
+          type: boolean
+          readOnly: true
+          description: '> **Not yet documented:** description.'
+        TimeTrackingFormat:
+          type: integer
+          enum:
+          - 0
+          - 1
+          - 2
+          - 3
+          - 4
+          x-enum-descriptions:
+          - Absence is registered as hours and minutes (POST /v1/absence-code/registration-by-hours); time trackers are allowed.
+          - Absence is a full day; the hours come from the employee's normal working time on the date.
+          - Absence is half a day (or a full day); the hours come from half the employee's normal working time.
+          - 'Salary-code (supplement) format: a registration posts a count of 1. Not observed on absence codes.'
+          - 'Salary-code (supplement) format: a registration posts the entered number as a count. Not observed on absence
+            codes.'
+          readOnly: true
+          description: |-
+            How absence on this code is expressed. NOT enforced by the absence registration creates — they take the format from the endpoint called. The hypermedia add-registration action points at the matching create.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | Hours | Absence is registered as hours and minutes (POST /v1/absence-code/registration-by-hours); time trackers are allowed. |
+            | `1` | FullDay | Absence is a full day; the hours come from the employee's normal working time on the date. |
+            | `2` | HalfDay | Absence is half a day (or a full day); the hours come from half the employee's normal working time. |
+            | `3` | YesNo | Salary-code (supplement) format: a registration posts a count of 1. Not observed on absence codes. |
+            | `4` | Count | Salary-code (supplement) format: a registration posts the entered number as a count. Not observed on absence codes. |
+
+            > **Not yet documented:** values → members[3-4].
+        RequireApproval:
+          type: boolean
+          readOnly: true
+          description: |-
+            Absence on this code goes through approval. Time trackers on such codes are refused (37714).
+
+            > **Not yet documented:** description.
+        IsPublicVisible:
+          type: boolean
+          readOnly: true
+          description: '> **Not yet documented:** description.'
+        IsFavourite:
+          type:
+          - boolean
+          - 'null'
+          readOnly: true
+          description: |-
+            Whether the CALLER has marked this code as a favourite. Always true/false on both list operations (the procedures always return the column).
+
+            Filterable via `includeFavouriteOnly` (eq).
+        ID:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: unknown
+            id_format: guid
+          description: |-
+            GUID of the absence code (AbsenceCodeGUID). Rows without a GUID are dropped by the mapper.
+
+            Alternate key, unique per TimeLog site.
+
+            > **Not yet documented:** identity → uniqueness enforced.
+      description: 'An absence code: a reason an employee can be away (illness, vacation, leave …) that absence time is registered
+        on. Each code posts to one salary account (SalaryAccountID) with a factor and sign, and fixes how absence on it is
+        expressed (TimeTrackingFormat: hours, full day or half day). Send AbsenceCodeID as AbsenceID on the absence registration
+        creates and as AbsenceCodeID on absence time trackers.'
+    AbsenceRegistrationCreate.create.createAbsenceRegistrationByFullDay:
+      type: object
+      properties:
+        AbsenceID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The absence code to register on (AbsenceCodeID from GET /v1/absence-code/{status}).
+
+            Can be set on create only.
+
+            Refers to `AbsenceCodeRead.AbsenceCodeID`. Look up valid values with `GET /v1/absence-code/{status}`.
+
+            - Not an existing absence code — 38034 absence-not-found (HTTP 422).
+
+            - Code's salary account is inactive — 37977 (HTTP 422).
+
+            - Code's own TimeTrackingFormat differs from the endpoint called — Not checked — the registration takes the endpoint's format.
+
+            Valid values come from `GET /v1/absence-code/{status}`.
+        Date:
+          type: string
+          format: date-time
+          description: |-
+            The day of the absence. Only the date part is used (time is discarded).
+
+            Can be set on create only.
+
+            Date only — no time component.
+
+            - Always — Truncated to the date (Date.Date).
+
+            - The caller has no normal working time on the date — 37588 (HTTP 422).
+
+            - Full/half-day code and the caller already has an absence on this code on the date — 37954 (HTTP 422).
+        Comment:
+          type:
+          - string
+          - 'null'
+          x-timelog-condition: Required when the tenant feature MandatoryComment is active (300116); optional otherwise.
+          description: |-
+            **Conditional.** Required when the tenant feature MandatoryComment is active (300116); optional otherwise.
+
+            Can be set on create only.
+
+            > **Not yet documented:** constraints → max length.
+        Hours:
+          type: number
+          format: double
+          description: |-
+            Must be > 0 to pass validation, but does NOT set the duration: Minutes is applied after Hours and replaces it. Send the duration in Minutes; send any Hours > 0.
+
+            Can be set on create only.
+
+            Unit: hours
+
+            - Always (Minutes is always applied afterwards, default 0) — Replaced by Minutes / 60 (rounded to 2 decimals). With Minutes omitted the duration becomes 0 and the call fails with 37982 (HTTP 422).
+
+            - Hours ≤ 0 — 400 'Hours' must be greater than '0'.
+        Minutes:
+          type: integer
+          format: int32
+          default: 0
+          description: |-
+            The absence duration in minutes — the value that is actually stored.
+
+            Can be set on create only.
+
+            Unit: minutes
+
+            > **Not yet documented:** constraints → min.
+        Type:
+          type: integer
+          enum:
+          - 0
+          - 1
+          x-enum-descriptions:
+          - 'Half-day endpoint: register half of the caller''s normal working time on the date. Full-day endpoint (FullDay
+            = 0 there): ignored.'
+          - 'Half-day endpoint: register the caller''s full normal working time on the date.'
+          default: 0
+          description: |-
+            Half-day endpoint: 1 = full day, anything else = half day. Full-day endpoint: ignored (always a full day).
+
+            Can be set on create only.
+
+            - Half-day endpoint, value other than 1 (including undefined values) — Treated as half day — the enum is not range-checked.
+
+            - Full-day endpoint — The controller always uses FullDay.
+
+            Accepted and ignored.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | HalfDay | Half-day endpoint: register half of the caller's normal working time on the date. Full-day endpoint (FullDay = 0 there): ignored. |
+            | `1` | FullDay | Half-day endpoint: register the caller's full normal working time on the date. |
+      required:
+      - AbsenceID
+      - Date
+      description: Registers absence for the calling user on one date with one absence code. The duration is either explicit
+        (hours/minutes) or derived from the caller's normal working time for that date (full day / half day).
+    AbsenceRegistrationCreate.create.createAbsenceRegistrationByHalfDay:
+      type: object
+      properties:
+        AbsenceID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The absence code to register on (AbsenceCodeID from GET /v1/absence-code/{status}).
+
+            Can be set on create only.
+
+            Refers to `AbsenceCodeRead.AbsenceCodeID`. Look up valid values with `GET /v1/absence-code/{status}`.
+
+            - Not an existing absence code — 38034 absence-not-found (HTTP 422).
+
+            - Code's salary account is inactive — 37977 (HTTP 422).
+
+            - Code's own TimeTrackingFormat differs from the endpoint called — Not checked — the registration takes the endpoint's format.
+
+            Valid values come from `GET /v1/absence-code/{status}`.
+        Date:
+          type: string
+          format: date-time
+          description: |-
+            The day of the absence. Only the date part is used (time is discarded).
+
+            Can be set on create only.
+
+            Date only — no time component.
+
+            - Always — Truncated to the date (Date.Date).
+
+            - The caller has no normal working time on the date — 37588 (HTTP 422).
+
+            - Full/half-day code and the caller already has an absence on this code on the date — 37954 (HTTP 422).
+        Comment:
+          type:
+          - string
+          - 'null'
+          x-timelog-condition: Required when the tenant feature MandatoryComment is active (300116); optional otherwise.
+          description: |-
+            **Conditional.** Required when the tenant feature MandatoryComment is active (300116); optional otherwise.
+
+            Can be set on create only.
+
+            > **Not yet documented:** constraints → max length.
+        Hours:
+          type: number
+          format: double
+          description: |-
+            Must be > 0 to pass validation, but does NOT set the duration: Minutes is applied after Hours and replaces it. Send the duration in Minutes; send any Hours > 0.
+
+            Can be set on create only.
+
+            Unit: hours
+
+            - Always (Minutes is always applied afterwards, default 0) — Replaced by Minutes / 60 (rounded to 2 decimals). With Minutes omitted the duration becomes 0 and the call fails with 37982 (HTTP 422).
+
+            - Hours ≤ 0 — 400 'Hours' must be greater than '0'.
+        Minutes:
+          type: integer
+          format: int32
+          default: 0
+          description: |-
+            The absence duration in minutes — the value that is actually stored.
+
+            Can be set on create only.
+
+            Unit: minutes
+
+            > **Not yet documented:** constraints → min.
+        Type:
+          type: integer
+          enum:
+          - 0
+          - 1
+          x-enum-descriptions:
+          - 'Half-day endpoint: register half of the caller''s normal working time on the date. Full-day endpoint (FullDay
+            = 0 there): ignored.'
+          - 'Half-day endpoint: register the caller''s full normal working time on the date.'
+          default: 0
+          description: |-
+            Half-day endpoint: 1 = full day, anything else = half day. Full-day endpoint: ignored (always a full day).
+
+            Can be set on create only.
+
+            - Half-day endpoint, value other than 1 (including undefined values) — Treated as half day — the enum is not range-checked.
+
+            - Full-day endpoint — The controller always uses FullDay.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | HalfDay | Half-day endpoint: register half of the caller's normal working time on the date. Full-day endpoint (FullDay = 0 there): ignored. |
+            | `1` | FullDay | Half-day endpoint: register the caller's full normal working time on the date. |
+      required:
+      - AbsenceID
+      - Date
+      description: Registers absence for the calling user on one date with one absence code. The duration is either explicit
+        (hours/minutes) or derived from the caller's normal working time for that date (full day / half day).
+    AbsenceRegistrationCreate.create.createAbsenceRegistrationByHours:
+      type: object
+      properties:
+        AbsenceID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The absence code to register on (AbsenceCodeID from GET /v1/absence-code/{status}).
+
+            Can be set on create only.
+
+            Refers to `AbsenceCodeRead.AbsenceCodeID`. Look up valid values with `GET /v1/absence-code/{status}`.
+
+            - Not an existing absence code — 38034 absence-not-found (HTTP 422).
+
+            - Code's salary account is inactive — 37977 (HTTP 422).
+
+            - Code's own TimeTrackingFormat differs from the endpoint called — Not checked — the registration takes the endpoint's format.
+
+            Valid values come from `GET /v1/absence-code/{status}`.
+        Date:
+          type: string
+          format: date-time
+          description: |-
+            The day of the absence. Only the date part is used (time is discarded).
+
+            Can be set on create only.
+
+            Date only — no time component.
+
+            - Always — Truncated to the date (Date.Date).
+
+            - The caller has no normal working time on the date — 37588 (HTTP 422).
+
+            - Full/half-day code and the caller already has an absence on this code on the date — 37954 (HTTP 422).
+        Comment:
+          type:
+          - string
+          - 'null'
+          x-timelog-condition: Required when the tenant feature MandatoryComment is active (300116); optional otherwise.
+          description: |-
+            **Conditional.** Required when the tenant feature MandatoryComment is active (300116); optional otherwise.
+
+            Can be set on create only.
+
+            > **Not yet documented:** constraints → max length.
+        Hours:
+          type: number
+          format: double
+          description: |-
+            Must be > 0 to pass validation, but does NOT set the duration: Minutes is applied after Hours and replaces it. Send the duration in Minutes; send any Hours > 0.
+
+            Can be set on create only.
+
+            Unit: hours
+
+            - Always (Minutes is always applied afterwards, default 0) — Replaced by Minutes / 60 (rounded to 2 decimals). With Minutes omitted the duration becomes 0 and the call fails with 37982 (HTTP 422).
+
+            - Hours ≤ 0 — 400 'Hours' must be greater than '0'.
+        Minutes:
+          type: integer
+          format: int32
+          x-timelog-condition: 'Not validated, but effectively required: omitted or 0 → zero duration → 37982 (HTTP 422).'
+          default: 0
+          description: |-
+            The absence duration in minutes — the value that is actually stored.
+
+            **Conditional.** Not validated, but effectively required: omitted or 0 → zero duration → 37982 (HTTP 422).
+
+            Can be set on create only.
+
+            Unit: minutes
+
+            > **Not yet documented:** constraints → min.
+        Type:
+          type: integer
+          enum:
+          - 0
+          - 1
+          x-enum-descriptions:
+          - 'Half-day endpoint: register half of the caller''s normal working time on the date. Full-day endpoint (FullDay
+            = 0 there): ignored.'
+          - 'Half-day endpoint: register the caller''s full normal working time on the date.'
+          default: 0
+          description: |-
+            Half-day endpoint: 1 = full day, anything else = half day. Full-day endpoint: ignored (always a full day).
+
+            Can be set on create only.
+
+            - Half-day endpoint, value other than 1 (including undefined values) — Treated as half day — the enum is not range-checked.
+
+            - Full-day endpoint — The controller always uses FullDay.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | HalfDay | Half-day endpoint: register half of the caller's normal working time on the date. Full-day endpoint (FullDay = 0 there): ignored. |
+            | `1` | FullDay | Half-day endpoint: register the caller's full normal working time on the date. |
+      required:
+      - AbsenceID
+      - Date
+      - Hours
+      description: Registers absence for the calling user on one date with one absence code. The duration is either explicit
+        (hours/minutes) or derived from the caller's normal working time for that date (full day / half day).
+    AllowanceLegislationRead:
+      type: object
+      properties:
+        AllowanceLegislationID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier. Send it as AllowanceLegislationID on user create.
+
+            Identifier of this object, unique per TimeLog site.
+        CountryID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The legislation's country, as a CountryID of the system country list. In the initial data the "DK" and "SE" legislations carry each other's country (DK → 198 Sverige, SE → 52 Danmark) — map by Description, not CountryID. NULL in the table is returned as 0.
+
+            Refers to `CountryRead.CountryID`. Look up valid values with `GET /v1/country/get-all`.
+
+            Valid values come from `GET /v1/country/get-all`.
+
+            > **Not yet documented:** identity → references.
+        Description:
+          type: string
+          readOnly: true
+          description: Short label — in the initial data the country's ISO code (SE, DK, DE, FI).
+      description: 'An allowance legislation: the country rule set used for travel allowances (per diem) of employees. It
+        is the value set for AllowanceLegislationID on user create. The initial tenant data has four: SE, DK, DE, FI.'
+    HolidayCalendarRead:
+      type: object
+      properties:
+        HolidayCalendarID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier. Send it as HolidayCalendarID on user create.
+
+            Identifier of this object, unique per TimeLog site.
+        Name:
+          type: string
+          readOnly: true
+          maxLength: 100
+          description: Calendar name.
+        ID:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: unknown
+            id_format: guid
+          description: |-
+            Calendar GUID. Not accepted as input by user create.
+
+            Alternate key, unique per TimeLog site.
+
+            > **Not yet documented:** identity → uniqueness enforced.
+        Description:
+          type: string
+          readOnly: true
+          maxLength: 255
+          description: Free-text description. Empty string when NULL.
+      description: The value set for HolidayCalendarID on user create. The holiday dates themselves are not exposed by this
+        model.
+    MessageError:
+      type: object
+      description: Body of 401 and some framework errors — not the ResponseError shape.
+      properties:
+        Message:
+          type: string
+    ResponseError:
+      type: object
+      description: Error body for validation (400), privilege (403), business-rule (422/500) and other server errors. `Details`
+        lists strings for validation errors, or `{ErrorCode, Message}` objects for business-rule violations. `Parameters`
+        echoes the request arguments, including the full payload.
+      properties:
+        Code:
+          type: integer
+          description: 'TimeLog error class (not the HTTP status): 100 unexpected, 102 business rule, 103 privilege, 200 validation.'
+        Message:
+          type: string
+        Details:
+          type: array
+          items: {}
+        Parameters:
+          type:
+          - string
+          - object
+          - 'null'
+        Url:
+          type: string
+    SalaryAccountAggregationRead:
+      type: object
+      properties:
+        SalaryAccountID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Echo of the salary account in the path.
+
+            Refers to `SalaryAccountRead.SalaryAccountID`. Look up valid values with `GET /v1/salary-account`.
+
+            Valid values come from `GET /v1/salary-account`.
+        UserID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The employee (user ID). Unique within one response; the list is ordered by it.
+
+            Refers to `UserRead.UserID`. Look up valid values with `GET /v1/user`.
+
+            Filterable via `userId` (eq).
+
+            Valid values come from `GET /v1/user`.
+        FirstName:
+          type: string
+          readOnly: true
+          description: Contains personal data.
+        LastName:
+          type: string
+          readOnly: true
+          description: Contains personal data.
+        AccountBalance:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            The employee's balance on the account at the end of balanceDate (weekly aggregate up to the previous week plus the postings of the current week up to the date), rounded to 2 decimals. For a resigned employee and a date after the resignation, the balance on the resignation date. 0 before the tenant's 6.1 migration date.
+
+            Unit: Depends on the account's BalanceFormat (not returned): Hours → hours (tenant TimeFormat Hours) or minutes (TimeFormat Minutes); Days → days.
+
+            Contains financial data.
+
+            > **Not yet documented:** constraints → unit.
+      description: An employee's balance on one salary account at the end of a given date.
+    SalaryAccountManualPostingCreate.create:
+      type: object
+      properties:
+        BalanceDate:
+          type: string
+          format: date-time
+          description: |-
+            Date of the postings. Only the date part is used.
+
+            Can be set on create only.
+
+            Date only — no time component.
+
+            - Later than today + the tenant setting SalaryAccountEmployeePostingDateNoOfMonthsAhead months — 37995 (HTTP 500).
+
+            - On or before today − SalaryAccountEmployeePostingDateNoOfMonthsBackdate months — 37995 (HTTP 500).
+
+            - Before the site creation date, or outside an employee's employment period — 30181 / 30167 for that employee, with 37993 (HTTP 500).
+
+            > **Not yet documented:** behaviour.
+        EmployeeUsers:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalaryAccountManualPostingEmployeeCreate'
+          description: |-
+            The employees to adjust; at least one.
+
+            Can be set on create only.
+
+            > **Not yet documented:** multiple → max items.
+      required:
+      - BalanceDate
+      - EmployeeUsers
+      description: A batch of manual adjustments to one salary account, all on the same posting date.
+    SalaryAccountManualPostingEmployeeCreate:
+      type: object
+      properties:
+        UserId:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The employee whose balance is adjusted. Must exist and be active.
+
+            Can be set on create only.
+
+            Refers to `UserRead.UserID`. Look up valid values with `GET /v1/user`.
+
+            - User does not exist — 37040 (HTTP 500); the whole batch is refused.
+
+            - User is not active — 37931 (HTTP 500); the whole batch is refused.
+
+            Valid values come from `GET /v1/user`.
+        HoursAdjustment:
+          type: number
+          format: double
+          description: |-
+            The adjustment, ALWAYS in hours (positive adds, negative deducts). Hours accounts: posted as hours (and as whole minutes when the tenant's TimeFormat is minutes). Days accounts: converted to days with the employee's average daily normal working time. Count accounts: dropped — a 0 posting is written.
+
+            Can be set on create only.
+
+            Unit: hours
+
+            - 0 — 400 validation ('must not be empty').
+
+            - Account BalanceFormat = Days — Days = hours ÷ the employee's average normal working hours per working day; 0 days when the employee's norm has no working day.
+
+            - Account BalanceFormat = Count — Neither the hours nor the days branch runs; a posting of 0 is stored.
+        CommentToManager:
+          type:
+          - string
+          - 'null'
+          description: |-
+            Can be set on create only.
+
+            > **Not yet documented:** description.
+
+            > **Not yet documented:** constraints → max length.
+        CommentToEmployee:
+          type:
+          - string
+          - 'null'
+          description: |-
+            Can be set on create only.
+
+            > **Not yet documented:** description.
+
+            > **Not yet documented:** constraints → max length.
+      description: One employee's manual adjustment of a salary account balance.
+    SalaryAccountRead:
+      type: object
+      properties:
+        SalaryAccountID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier. Used in the path of the posting and aggregation operations, and as SalaryAccountID on absence codes.
+
+            Identifier of this object, unique per TimeLog site.
+        Name:
+          type: string
+          readOnly: true
+          maxLength: 255
+        SalaryAccountGUID:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: unknown
+            id_format: guid
+          description: |-
+            Alternate key, unique per TimeLog site.
+
+            > **Not yet documented:** identity → uniqueness enforced.
+        Description:
+          type: string
+          readOnly: true
+          description: Free text. NULL in the table is returned as an empty string.
+        IsActive:
+          type: boolean
+          readOnly: true
+          description: Inactive accounts are listed too. Absence registrations on a code whose account is inactive are refused
+            (37977).
+        IsSystemSalaryAccount:
+          type: boolean
+          readOnly: true
+          description: '> **Not yet documented:** description.'
+      description: |-
+        A salary account: a per-employee balance TimeLog keeps for payroll (the captured tenant has e.g. an absence account and a "Suppliment" account; flex is a system account).
+
+        > **Not yet documented:** BalanceFormat.
+    SalaryGroupRead:
+      type: object
+      properties:
+        SalaryGroupID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier. Send it as SalaryGroupID on user create.
+
+            Identifier of this object, unique per TimeLog site.
+        Name:
+          type: string
+          readOnly: true
+          maxLength: 255
+          description: Group name.
+        ID:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: unknown
+            id_format: guid
+          description: |-
+            Group GUID. Not accepted as input by user create.
+
+            Alternate key, unique per TimeLog site.
+
+            > **Not yet documented:** identity → uniqueness enforced.
+        Description:
+          type: string
+          readOnly: true
+          description: Free-text description. Empty string when NULL.
+        IsActive:
+          type: boolean
+          readOnly: true
+          description: |-
+            Active flag. Inactive groups are listed too.
+
+            > **Not yet documented:** description.
+        IsSystemSalaryGroup:
+          type: boolean
+          readOnly: true
+          description: true for the tenant's system salary group — the only group user create accepts while the SalaryGroups
+            feature is off.
+      description: 'A salary group: the payroll grouping of employees that decides which absence codes and salary accounts
+        apply to them (see the Salary service). The value set for SalaryGroupID on user create; with the SalaryGroups feature
+        off only the system group is accepted there (37924).'
+    TafAction:
+      type: object
+      description: A hypermedia action the caller may take on the object. Present only where the operation registers actions.
+    TafLink:
+      type: object
+      properties:
+        Href:
+          type: string
+        Rel:
+          type: string
+    TafListPaging:
+      type: object
+      description: 'Paging values. They are returned as STRINGS, for example `"TotalRecord": "12"`.'
+      properties:
+        TotalRecord:
+          type: string
+        TotalPage:
+          type: string
+        PageNumber:
+          type: string
+    TimeTrackerStartForAbsence.create:
+      type: object
+      properties:
+        AbsenceCodeID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The absence code to track. Always used, also when TimeRegistrationID is sent (it replaces the registration's entity).
+
+            Refers to `AbsenceCodeRead.AbsenceCodeID`.
+        TimeRegistrationID:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Start from an existing registration: copies comment, additional text, factor and monthly period, and LINKS the tracker when the registration is dated today (server date). The registration is not checked to belong to the caller.
+
+            Refers to `TimeRegistrationRead.TimeRegistrationID`. Look up valid values with `GET /v1/time-registration/{timeRegistrationID}`.
+        Minute:
+          type: integer
+          format: int32
+          default: 0
+          description: |-
+            Minutes already counted before now. With TimeRegistrationID and a value > 0: the expected total.
+
+            Unit: minutes
+        Comment:
+          type:
+          - string
+          - 'null'
+          description: '- Always — Overwrites the tracker comment, including the registration''s comment when TimeRegistrationID
+            is sent and Comment is omitted.'
+      required:
+      - AbsenceCodeID
+      description: Starts a stopwatch for the calling user on an absence code.
+x-timelog-service: Salary

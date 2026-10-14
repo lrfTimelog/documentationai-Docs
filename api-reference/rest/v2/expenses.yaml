@@ -1,0 +1,2134 @@
+openapi: 3.1.0
+info:
+  title: Expenses — REST API v2
+  version: v2
+  description: |-
+    Employee expenses (out-of-pocket costs to reimburse) with their receipts, project expenses (company costs such as supplier invoices booked on projects), mileage (car travel) registrations, expense types, the caller's expense totals, the address helpers of the mobile mileage form, and the lookups behind them (mileage rates, payment methods, product numbers, the product catalogue).
+
+    Enums are strings (member names) in v2 responses.
+
+    **Conventions that apply to every operation in this file:**
+    - Property names are PascalCase.
+    - Successful bodies use the TAF envelope: one object in `Properties`, lists in `Entities[].Properties`.
+    - Some operations succeed without content: HTTP 200 with the literal body `null`, or HTTP 204.
+    - `PUT` replaces the whole object: omitted fields are reset.
+    - Treat error `Code` 102 as a business-rule violation, whether the HTTP status is 422 or 500.
+
+    > **Not yet documented:** rate limits.
+servers:
+- url: https://{region-node}.timelog.com/{account}/api
+  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
+    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
+    it.'
+  variables:
+    region-node:
+      default: app3
+    account:
+      default: your-account
+security:
+- bearer: []
+tags:
+- name: Expenses
+  description: Employee expenses (out-of-pocket costs to reimburse) with their receipts, project expenses (company costs such
+    as supplier invoices booked on projects), mileage (car travel) registrations, expense types, the caller's expense totals,
+    the address helpers of the mobile mileage form, and the lookups behind them (mileage rates, payment methods, product numbers,
+    the product catalogue).
+paths:
+  /v2/employee-expense:
+    get:
+      operationId: listEmployeeExpensesV2
+      summary: List employee expenses (v2)
+      description: |-
+        Lists employee expenses, newest first, optionally for one user and a date range, one page at a time (v2 route; no approval status).
+
+        The v2 route of `GET /v1/employee-expense` — same filters (userID, startDate, endDate), paging, ordering, $expand and 15-minute receipt URLs, and the same missing caller scope. Entities have no Status field, so approved expenses cannot be filtered client-side either.
+
+        **Use it to:**
+        - Expense app showing the signed-in user's recent expenses (pass the caller's own userID)
+
+        **Not for:**
+        - Pulling approved expenses for payroll / finance — v2 has no approval status; use `GET /v1/employee-expense`
+        - One expense by ID — `GET /v2/employee-expense/{employeeExpenseID}` (it enforces the owner check)
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Side effect: Each call mints new 15-minute SAS read URLs for every listed attachment (no state change).
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/user`
+
+        **Next:** `GET /v2/employee-expense/{employeeExpenseID}`, `PUT /v2/employee-expense`
+
+        **See also:** `GET /v1/employee-expense`
+
+        > **Not yet documented:** request → query params → $expand.
+      tags:
+      - Expenses
+      parameters:
+      - name: userID
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          x-timelog-filter:
+            operators:
+            - eq
+        description: |-
+          Only expenses of this user (a USER ID). Omitted = all employees. Not checked against the caller.
+
+          Filters on `EmployeeExpenseReadV2.EmployeeUserID` (eq).
+      - name: startDate
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+          x-timelog-filter:
+            operators:
+            - gte
+        description: |-
+          Inclusive lower bound on the expense date.
+
+          Filters on `EmployeeExpenseReadV2.Date` (gte).
+      - name: endDate
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+          x-timelog-filter:
+            operators:
+            - lte
+        description: |-
+          Inclusive upper bound on the expense date (stored values are midnight).
+
+          Filters on `EmployeeExpenseReadV2.Date` (lte).
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size. No maximum enforced in the API layer.
+      - name: $expand
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - project
+          - currency
+          - expenseType
+          - paymentMethod
+          x-enum-descriptions:
+          - Fill Project (and its customer).
+          - Fill Currency.
+          - Fill ExpenseType.
+          - Fill PaymentMethod.
+        description: |-
+          Comma-separated list of nested objects to embed.
+
+          Several values: one string, separated by `,`.
+
+          Allowed values:
+
+          | Value | Name | Meaning |
+          |---|---|---|
+          | `project` | project | Fill Project (and its customer). |
+          | `currency` | currency | Fill Currency. |
+          | `expenseType` | expenseType | Fill ExpenseType. |
+          | `paymentMethod` | paymentMethod | Fill PaymentMethod. |
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). One page of expenses. Properties carry TotalRecord, TotalPage, PageNumber (strings); each entity has a self link and the expense TAF actions.
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: Date descending, then EmployeeExpenseID descending (stable)
+
+            Empty result: 200 with no Entities
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/EmployeeExpenseReadV2'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.expenses.employeeexpense.list
+    post:
+      operationId: createEmployeeExpenseV2
+      summary: Create an employee expense (v2)
+      description: |-
+        Creates an employee expense for the caller or on behalf of another user, and returns it (v2 route).
+
+        The v2 route of `POST /v1/employee-expense` — same body (EmployeeExpenseCreate, UserID and ProjectSubContractID included), same on-behalf rule, same business rules and errors. The response is the created expense in the v2 shape (no Status). Receipts are attached in a second call to the returned EmployeeExpenseID.
+
+        **Use it to:**
+        - Receipt-capture app booking a receipt line, then uploading the receipt to the returned ID (v2 client)
+        - Corporate-card or ERP integration creating card transactions on behalf of employees with UserID
+
+        **Not for:**
+        - Mileage — `POST /v1/mileage-registration`
+        - Company costs on a project — `POST /v1/project-expense`
+
+        **Rules across fields:**
+        - R1: ProjectSubContractID, when > 0, must belong to ProjectID, be Active and not be prepaid services.
+        - R2: ExpenseTypeID must belong to the owner's (UserID or caller) legal entity.
+        - R3: IsBillable must be true when the resolved contract is fixed-price.
+        - R4: Date must be inside the owner's employment and not in a closed accounting period.
+
+        **Behaviour:**
+        - Not idempotent.
+        - Not safe to retry blindly. Each call creates a new expense; nothing deduplicates. After a lost response, list the owner's expenses for the date (GET /v2/employee-expense?userID=&startDate=&endDate=) before retrying.
+        - Duplicates: Not deduplicated.
+        - Side effect: Creates the employee expense (category Employee, interface WebApi) with the conversion rates to the project's and the owner's legal-entity currencies.
+        - Side effect: Writes registration currency data for the expense; invalidates the expense cache.
+        - On failure: No transaction wraps the insert and the follow-up writes: a failure after the insert returns 500 while the expense row stays (src_only).
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/project-header/search-for-expense-travel-registration-order-by-recent-registration`, `GET /v1/currency/{status}`, `GET /v1/user`, `GET /v1/expense-type/{status}`, `GET /v1/payment-method/{status}`
+
+        **Next:** `POST /v2/employee-expense/{employeeExpenseID}/image`, `POST /v2/employee-expense/{employeeExpenseID}/file`, `GET /v2/employee-expense/{employeeExpenseID}`
+
+        **See also:** `POST /v1/employee-expense`, `POST /v1/project-header/employee-expense`
+
+        > **Not yet documented:** examples.
+      tags:
+      - Expenses
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeExpenseCreate'
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). The created expense, read back through the v2 GET-by-ID code (attachment lists empty, no Status).
+
+            Order: none
+
+            Empty result: none
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/EmployeeExpenseReadV2'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: Body validator: Date
+            missing; ExchangeRate ≤ 0; CurrencyID / ExpenseTypeID / PaymentMethodID / ProjectID ≤ 0; UserID ≤ 0 (captured).
+            — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '403':
+          description: '- **Code 103** — The authenticated user lacks a privilege the operation requires. On time registrations
+            this is raised when the caller is not the registration''s owner and has no registration privilege that covers
+            the owner. — When: UserID is another user and the caller is not covered by the on-behalf rule.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: |-
+            - **Code 100** — Unhandled server error.
+
+            - **Code 37040** — UserID is set, differs from the caller and is not an existing user ID. — Fix: Send a user ID (GET /v1/user), not an employee ID — or omit UserID to register for yourself.
+
+            - **Code 37931** — UserID exists but the user is deactivated. New registrations cannot be created for inactive users. — Fix: Register for an active user.
+
+            - **Code 37042** — ProjectSubContractID (> 0) is not a contract of ProjectID (or does not exist). — Fix: Send a contract of the same project, or 0 / omit it to use the project's default contract.
+
+            - **Code 31132** — The explicitly supplied ProjectSubContractID is not in status Active. — Fix: Choose an active contract of the project.
+
+            - **Code 31134** — The explicitly supplied ProjectSubContractID is a prepaid-services contract. — Fix: Choose a non-prepaid contract, or omit ProjectSubContractID.
+
+            - **Code 37806** — The resolved contract is closed. — Fix: Book on an open contract.
+
+            - **Code 37019** — ExpenseTypeID does not exist. — Fix: Use an expense type ID of the owner's legal entity.
+
+            - **Code 37998** — Fix: Use an expense type of the owner's legal entity anyway; the API will not stop you.
+
+            - **Code 37014** — ProjectID does not exist. — Fix: Use a ProjectID from a project-header search.
+
+            - **Code 37689** — The project is inactive. — Fix: Use an active project.
+
+            - **Code 37691** — The project's default-for-expenses contract (or, when there is none, its main contract) is closed. — Fix: Reopen the contract or send an explicit active ProjectSubContractID.
+
+            - **Code 37690** — The project has no default-for-expenses contract and its main contract is prepaid services. — Fix: Send an explicit non-prepaid ProjectSubContractID.
+
+            - **Code 31140** — The contract the expense is booked on is fixed-price and IsBillable is false. — Fix: Send IsBillable true for fixed-price contracts.
+
+            - **Code 37018** — PaymentMethodID does not exist. — Fix: Use an existing payment method ID.
+
+            - **Code 37699** — Date falls in a closed accounting period of the owner's employee projection. — Fix: Use a date in an open period.
+
+            - **Code 38022** — The owner has no employee projection on Date (for example a date before the employment start). — Fix: Use a date inside the owner's employment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.expenses.employeeexpense.create
+    put:
+      operationId: updateEmployeeExpenseV2
+      summary: Update an employee expense (v2)
+      description: |-
+        Replaces the amounts, date, currency, type, payment method, billability, comment, project AND contract of an unapproved employee expense (v2 route).
+
+        A full replacement (PUT), like `PUT /v1/employee-expense`, with one contract difference: v2 also takes ProjectSubContractID, and it must be sent — an omitted contract is 0 and fails with 37042. Because the contract is part of the body, v2 can move an expense to another contract or another project (send a contract of that project); v1 cannot. The owner cannot be changed. The response body is JSON null.
+
+        **Use it to:**
+        - Expense app letting an employee correct an expense before approval, including its project / contract
+        - Receipt-capture integration filling in amount / VAT / currency after OCR of the uploaded receipt
+
+        **Not for:**
+        - Changing the owner — delete and re-create the expense
+        - Changing receipts — the attach / delete image and file operations
+
+        **Rules across fields:**
+        - R1: ProjectSubContractID must be a contract of ProjectID (0 / omitted included → rejected). To change the project, send a contract of the new project.
+        - R2: ProjectSubContractID must not be a prepaid-services contract. An inactive contract is accepted on update.
+        - R3: ExpenseTypeID must belong to the owner's legal entity.
+        - R4: Date must be inside the owner's employment and not in a closed accounting period.
+
+        **Behaviour:**
+        - Idempotent.
+        - Same body → same stored values; last write wins (no concurrency token).
+        - Safe to retry.
+        - Duplicates: n/a
+        - Side effect: Overwrites the expense (contract included) and recalculates its conversion rates; invalidates the expense cache.
+        - Side effect: When the stored expense is on an invoice line and the contract changes, the update procedure also rewrites the contract on that invoice line detail — unreachable through this route while invoiced expenses are refused (37698).
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v2/employee-expense/{employeeExpenseID}`, `GET /v1/contract`
+
+        **Next:** `GET /v2/employee-expense/{employeeExpenseID}`
+
+        **See also:** `PUT /v1/employee-expense`, `DELETE /v2/employee-expense/{employeeExpenseID}`
+
+        > **Not yet documented:** examples; request → cross field rules → R2.
+      tags:
+      - Expenses
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeExpenseUpdateV2'
+      responses:
+        '200':
+          description: |-
+            Success without content: HTTP 200 with the literal JSON body `null`. Body is the JSON literal null.
+
+            Order: none
+
+            Empty result: none
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: EmployeeExpenseID
+            ≤ 0; Date missing; ExchangeRate ≤ 0; CurrencyID / ExpenseTypeID / PaymentMethodID / ProjectID ≤ 0 (captured).
+            ProjectSubContractID has no validator rule. — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 100** — Unhandled server error.
+
+            - **Code 37042** — ProjectSubContractID (> 0) is not a contract of ProjectID (or does not exist). — When: ProjectSubContractID omitted / 0, unknown, or not a contract of ProjectID. — Fix: Send a contract of the same project, or 0 / omit it to use the project's default contract.
+
+            - **Code 31134** — The explicitly supplied ProjectSubContractID is a prepaid-services contract. — When: ProjectSubContractID is a prepaid-services contract. — Fix: Choose a non-prepaid contract, or omit ProjectSubContractID.
+
+            - **Code 37700** — The expense is approved (Status = Approved) and can no longer be changed.
+
+            - **Code 37698** — The expense has been invoiced or vouchered.
+
+            - **Code 38006** — The (new) ProjectID's project has order status Completed.
+
+            - **Code 38007** — The expense's contract has status Completed.
+
+            - **Code 37019** — ExpenseTypeID does not exist. — Fix: Use an expense type ID of the owner's legal entity.
+
+            - **Code 37998** — Fix: Use an expense type of the owner's legal entity anyway; the API will not stop you.
+
+            - **Code 37014** — ProjectID does not exist. — Fix: Use a ProjectID from a project-header search.
+
+            - **Code 37689** — The project is inactive. — Fix: Use an active project.
+
+            - **Code 37018** — PaymentMethodID does not exist. — Fix: Use an existing payment method ID.
+
+            - **Code 37699** — Date falls in a closed accounting period of the owner's employee projection. — Fix: Use a date in an open period.
+
+            - **Code 38022** — The owner has no employee projection on Date (for example a date before the employment start). — Fix: Use a date inside the owner's employment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.expenses.employeeexpense.update
+  /v2/employee-expense/{employeeExpenseID}:
+    delete:
+      operationId: deleteEmployeeExpenseV2
+      summary: Delete an employee expense (v2)
+      description: |-
+        Deletes an unapproved, uninvoiced employee expense together with all its receipt files (v2 route).
+
+        The v2 route of `DELETE /v1/employee-expense/{employeeExpenseID}` — identical behaviour: only the expense's employee or a holder of 'all registrations' may delete; approved, invoiced, closed-period and completed-project / contract expenses are refused (all violated rules reported together); every receipt blob is deleted with it.
+
+        **Use it to:**
+        - Expense app withdrawing a draft expense
+        - Integration rolling back an expense it created in error before approval
+
+        **Not for:**
+        - Removing only a receipt — `DELETE /v2/employee-expense/{employeeExpenseID}/image` / deletefile
+
+        **Behaviour:**
+        - Not idempotent.
+        - A second delete of the same ID fails with 500 Code 100 (the expense no longer exists).
+        - Safe to retry only under a condition. After a lost response, check with GET that the expense still exists before retrying.
+        - Duplicates: n/a
+        - Side effect: Deletes every receipt blob of the expense, then the expense row; invalidates the expense and project caches.
+        - On failure: Blobs are deleted one by one BEFORE the row: a failure mid-way returns 500 with some receipt files already gone while the expense remains (src_only).
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v2/employee-expense`, `GET /v2/employee-expense/{employeeExpenseID}`
+
+        **See also:** `DELETE /v1/employee-expense/{employeeExpenseID}`, `DELETE /v2/employee-expense/{employeeExpenseID}/image`, `DELETE /v2/employee-expense/{employeeExpenseID}/file`
+
+        > **Not yet documented:** examples.
+      tags:
+      - Expenses
+      parameters:
+      - name: employeeExpenseID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: The expense's integer ID.
+      responses:
+        '200':
+          description: |-
+            Success without content: HTTP 200 with the literal JSON body `null`. Body is the JSON literal null.
+
+            Order: none
+
+            Empty result: none
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The URL did not match any route (including a route constraint such as {id:int} receiving a non-integer).
+            — When: employeeExpenseID is not an integer (captured).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: |-
+            - **Code 100** — Unhandled server error.
+
+            - **Code 37681** — The caller is not the expense's employee and lacks the privilege RegistrationAllRegistrations. Department / legal-entity registration privileges are NOT enough here (unlike create and get). — Fix: Delete as the owner, or with a user holding 'all registrations'.
+
+            - **Code 37703** — The expense is approved (Status = Approved).
+
+            - **Code 37701** — The expense has been invoiced or vouchered.
+
+            - **Code 37702** — The expense date lies in a closed accounting period of the owner's employment.
+
+            - **Code 38004** — The expense's project has order status Completed.
+
+            - **Code 38005** — The expense's contract has status Completed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Approved expense — captured on this route
+                  value:
+                    Code: 102
+                    Details:
+                    - Message: This expense is approved by the manager.
+                      ErrorCode: 37703
+                    Message: Business rules exception.
+                    Parameters: 'employeeExpenseID: 1'
+                    Url: https://{region-node}.timelog.com/{account}/api/v2/employee-expense/1
+      x-timelog-key: rest.v2.expenses.employeeexpense.delete
+    get:
+      operationId: getEmployeeExpenseV2
+      summary: Get an employee expense (v2)
+      description: |-
+        Returns one employee expense, including short-lived download URLs for its receipts (v2 route; no approval status).
+
+        The v2 route of `GET /v1/employee-expense/{employeeExpenseID}` — same controller code, owner check, $expand and 15-minute receipt URLs. The one difference is the body: the v2 model has no Status field, so a v2 caller cannot see whether the expense is approved (update / delete answer 37700 / 37703 when it is).
+
+        **Use it to:**
+        - Finance / ERP integration fetching an expense and its receipt (v2 clients)
+        - Confirming an expense after create or update
+
+        **Not for:**
+        - Reading the approval status — use `GET /v1/employee-expense/{employeeExpenseID}` (Status)
+        - Searching by employee or date — `GET /v2/employee-expense`
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Side effect: Each call mints new 15-minute SAS read URLs for the attachments (no state change).
+        - Changes are visible to the next read immediately.
+        - The owner lookup can be served from the application cache; the response comes from the read-model procedure (no cache).
+
+        **Call first:** `GET /v2/employee-expense`, `POST /v2/employee-expense`
+
+        **Next:** `PUT /v2/employee-expense`, `POST /v2/employee-expense/{employeeExpenseID}/image`, `DELETE /v2/employee-expense/{employeeExpenseID}/image`
+
+        **See also:** `GET /v1/employee-expense/{employeeExpenseID}`
+
+        > **Not yet documented:** request → query params → $expand.
+      tags:
+      - Expenses
+      parameters:
+      - name: employeeExpenseID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: The expense's integer ID.
+      - name: $expand
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - project
+          - currency
+          - expenseType
+          - paymentMethod
+          x-enum-descriptions:
+          - Fill Project (and its customer).
+          - Fill Currency.
+          - Fill ExpenseType.
+          - Fill PaymentMethod.
+        description: |-
+          Comma-separated list of nested objects to embed.
+
+          Several values: one string, separated by `,`.
+
+          Allowed values:
+
+          | Value | Name | Meaning |
+          |---|---|---|
+          | `project` | project | Fill Project (and its customer). |
+          | `currency` | currency | Fill Currency. |
+          | `expenseType` | expenseType | Fill ExpenseType. |
+          | `paymentMethod` | paymentMethod | Fill PaymentMethod. |
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). The expense, with a self link and the expense TAF actions (delete, create, update, attach file / image, delete file / image).
+
+            Order: none
+
+            Empty result: Unknown ID → 500 Code 100 (not 404).
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/EmployeeExpenseReadV2'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '403':
+          description: '- **Code 103** — The authenticated user lacks a privilege the operation requires. On time registrations
+            this is raised when the caller is not the registration''s owner and has no registration privilege that covers
+            the owner. — When: The caller is not the owner and no registration privilege covers the owner.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '404':
+          description: '- The URL did not match any route (including a route constraint such as {id:int} receiving a non-integer).
+            — When: employeeExpenseID is not an integer (captured).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.expenses.employeeexpense.get
+  /v2/employee-expense/{employeeExpenseID}/file:
+    delete:
+      operationId: deleteEmployeeExpenseFileV2
+      summary: Delete receipt files from an employee expense (v2)
+      description: |-
+        Removes one or more PDF (or other) receipt attachments from an employee expense and deletes the files from storage (v2 route).
+
+        The v2 route of `DELETE /v1/employee-expense/{employeeExpenseID}/file` — identical behaviour: repeat fileUrl for each attachment to remove; the SAS query string is ignored; URLs are processed one at a time and earlier deletions persist if a later one fails.
+
+        **Use it to:**
+        - Integration replacing a PDF receipt: delete the old URL, then attach the new PDF
+
+        **Not for:**
+        - Deleting the whole expense — `DELETE /v2/employee-expense/{employeeExpenseID}`
+
+        **Behaviour:**
+        - Not idempotent.
+        - Repeating a successful call fails with 37684.
+        - Safe to retry only under a condition. After a lost response, GET the expense: a URL that is gone was deleted.
+        - Duplicates: A URL repeated in one call fails on its second occurrence (37684).
+        - Side effect: Deletes the blob and rewrites the expense's attachment list without it, per URL.
+        - On failure: URLs before the failing one stay deleted; the blob is deleted before the list is saved (src_only).
+        - Changes are visible to the next read immediately.
+        - Batch: partial
+
+        **Call first:** `GET /v2/employee-expense/{employeeExpenseID}`
+
+        **Next:** `POST /v2/employee-expense/{employeeExpenseID}/file`
+
+        **See also:** `DELETE /v1/employee-expense/{employeeExpenseID}/file`, `DELETE /v2/employee-expense/{employeeExpenseID}/image`
+
+        > **Not yet documented:** examples.
+      tags:
+      - Expenses
+      parameters:
+      - name: employeeExpenseID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: The expense.
+      - name: fileUrl
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+            format: uri
+        description: |-
+          An attachment URL of this expense, URL-encoded. Repeat for several. Matched on scheme + host + path; the query string (SAS) is ignored.
+
+          Default: none — the call then does nothing and returns 200
+      responses:
+        '200':
+          description: |-
+            Success without content: HTTP 200 with the literal JSON body `null`. Body is the JSON literal null.
+
+            Order: none
+
+            Empty result: none
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The URL did not match any route (including a route constraint such as {id:int} receiving a non-integer).
+            — When: employeeExpenseID is not an integer (captured).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: |-
+            - **Code 37684** — A fileUrl / imageUrl (compared without its query string) is not in the expense's attachment list. — When: A fileUrl is not an attachment of this expense — or any storage / DB failure during its deletion. — Fix: Send a URL taken from the expense's ImageUrls / FileUrls (GET /v1/employee-expense/{id}); the SAS query string may stay on.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.expenses.employeeexpense.deletefile
+    post:
+      operationId: attachEmployeeExpenseFileV2
+      summary: Attach PDF receipts to an employee expense (v2)
+      description: |-
+        Uploads one or more PDF receipts to an existing employee expense (v2 route).
+
+        The v2 route of `POST /v1/employee-expense/{employeeExpenseID}/file` — identical behaviour: multipart/form-data with one PDF per part (every part is a file), all parts checked before any upload, 16 MB per request, JSON null in response. GET the expense for the 15-minute download URLs in FileUrls.
+
+        **Use it to:**
+        - Integration forwarding a supplier's PDF invoice as the receipt of an expense it created
+        - Expense app attaching an e-mailed PDF receipt
+
+        **Not for:**
+        - Images — `POST /v2/employee-expense/{employeeExpenseID}/image`
+
+        **Behaviour:**
+        - Not idempotent.
+        - Not safe to retry blindly. Each call appends new blobs; a retry stores the PDF twice. GET the expense and compare FileUrls before retrying.
+        - Duplicates: Not deduplicated.
+        - Side effect: Uploads each PDF to the tenant blob container as EmployeeExpense-<random GUID>.pdf with Content-Type application/pdf.
+        - Side effect: Rewrites the expense's attachment list (ImageAsJson) with the new private URLs; refreshes the cached expense.
+        - On failure: All parts are checked before any upload, so an invalid part stores nothing. A storage or DB failure after some uploads leaves orphan blobs (src_only).
+        - Changes are visible to the next read immediately.
+        - Batch: For validation only; not transactional for storage failures.
+
+        **Call first:** `POST /v2/employee-expense`
+
+        **Next:** `GET /v2/employee-expense/{employeeExpenseID}`
+
+        **See also:** `POST /v1/employee-expense/{employeeExpenseID}/file`, `POST /v2/employee-expense/{employeeExpenseID}/image`, `DELETE /v2/employee-expense/{employeeExpenseID}/file`
+
+        > **Not yet documented:** examples; request → body → multipart → formats.
+      tags:
+      - Expenses
+      parameters:
+      - name: employeeExpenseID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: The expense to attach to.
+      responses:
+        '200':
+          description: |-
+            Success without content: HTTP 200 with the literal JSON body `null`. Body is the JSON literal null. The new files appear in FileUrls of GET /v2/employee-expense/{id}.
+
+            Order: none
+
+            Empty result: none
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: '- **Code 400** — The multipart body has no parts. — Fix: Add at least one part carrying the file bytes.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The URL did not match any route (including a route constraint such as {id:int} receiving a non-integer).
+            — When: employeeExpenseID is not an integer.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '415':
+          description: '- **Code 415** — The request body is not a MIME multipart message. — Fix: Send Content-Type multipart/form-data
+            with one part per file.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: |-
+            - **Code 37938** — A multipart part does not have a PDF signature (DropzoneUtility.IsPDFFile). Every part is treated as a file. — When: Any part lacks a PDF signature — including a text form field. — Fix: Send only PDF parts; send images to POST /v1/employee-expense/{id}/image.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.expenses.employeeexpense.attachfile
+  /v2/employee-expense/{employeeExpenseID}/image:
+    delete:
+      operationId: deleteEmployeeExpenseImageV2
+      summary: Delete receipt images from an employee expense (v2)
+      description: |-
+        Removes one or more receipt attachments from an employee expense and deletes the files from storage (v2 route).
+
+        The v2 route of `DELETE /v1/employee-expense/{employeeExpenseID}/image` — identical behaviour: repeat imageUrl for each attachment to remove (URLs as returned in ImageUrls / FileUrls; the SAS query string is ignored), processed one at a time so earlier deletions persist when a later one fails. Despite the name it also deletes PDFs.
+
+        **Use it to:**
+        - Expense app letting the employee remove a wrong receipt photo before submitting
+        - Receipt integration replacing a receipt: delete the old URL, then attach the new image
+
+        **Not for:**
+        - Deleting the whole expense — `DELETE /v2/employee-expense/{employeeExpenseID}` (also removes every receipt)
+
+        **Behaviour:**
+        - Not idempotent.
+        - Repeating a successful call fails with 37684 (the URL is no longer on the expense).
+        - Safe to retry only under a condition. After a lost response, GET the expense: a URL that is gone was deleted.
+        - Duplicates: A URL repeated in one call fails on its second occurrence (37684) after the first was deleted.
+        - Side effect: Deletes the blob (DeleteIfExists) and rewrites the expense's attachment list without it, per URL; refreshes the cached expense.
+        - On failure: URLs before the failing one stay deleted (each is saved separately).
+        - On failure: The blob is deleted before the list is saved: if the DB update fails the list still points at a deleted file (src_only).
+        - Changes are visible to the next read immediately.
+        - Batch: partial
+
+        **Call first:** `GET /v2/employee-expense/{employeeExpenseID}`
+
+        **Next:** `POST /v2/employee-expense/{employeeExpenseID}/image`
+
+        **See also:** `DELETE /v1/employee-expense/{employeeExpenseID}/image`, `DELETE /v2/employee-expense/{employeeExpenseID}/file`
+
+        > **Not yet documented:** examples.
+      tags:
+      - Expenses
+      parameters:
+      - name: employeeExpenseID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: The expense.
+      - name: imageUrl
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+            format: uri
+        description: |-
+          An attachment URL of this expense (from ImageUrls or FileUrls), URL-encoded. Repeat the parameter for several. Matched on scheme + host + path; the query string (SAS) is ignored.
+
+          Default: none — the call then does nothing and returns 200
+      responses:
+        '200':
+          description: |-
+            Success without content: HTTP 200 with the literal JSON body `null`. Body is the JSON literal null.
+
+            Order: none
+
+            Empty result: none
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The URL did not match any route (including a route constraint such as {id:int} receiving a non-integer).
+            — When: employeeExpenseID is not an integer (captured).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: |-
+            - **Code 37684** — A fileUrl / imageUrl (compared without its query string) is not in the expense's attachment list. — When: An imageUrl is not an attachment of this expense — or any storage / DB failure during its deletion. — Fix: Send a URL taken from the expense's ImageUrls / FileUrls (GET /v1/employee-expense/{id}); the SAS query string may stay on.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.expenses.employeeexpense.deleteimage
+    post:
+      operationId: attachEmployeeExpenseImageV2
+      summary: Attach receipt images to an employee expense (v2)
+      description: |-
+        Uploads one or more receipt images (JPEG, PNG, GIF, BMP, TIFF …) to an existing employee expense (v2 route).
+
+        The v2 route of `POST /v1/employee-expense/{employeeExpenseID}/image` — identical behaviour: multipart/form-data with one image per part (every part is a file), each part must decode as an image or nothing is stored, 16 MB per request, JSON null in response. GET the expense for the 15-minute download URLs in ImageUrls. Create the expense first, then attach.
+
+        **Use it to:**
+        - Receipt-capture / OCR app uploading the photographed receipt right after creating the expense
+        - ERP or card-provider integration pushing the receipt image of a card transaction it booked on behalf of the employee
+
+        **Not for:**
+        - PDF receipts — `POST /v2/employee-expense/{employeeExpenseID}/file`
+        - Replacing a receipt — delete it (deleteimage) and attach the new one; attach only appends
+
+        **Behaviour:**
+        - Not idempotent.
+        - Not safe to retry blindly. Each call appends new blobs under new random names; a retried upload stores the receipt twice. After a lost response, GET the expense and compare ImageUrls before retrying.
+        - Duplicates: Not deduplicated: the same image uploaded twice becomes two attachments.
+        - Side effect: Uploads each image to the tenant blob container (tlp-<CustomerProductId>) as EmployeeExpense-<random GUID>.<format>; no Content-Type is set on image blobs.
+        - Side effect: Rewrites the expense's attachment list (ImageAsJson) with the new private URLs; refreshes the cached expense.
+        - On failure: All parts are decoded before any upload, so an invalid part stores nothing. A storage or DB failure after some uploads leaves orphan blobs that are not in the attachment list (src_only).
+        - Changes are visible to the next read immediately.
+        - Batch: For validation: one bad part rejects the call. Not transactional for storage failures.
+
+        **Call first:** `POST /v2/employee-expense`
+
+        **Next:** `GET /v2/employee-expense/{employeeExpenseID}`
+
+        **See also:** `POST /v1/employee-expense/{employeeExpenseID}/image`, `POST /v2/employee-expense/{employeeExpenseID}/file`, `DELETE /v2/employee-expense/{employeeExpenseID}/image`
+
+        > **Not yet documented:** behaviour → side effects on failure; examples; request → body → multipart → formats.
+      tags:
+      - Expenses
+      parameters:
+      - name: employeeExpenseID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: The expense to attach to.
+      responses:
+        '200':
+          description: |-
+            Success without content: HTTP 200 with the literal JSON body `null`. Body is the JSON literal null. The new files appear in ImageUrls of GET /v2/employee-expense/{id}.
+
+            Order: none
+
+            Empty result: none
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: '- **Code 400** — The multipart body has no parts. — Fix: Add at least one part carrying the file bytes.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The URL did not match any route (including a route constraint such as {id:int} receiving a non-integer).
+            — When: employeeExpenseID is not an integer.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '415':
+          description: '- **Code 415** — The request body is not a MIME multipart message. — Fix: Send Content-Type multipart/form-data
+            with one part per file.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: |-
+            - **Code 37683** — A multipart part could not be decoded as an image (System.Drawing Image.FromStream failed). Every part is treated as a file, so a plain form field (e.g. a name or description part) also triggers this. — When: Any part is not a decodable image — including a text form field. — Fix: Send only image parts; send PDFs to POST /v1/employee-expense/{id}/file.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.expenses.employeeexpense.attachimage
+  /v2/exchange-rate:
+    get:
+      operationId: getExchangeRateForCurrenciesOnDateV2
+      summary: Get the exchange rate between two currencies on a date
+      description: |-
+        Returns the conversion rate (per 100) between two currencies on a date, as TimeLog's expense form uses it to prefill an expense's exchange rate.
+
+        If the FROM currency was created by the tenant, the rate is computed from the stored rates of both currencies instead, and the date is ignored. This is a live provider rate, not the tenant's own currency matrix, and nothing is cached: each call is an outbound request that can take up to the tenant's retries × timeout (default 3 × 3.5 s) and fails with a generic 500 when the provider does not answer.
+
+        **Use it to:**
+        - Expense or receipt-capture app suggesting ExchangeRate for a foreign-currency receipt before POST /v2/employee-expense (`POST /v2/employee-expense`)
+
+        **Not for:**
+        - The currency list with today's rate against the caller's legal-entity currency — `GET /v1/currency/{status}`
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Side effect: One outbound HTTP GET {CurrencyExchangeServiceAddress}/api/CurrencyExchange/{fromISO}/{toISO}/{yyyy-MM-dd} per try, with the TimeLog-Authorization header; each failure is written to the error log.
+        - Changes are visible to the next read immediately.
+        - Not cached: a live provider rate on every call, which can differ from what the tenant stored for the same date in its currency matrix.
+
+        **Call first:** `GET /v1/currency/{status}`
+
+        **Next:** `POST /v2/employee-expense`, `PUT /v2/employee-expense`
+
+        **See also:** `GET /v1/currency/{status}`
+
+        > **Not yet documented:** errors; examples; response → success.
+      tags:
+      - Expenses
+      parameters:
+      - name: date
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+        description: The rate date. Only the calendar date is sent to the provider (yyyy-MM-dd); ignored when the FROM currency
+          is tenant-created. Omitting it means no action matches (404).
+      - name: fromCurrencyID
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: The currency converted FROM (a CurrencyID from GET /v1/currency). Omitting it → 404 (no action matches).
+      - name: toCurrencyID
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: The currency converted TO. Omitting it → 404 (no action matches).
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). {"Properties":{"Amount":<rate per 100>}, "Links": …}. No TAF actions.
+
+            Order: none
+
+            Empty result: none
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/CurrencyConversionRateRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: A parameter that
+            cannot be converted (e.g. date=abc) — Web API model binding marks the model state invalid (not captured). — Fix:
+            Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: All three parameters present and no / invalid
+            token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: date, fromCurrencyID or toCurrencyID missing — returned BEFORE authentication, so a
+            request without a token also gets 404 (captured).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Parameters missing — captured on this route (also without a token)
+                  value:
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v2/exchange-rate'.
+                    MessageDetail: No action was found on the controller 'ExchangeRate' that matches the request.
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.expenses.exchangerate.getexchangerateforcurrenciesondate
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: |-
+        OAuth 2.0 bearer token, sent as `Authorization: Bearer <token>`. JWT and reference tokens are both accepted. The token must carry the required scope (default `tlp`).
+
+        The token's `sub` claim is the acting user. A token WITHOUT `sub` (client-credentials) acts as the system service user. If the `sub` user cannot log in (inactive, locked, deleted), the request is rejected with 401 — it is no longer let through without a user.
+
+        > **Not yet documented:** how to obtain a token.
+
+        > **Not yet documented:** token lifetime.
+  schemas:
+    CurrencyConversionRateRead:
+      type: object
+      properties:
+        Amount:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            The rate between fromCurrencyID and toCurrencyID, quoted per 100 (same currency → 100). When the FROM currency was created by the tenant it is (from-currency stored rate × 100 / to-currency stored rate), and the date is ignored.
+
+            Unit: rate per 100 units (100 = parity); quote direction see gaps
+
+            - from-currency is a system currency — Provider rate(from ISO, to ISO, yyyy-MM-dd) × 100.
+
+            - from-currency is tenant-created (IsCreatedByUser) — fromCurrency.Rate × 100 / toCurrency.Rate from the stored currency rows; the date is not used.
+
+            > **Not yet documented:** constraints → unit.
+      description: The conversion rate between two currencies on a date, quoted per 100 units, as the TimeLog expense form
+        uses it to prefill an expense's exchange rate. One field.
+    CurrencyRead:
+      type: object
+      properties:
+        CurrencyID:
+          type: integer
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier. Send it as CurrencyID on customer create/update.
+
+            Identifier of this object, unique per TimeLog site.
+        CurrencyABB:
+          type: string
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: string
+          maxLength: 10
+          description: |-
+            Currency code, e.g. "EUR", "DKK". ISO 4217 for system currencies; a tenant-created currency can carry any unique code.
+
+            Alternate key, unique per TimeLog site.
+
+            Not accepted as input by any curated operation; map to CurrencyID on your side.
+        DescriptiveName:
+          type: string
+          readOnly: true
+          maxLength: 255
+          description: Display name, e.g. "Afghan afghani". NULL is returned as an empty string.
+        CurrentRate:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Today's exchange rate between this currency and the caller's legal-entity currency, quoted per 100 (100 = same value as the legal-entity currency), rounded to the tenant's invoice decimals. Computed per request from the exchange-rate service (cached per legal entity, day and currency pair); for a tenant-created currency it is derived from the stored rates of both currencies.
+
+            Unit: rate per 100 units (100 = parity with the caller's legal-entity currency)
+
+            - Rate for (legal entity, today, currency, LE currency) already cached — Cached value is returned.
+
+            - Not cached, system currency — Exchange-rate service factor × 100; stored in the long-expiration cache.
+
+            - Not cached, currency created by the tenant — stored rate(currency) × 100 / stored rate(LE currency).
+
+            - That stored rate is not computed against the legal-entity currency.
+
+            - Always — Rounded half away from zero to InvoiceSetting_NumberOfDecimals.
+
+            Direction of the quote (how many LE-currency units per 100 of this currency, or the reverse) is not established from source; only parity (same currency → 100) is.
+
+            > **Not yet documented:** notes.
+        IsActive:
+          type: boolean
+          readOnly: true
+          description: |-
+            Whether the currency is active in the tenant. Filter with the {status} path segment.
+
+            Filterable via `status` (eq).
+
+            Obsolete currencies are not excluded and the flag is not returned.
+      description: A currency of the tenant, with today's exchange rate towards the caller's legal-entity currency. The value
+        set for CurrencyID on customer create/update.
+    CustomerRead:
+      type: object
+      properties:
+        CustomerID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier. Used by GET /v1/customer/{customerID} and as CustomerID on update.
+
+            Identifier of this object, unique per TimeLog site.
+
+            Filterable via `customerID (path, GET /v1/customer/{customerID})` (eq).
+        ID:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: guid
+          description: |-
+            The customer's GUID. Not accepted as input by any REST v1 customer operation.
+
+            Alternate key, unique per TimeLog site.
+        Name:
+          type: string
+          readOnly: true
+          maxLength: 255
+          description: |-
+            Company name.
+
+            Filterable via `searchText (search-for-* operations)` (contains).
+        'No':
+          type: string
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: false
+            id_format: string
+          maxLength: 255
+          description: |-
+            Customer number. Unique only when the tenant feature UniqueCustomerNumber is on, and then only by an application check (no database constraint). When the customer-number series (auto number) is active and create sends no number, the next number in the series is assigned.
+
+            Alternate key, unique per TimeLog site.
+
+            Filterable via `customerNumber (path, by-number: exact match) / searchText (search-for-*: contains)` (eq, contains).
+        DefaultMileageDistance:
+          type: integer
+          readOnly: true
+          description: |-
+            Default distance proposed for mileage registrations on this customer (create/update field of the same name).
+
+            > **Not yet documented:** constraints → unit.
+        CustomerStatusID:
+          type: integer
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The customer's status. Statuses are tenant-defined; their group (customer, supplier, lead, multi-customer project) is CustomerStatusRead.CustomerStatusType. There is no status filter: list and get return suppliers and partners too.
+
+            Refers to `CustomerStatusRead.CustomerStatusID`. Look up valid values with `GET /v1/customerstatus`.
+
+            The "Multi customer project" pseudo-customer carries a status (AssociationFlags 16) that GET /v1/customerstatus does not list, so its CustomerStatusID cannot be resolved through the API. A NULL status in the database is returned as 0.
+
+            Valid values come from `GET /v1/customerstatus`.
+        VATNo:
+          type: string
+          readOnly: true
+          maxLength: 200
+          description: VAT number. Sent as VatNo on create/update.
+        OrganizationNo:
+          type: string
+          readOnly: true
+          maxLength: 255
+          description: Company registration number.
+      description: 'A customer as the REST v1 API returns it: the identifiers, name, number, status and tax numbers only.
+        Every row of the customer table is a "customer" here, whatever its status: suppliers, partners, the tenant''s own
+        company and the system "Multi customer project" row are included (see CustomerStatusID).'
+    EmployeeExpenseCreate:
+      type: object
+      properties:
+        Date:
+          type: string
+          format: date-time
+          description: |-
+            The date of the expense (receipt date).
+
+            Time zone: not yet documented.
+
+            - a time component is sent — Truncated to the date (DateTime.Date) by the adapter.
+
+            Must be inside the owner's employment (38022) and not in a closed accounting period (37699).
+
+            > **Not yet documented:** constraints → timezone.
+        Number:
+          type: string
+          description: |-
+            Expense number. Accepted in the body but NOT used.
+
+            - always — The adapter sets the number to an empty string whatever is sent.
+
+            > **Not yet documented:** behaviour.
+        Amount:
+          type: number
+          format: double
+          default: 0
+          description: |-
+            The expense amount, in the currency CurrencyID.
+
+            Unit: currency of CurrencyID
+
+            The validator's NotNull rule cannot fail on a non-nullable number: 0 and negative amounts are accepted.
+
+            > **Not yet documented:** description.
+        VatAmount:
+          type: number
+          format: double
+          default: 0
+          description: |-
+            The VAT part of the expense, in the currency CurrencyID.
+
+            Unit: currency of CurrencyID
+        IsBillable:
+          type: boolean
+          default: false
+          description: |-
+            Whether the expense is billable to the customer.
+
+            - false on a fixed-price contract — 31140 (HTTP 500, Code 102).
+
+            > **Not yet documented:** default.
+        Comment:
+          type: string
+          maxLength: 255
+          description: |-
+            Free-text comment.
+
+            > **Not yet documented:** constraints → max length.
+        ExchangeRate:
+          type: number
+          format: double
+          description: |-
+            Exchange rate from CurrencyID to the owner's legal-entity currency.
+
+            > **Not yet documented:** constraints → unit.
+        CurrencyID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Currency of Amount and VatAmount.
+
+            Refers to `CurrencyRead.CurrencyID`. Look up valid values with `GET /v1/currency/{status}`.
+
+            Valid values come from `GET /v1/currency/{status}`.
+
+            > **Not yet documented:** behaviour.
+        ExpenseTypeID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The expense type. Intended to belong to the owner's legal entity, but that rule is not enforced.
+
+            Refers to `ExpenseTypeRead.ExpenseTypeID`.
+
+            - unknown ID — 37019.
+
+            - type of another legal entity than the owner's — Accepted — ExpenseTypeIsValid sets 37998 but returns true, so the violation is never added.
+
+            > **Not yet documented:** values → lookup op.
+        PaymentMethodID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            How the employee paid (e.g. own card, company card).
+
+            Refers to `PaymentMethodRead.PaymentMethodID`. Look up valid values with `GET /v1/payment-method/{status}`.
+        ProjectID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The project the expense is booked on. Must exist and be active.
+
+            Refers to `ProjectHeaderRead.ProjectID`. Look up valid values with `GET /v1/project-header/search-for-expense-travel-registration-order-by-recent-registration`.
+
+            Valid values come from `GET /v1/project-header/search-for-expense-travel-registration-order-by-recent-registration`.
+        ProjectSubContractID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          default: 0
+          description: |-
+            The project contract the expense is booked on.
+
+            Refers to `ContractRead.ProjectSubContractID`.
+
+            - omitted or 0 — The project's default-for-expenses contract, else its main contract. If that contract is prepaid services the value stays 0 and the save fails a contract rule.
+
+            - > 0 — Must be a contract of ProjectID (37042), Active (31132) and not prepaid services (31134).
+
+            > **Not yet documented:** values → lookup op.
+
+            > **Not yet documented:** behaviour.
+        UserID:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The user the expense is registered for. Omit (or send your own UserID) to register for yourself.
+
+            Refers to `UserRead.UserID`.
+
+            Default: the caller
+
+            - ≤ 0 — 400, Code 200.
+
+            > **Not yet documented:** values → lookup op.
+      description: An out-of-pocket expense an employee paid (receipt amount, VAT, currency, type, payment method) and wants
+        reimbursed, booked on a project and optionally billable to its customer. For the caller or — with UserID — for another
+        employee. Receipts (attachments) cannot be sent with this body.
+    EmployeeExpenseReadV2:
+      type: object
+      properties:
+        EmployeeExpenseID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier of the expense. Use it in every other /employee-expense route.
+
+            Identifier of this object, unique per TimeLog site.
+
+            IDENTITY column: sequential, so IDs of other employees' expenses are guessable.
+        Date:
+          type: string
+          format: date-time
+          description: |-
+            The expense (purchase / receipt) date.
+
+            Date only — no time component.
+
+            Filterable via `startDate / endDate (list only)` (gte, lte).
+
+            Stored as SMALLDATETIME and truncated to the date on write; returned with a zero time and no offset, e.g. "2026-04-21T00:00:00".
+        Amount:
+          type: number
+          format: double
+          description: |-
+            Unit: currency of CurrencyID (the receipt currency, not the legal-entity or project currency), VAT included
+
+            Contains financial data.
+        VatAmount:
+          type: number
+          format: double
+          description: |-
+            The VAT part of the expense, in the currency CurrencyID.
+
+            Unit: currency of CurrencyID
+
+            Contains financial data.
+        IsBillable:
+          type: boolean
+          description: Whether the expense is billable to the project's customer.
+        Number:
+          type: string
+          readOnly: true
+          maxLength: 100
+          description: |-
+            The expense number assigned by TimeLog, e.g. "U26.0128".
+
+            The API create sends an empty number; the captured values (U<yy>.<nnnn>) show a number is assigned during the save.
+
+            > **Not yet documented:** identity.
+        Comment:
+          type:
+          - string
+          - 'null'
+          maxLength: 255
+          description: |-
+            Free-text comment.
+
+            Contains personal data.
+        ExchangeRate:
+          type: number
+          format: double
+          description: |-
+            Exchange rate stored with the expense: from the expense currency (CurrencyID) to the expense's base reference currency. On API create this is the caller's ExchangeRate, used as the expense-currency → owner legal-entity-currency rate.
+
+            > **Not yet documented:** constraints → unit.
+        CurrencyID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Currency of Amount and VatAmount (the receipt currency).
+
+            Refers to `CurrencyRead.CurrencyID`. Look up valid values with `GET /v1/currency/{status}`.
+
+            Valid values come from `GET /v1/currency/{status}`.
+        EmployeeUserID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The user the expense belongs to (the employee to reimburse). A USER ID, not an employee ID.
+
+            Can be set on create only.
+
+            Refers to `UserRead.UserID`. Look up valid values with `GET /v1/user`.
+
+            Filterable via `userID (list only)` (eq).
+
+            Contains personal data.
+
+            Set on create from UserID (or the caller); cannot be changed by the API update.
+
+            Valid values come from `GET /v1/user`.
+        ExpenseTypeID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The expense type (category, e.g. travel, meals).
+
+            Refers to `ExpenseTypeRead.ExpenseTypeID`. Look up valid values with `GET /v1/expense-type/{status}`.
+
+            Valid values come from `GET /v1/expense-type/{status}`.
+        PaymentMethodID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            How the expense was paid (e.g. own money, company card).
+
+            Refers to `PaymentMethodRead.PaymentMethodID`. Look up valid values with `GET /v1/payment-method/{status}`.
+        ProjectID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The project the expense is booked on.
+
+            Refers to `ProjectHeaderRead.ProjectID`. Look up valid values with `GET /v1/project-header/search-for-expense-travel-registration-order-by-recent-registration`.
+
+            Valid values come from `GET /v1/project-header/search-for-expense-travel-registration-order-by-recent-registration`.
+        ProjectSubContractID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The project contract the expense is booked on (resolved at create when not sent).
+
+            Refers to `ContractRead.ProjectSubContractID`. Look up valid values with `GET /v1/contract`.
+
+            Writable on v2 update, unlike v1 where it is create-only.
+
+            Valid values come from `GET /v1/contract`.
+        FileUrls:
+          type: array
+          format: uri
+          items: {}
+          readOnly: true
+          description: |-
+            Download URLs of the PDF attachments ONLY (images are in ImageUrls). Each URL is the receipt's Azure blob URL plus a read-only SAS token valid from 15 minutes before to 15 minutes after the response was built. Anyone holding the URL can download the file without a TimeLog token until it expires; re-read the expense for a fresh URL. Empty list when the expense has no PDF.
+
+            Contains financial data.
+
+            - always — Filtered to URLs whose path ends in .pdf; the blob name is EmployeeExpense-<random GUID>.pdf in the tenant container tlp-<CustomerProductId>.
+
+            > **Not yet documented:** description.
+        IsFileUrlLoaded:
+          type: boolean
+          readOnly: true
+          description: True when the expense has at least one attachment of any kind (image or PDF); false when it has none.
+        ImageUrls:
+          type: array
+          format: uri
+          items: {}
+          readOnly: true
+          description: |-
+            Download URLs (same SAS rules as FileUrls) of the IMAGE attachments — every attachment whose path does not end in .pdf.
+
+            Contains financial data.
+        IsImageUrlLoaded:
+          type: boolean
+          readOnly: true
+          description: True when at least one attachment is an image (not a PDF).
+        HasReceiptPictures:
+          type: boolean
+          readOnly: true
+        Project:
+          $ref: '#/components/schemas/ProjectHeaderRead'
+          readOnly: true
+          description: The project header. Filled only with $expand=project (which also adds the customer); null otherwise.
+        Currency:
+          $ref: '#/components/schemas/CurrencyRead'
+          readOnly: true
+          description: The currency. Filled only with $expand=currency; null otherwise.
+        ExpenseType:
+          $ref: '#/components/schemas/ExpenseTypeRead'
+          readOnly: true
+          description: The expense type. Filled only with $expand=expenseType; null otherwise.
+        PaymentMethod:
+          $ref: '#/components/schemas/PaymentMethodRead'
+          readOnly: true
+          description: The payment method. Filled only with $expand=paymentMethod; null otherwise.
+      description: 'An employee expense (out-of-pocket cost the employee wants reimbursed) as stored: amount and VAT in the
+        expense''s own currency, the exchange rate used, project / contract / expense type / payment method, the owner (EmployeeUserID)
+        and short-lived download URLs for the attached receipts — but, unlike v1, not the approval status. Optional nested
+        objects (Project, Currency, ExpenseType, PaymentMethod) are filled only on $expand. The TAF self link points to GET
+        /v2/employee-expense/{EmployeeExpenseID}; each entity also carries the expense TAF actions.'
+    EmployeeExpenseUpdateV2:
+      type: object
+      properties:
+        EmployeeExpenseID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            The expense to update (from GET /v2/employee-expense).
+
+            Identifier of this object, unique per TimeLog site.
+
+            - ≤ 0 — 400, Code 200.
+
+            - unknown ID — 500, Code 100 (the expense lookup throws a data-access exception).
+        Date:
+          type: string
+          format: date-time
+          description: |-
+            The expense (receipt) date.
+
+            Date only — no time component.
+
+            - a time component is sent — Truncated to the date (DateTime.Date).
+
+            Must be inside the owner's employment (38022) and not in a closed accounting period (37699).
+
+            > **Not yet documented:** constraints → timezone.
+        Amount:
+          type: number
+          format: double
+          default: 0
+          description: |-
+            The expense amount, in the currency CurrencyID.
+
+            Unit: currency of CurrencyID
+
+            - omitted — Written as 0 (full replacement).
+
+            NotNull on a non-nullable double never fails: 0 and negative amounts pass.
+        VatAmount:
+          type: number
+          format: double
+          default: 0
+          description: |-
+            The VAT part, in the currency CurrencyID.
+
+            Unit: currency of CurrencyID
+
+            - omitted — Written as 0 (full replacement).
+        IsBillable:
+          type: boolean
+          default: false
+          description: |-
+            Whether the expense is billable to the customer.
+
+            - omitted — Written as false (full replacement).
+
+            > **Not yet documented:** behaviour.
+        Comment:
+          type:
+          - string
+          - 'null'
+          maxLength: 255
+          description: |-
+            Free-text comment.
+
+            Null: Omitted or null clears the stored comment (full replacement).
+
+            > **Not yet documented:** constraints → max length.
+        ExchangeRate:
+          type: number
+          format: double
+          description: |-
+            Exchange rate from CurrencyID to the owner's legal-entity currency.
+
+            A suggested value for a date: GET /v2/exchange-rate (`GET /v2/exchange-rate`) — the call the TimeLog expense form makes.
+
+            > **Not yet documented:** constraints → unit.
+        CurrencyID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Currency of Amount and VatAmount.
+
+            Refers to `CurrencyRead.CurrencyID`. Look up valid values with `GET /v1/currency/{status}`.
+
+            Valid values come from `GET /v1/currency/{status}`.
+        ExpenseTypeID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The expense type; must belong to the owner's legal entity.
+
+            Refers to `ExpenseTypeRead.ExpenseTypeID`. Look up valid values with `GET /v1/expense-type/{status}`.
+
+            Valid values come from `GET /v1/expense-type/{status}`.
+        PaymentMethodID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            How the employee paid.
+
+            Refers to `PaymentMethodRead.PaymentMethodID`. Look up valid values with `GET /v1/payment-method/{status}`.
+        ProjectID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The project the expense is booked on.
+
+            Refers to `ProjectHeaderRead.ProjectID`. Look up valid values with `GET /v1/project-header/search-for-expense-travel-registration-order-by-recent-registration`.
+
+            - changed — Accepted when ProjectSubContractID is a contract of the NEW project (otherwise 37042).
+
+            - unchanged — Project must not be Completed (38006).
+
+            Valid values come from `GET /v1/project-header/search-for-expense-travel-registration-order-by-recent-registration`.
+        ProjectSubContractID:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The project contract the expense is booked on. Send the expense's current contract to keep it, or another contract of ProjectID to move it.
+
+            Refers to `ContractRead.ProjectSubContractID`. Look up valid values with `GET /v1/contract`.
+
+            - omitted or 0 — Written as 0 (non-nullable int, no validator rule); no contract 0 exists on the project → 500 Code 102 / 37042.
+
+            - not a contract of ProjectID — 37042.
+
+            - a prepaid-services contract — 31134 (rest.projectmanagement.expense-contract-prepaid).
+
+            - an inactive (not Active) contract of ProjectID — The active-status rule is skipped on update.
+
+            Requirement is effective, not declared: the C# property is a plain int and the validator has no rule for it.
+
+            Valid values come from `GET /v1/contract`.
+      description: The new values of an existing employee expense (v2), addressed by EmployeeExpenseID in the body. Unlike
+        v1, the contract (ProjectSubContractID) is part of the body and must be sent; project and contract can be changed
+        together. The owner (EmployeeUserID) cannot be changed; Number is not part of the model. Every writable field is overwritten,
+        so send the complete expense (read it first).
+    ExpenseTypeRead:
+      type: object
+      properties:
+        ExpenseTypeID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier. Send it as ExpenseTypeID on employee and project expenses.
+
+            Identifier of this object, unique per TimeLog site.
+        ExpenseTypeName:
+          type: string
+          readOnly: true
+          description: |-
+            Display name, as entered by the administrator (not localized).
+
+            The list is ordered by this name (ascending).
+        ShowInTravel:
+          type: boolean
+          readOnly: true
+          description: '"Available in travels": the type is offered in travel-expense registration.'
+        AccountNo:
+          type: string
+          readOnly: true
+          description: '"Account no. in financial system" — the finance (G/L) account the expense type posts to; empty when
+            not set.'
+        VAT:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            "Default VAT" in PERCENT (25.0 = 25 %) proposed for expenses of this type. Not enforced by the API: expense VAT amounts are sent explicitly.
+
+            Unit: percent
+        ProductNo:
+          type: string
+          readOnly: true
+          description: |-
+            Product number configured on the type; empty when none.
+
+            > **Not yet documented:** description.
+        SalaryCode:
+          type: string
+          readOnly: true
+          description: '"Salary code" used when the expense is reimbursed through payroll; empty when not set.'
+        IsActive:
+          type: boolean
+          readOnly: true
+          description: |-
+            Whether the type can be chosen for new expenses. Filter with the {status} segment / status parameter.
+
+            Filterable via `status (path on get-by-status, query on all/list)` (eq).
+        IsEquipment:
+          type: boolean
+          readOnly: true
+          description: |-
+            Legacy equipment flag. Not editable in the current settings screen.
+
+            > **Not yet documented:** description.
+        CostPrice:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Legacy equipment cost price.
+
+            > **Not yet documented:** constraints → unit.
+        SalesPrice:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Legacy equipment sales price.
+
+            > **Not yet documented:** constraints → unit.
+        EquipmentText:
+          type: string
+          readOnly: true
+          description: Legacy equipment comment.
+      description: 'An expense type (expense category, e.g. "Meals", "Train ticket") as configured under Settings → Expense
+        types: the default VAT percentage proposed for it, its finance account number and salary code, and whether it is offered
+        in travel registrations. Expense types belong to a legal entity (or to all legal entities); an expense must use a
+        type that fits the expense. The list returns active and inactive types depending on {status}.'
+    MessageError:
+      type: object
+      description: Body of 401 and some framework errors — not the ResponseError shape.
+      properties:
+        Message:
+          type: string
+    PaymentMethodRead:
+      type: object
+      properties:
+        PaymentMethodID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier. Send it as PaymentMethodID on employee and project expenses.
+
+            Identifier of this object, unique per TimeLog site.
+        Name:
+          type: string
+          readOnly: true
+          description: Display name as entered by the administrator (not localized). The list is ordered by it. Empty string
+            when null.
+        IsPaidByEmployee:
+          type: boolean
+          readOnly: true
+          description: '"Reimburse employee": the employee paid out of pocket and is reimbursed. false = paid by the company
+            (company card, supplier invoice, …).'
+        IsDefaultForEmployeeExpense:
+          type: boolean
+          readOnly: true
+          description: Preselected payment method for new employee expenses.
+        IsDefaultForProjectExpense:
+          type: boolean
+          readOnly: true
+          description: Preselected payment method for new project expenses.
+        IsActive:
+          type: boolean
+          readOnly: true
+          description: |-
+            Whether the method can be chosen on new expenses. A default method cannot be deactivated in the UI. Filter with the {status} segment.
+
+            Filterable via `status (path)` (eq).
+        IsDefaultForImport:
+          type: boolean
+          readOnly: true
+          description: |-
+            Default payment method for imported expenses.
+
+            > **Not yet documented:** description.
+        IsPersonalCreditCard:
+          type: boolean
+          readOnly: true
+          description: '"Personal credit card": the method is a company card assigned to one user (CreditCardEmployeeUserID).'
+        CreditCardEmployeeUserID:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            User the personal credit card belongs to; null for shared methods. The list only returns cards of the caller.
+
+            Refers to `UserRead.UserID`. Look up valid values with `GET /v1/user`.
+      description: 'A payment method: how an expense was paid. It decides whether the employee is reimbursed (IsPaidByEmployee)
+        and which method is preselected for employee expenses, project expenses and expense import. A method can be a PERSONAL
+        credit card assigned to one user; those are only listed to that user.'
+    ProjectHeaderRead:
+      type: object
+      properties:
+        ProjectID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: unknown
+            id_format: int
+          description: |-
+            Integer identifier of the project. Use it as ProjectID on the two POST operations of this controller.
+
+            Identifier of this object, unique per TimeLog site.
+
+            > **Not yet documented:** identity → uniqueness enforced.
+        ID:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: unknown
+            id_format: guid
+          description: |-
+            The project's GUID.
+
+            Alternate key, unique per TimeLog site.
+
+            > **Not yet documented:** identity → uniqueness enforced.
+        Name:
+          type: string
+          readOnly: true
+          description: |-
+            Project name. Null in the database is returned as "".
+
+            Filterable via `searchText` (contains).
+        'No':
+          type: string
+          readOnly: true
+          description: |-
+            Project number. Null in the database is returned as "".
+
+            Filterable via `searchText` (contains).
+
+            > **Not yet documented:** identity → role.
+        ExpenseIsBillable:
+          type:
+          - boolean
+          - 'null'
+          readOnly: true
+          description: |-
+            The billable default for an expense or mileage registration on this project. Meaning depends on the operation: on the time-tracking searches and the allocation-scoped expense/travel search it is the IsBillable of the first ACTIVE contract (status 2) in this order — the default-for-expenses contract, else the project's main contract, else the active contract with the lowest ID; null when the project has no active contract. On the expense/travel search with searchAll=true it is the project's own ExpenseIsBillable column instead.
+
+            Null: No active contract on the project (contract-derived variants), or NULL column (searchAll expense/travel variant).
+        CustomerID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The project's customer.
+
+            Refers to `CustomerRead.CustomerID`. Look up valid values with `GET /v1/customer/search-for-time-tracking`.
+
+            Filterable via `customerID` (eq).
+
+            Valid values come from `GET /v1/customer/search-for-time-tracking`.
+        Customer:
+          $ref: '#/components/schemas/CustomerRead'
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The project's customer as a short CustomerRead subset: CustomerID, ID, Name, No, DefaultMileageDistance, CustomerStatusID, VATNo, OrganizationNo. Always filled by the two *by-customer-id* time-tracking searches and by the by-customer expense/travel search; filled by the other three only when the request has $expand=customer. Otherwise null.
+
+            Refers to `CustomerRead.CustomerID`.
+
+            Null: Not expanded.
+        MainContractId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            A contract (ProjectSubContractID) of the project. Meaning depends on the operation: on the time-tracking "order-by-recent-registration" searches (with or without searchAll) and on the expense/travel searches without searchAll, it is the contract an expense would default to — the ACTIVE default-for-expenses contract, else the main contract if active, else the active contract with the lowest ID (0 when there is none). On search-for-time-tracking, search-for-time-tracking-by-customer-id and the expense/travel searches with searchAll=true it is the project's stored main contract, whatever its status.
+
+            Refers to `ContractRead.ProjectSubContractID`.
+
+            > **Not yet documented:** identity → references.
+      description: 'A short project representation for pickers: the project''s IDs, name and number, its customer, and the
+        contract and billable default an expense or mileage registration on the project would get. It is not the full project
+        (rest.v1 project GET, not curated yet). The TAF self link points to GET /v1/project/{ProjectID}; every entity also
+        carries two TAF actions, create-employee-expense and create-mileage-registration, that describe the two POST operations
+        of this controller.'
+    ResponseError:
+      type: object
+      description: Error body for validation (400), privilege (403), business-rule (422/500) and other server errors. `Details`
+        lists strings for validation errors, or `{ErrorCode, Message}` objects for business-rule violations. `Parameters`
+        echoes the request arguments, including the full payload.
+      properties:
+        Code:
+          type: integer
+          description: 'TimeLog error class (not the HTTP status): 100 unexpected, 102 business rule, 103 privilege, 200 validation.'
+        Message:
+          type: string
+        Details:
+          type: array
+          items: {}
+        Parameters:
+          type:
+          - string
+          - object
+          - 'null'
+        Url:
+          type: string
+    TafAction:
+      type: object
+      description: A hypermedia action the caller may take on the object. Present only where the operation registers actions.
+    TafLink:
+      type: object
+      properties:
+        Href:
+          type: string
+        Rel:
+          type: string
+    TafListPaging:
+      type: object
+      description: 'Paging values. They are returned as STRINGS, for example `"TotalRecord": "12"`.'
+      properties:
+        TotalRecord:
+          type: string
+        TotalPage:
+          type: string
+        PageNumber:
+          type: string
+x-timelog-service: Expenses

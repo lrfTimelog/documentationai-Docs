@@ -1,0 +1,1773 @@
+openapi: 3.1.0
+info:
+  title: Dashboard widgets and reports — REST API v2
+  version: v2
+  description: |-
+    Enums are strings (member names) in v2 responses.
+
+    **Conventions that apply to every operation in this file:**
+    - Property names are PascalCase.
+    - Successful bodies use the TAF envelope: one object in `Properties`, lists in `Entities[].Properties`.
+    - Some operations succeed without content: HTTP 200 with the literal body `null`, or HTTP 204.
+    - `PUT` replaces the whole object: omitted fields are reset.
+    - Treat error `Code` 102 as a business-rule violation, whether the HTTP status is 422 or 500.
+
+    > **Not yet documented:** rate limits.
+servers:
+- url: https://{region-node}.timelog.com/{account}/api
+  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
+    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
+    it.'
+  variables:
+    region-node:
+      default: app3
+    account:
+      default: your-account
+security:
+- bearer: []
+tags:
+- name: Dashboard widgets and reports
+  description: Enums are strings (member names) in v2 responses.
+paths:
+  /v2/insights-service/hour-kpi-per-month-hours-only:
+    get:
+      operationId: getHourKpiPerMonthHoursOnlyWidgetV2
+      summary: Get my added value per month, own hours only (Insights widget)
+      description: |-
+        Insights endpoint hour-kpi-per-month-hours-only-widget-data (widget title 'Added value per month (only My hours)'). Help text: 'Shows the monthly value added for the fiscal year. It displays either the registered or the estimated value. All amounts are in {{currency}}, with invoices in other currencies being converted. Internal hours hold a zero value, and absence hours are omitted … accumulates the year-to-date values …'. Same body shape as hour-kpi-per-month. DIFFERENCE IN TLP from hour-kpi-per-month and hour-kpi-bar-per-month: only the Insights endpoint name and the declared (unenforced) feature — the frontend sends NO filter here, but TLP forwards any query string, so a caller-added ?filter= reaches Insights; whether Insights ignores it on this route is not established. PASS-THROUGH PROXY. Insights' HTTP status, headers and body are returned to the caller unchanged. The controller says it exists only so the React frontend can reach Insights and must not be used for anything else.
+
+        **Use it to:**
+        - Show an employee the sales value of their own registered hours per month
+
+        **Not for:**
+        - Revenue or invoicing reporting — use the reporting / invoice APIs
+        - Anything outside the front-page widget (controller comment)
+
+        **Behaviour:**
+        - Read-after-write consistency: not yet documented.
+
+        > **Not yet documented:** behaviour; examples; purpose → description; response → default ordering; response → empty result; response → pagination; response → success.
+      tags:
+      - Dashboard widgets and reports
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). Insights body relayed unchanged. As the frontend reads it: a TAF-style object whose properties = InsightsHourKpiPerMonthRead (wire casing not established — the frontend camel-cases keys). Status/headers are Insights’.
+
+            > **Not yet documented:** paging.
+
+            Order: not yet documented.
+
+            Empty result: not yet documented.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/InsightsHourKpiPerMonthRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No / invalid token (captured: unauthorized scenario).
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 100** — Unhandled server error.
+
+            - **Code 499** — Misleading. — When: Insights does not answer within HttpClient's default 100 s. — Fix: Retry later; if persistent, Insights is down or slow — contact TimeLog support.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        default:
+          description: '- TLP returns Insights'' HttpResponseMessage as is: same status code, headers and body. http_status
+            is therefore whatever Insights sent. — When: Insights answered with a non-2xx status: relayed unchanged (status,
+            headers, body in Insights'' own format). — Fix: Inspect the relayed body; a 401/403 here comes from Insights''
+            own token validation, not from TLP''s.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.reporting.insightsservicewidgetdata.gethourkpipermonthwidgethoursonly
+  /v2/insights-service/hour-kpi-per-month-privilege:
+    get:
+      operationId: getHourKpiPerMonthPrivilegeWidgetV2
+      summary: List my added-value filter options (Insights widget)
+      description: |-
+        Insights endpoint hour-kpi-per-month-privilege-data — the only one of the 15 relay targets without '-widget-' in its name. Labels come from the option name (FilterHasMyHours 'My hours', FilterHasMyProjects 'My projects', FilterHasDepartment "My department's hours", FilterHasAllProjects 'All', FilterHasMyEmployees 'My employees'). Which privileges decide which options are returned is not established. PASS-THROUGH PROXY. Insights' HTTP status, headers and body are returned to the caller unchanged. The controller says it exists only so the React frontend can reach Insights and must not be used for anything else.
+
+        **Use it to:**
+        - Fill the filter drop-down of the Added-value-per-month widgets
+
+        **Not for:**
+        - Authorization decisions — the data routes do not check the chosen filter against this list in TLP
+        - Anything outside the front-page widget (controller comment)
+
+        **Behaviour:**
+        - Read-after-write consistency: not yet documented.
+
+        > **Not yet documented:** behaviour; examples; purpose → description; response → default ordering; response → empty result; response → pagination; response → success; transport → upstream.
+      tags:
+      - Dashboard widgets and reports
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). Insights body relayed unchanged. As the frontend reads it: TAF-style `entities[].properties` = InsightsHourKpiFilterOptionRead, plus `properties.count` (number of options). Wire casing not established — the frontend camel-cases keys. Status/headers are Insights’.
+
+            > **Not yet documented:** paging.
+
+            Order: not yet documented.
+
+            Empty result: not yet documented.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/InsightsHourKpiFilterOptionRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No / invalid token (captured: unauthorized scenario).
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 100** — Unhandled server error.
+
+            - **Code 499** — Misleading. — When: Insights does not answer within HttpClient's default 100 s. — Fix: Retry later; if persistent, Insights is down or slow — contact TimeLog support.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        default:
+          description: '- TLP returns Insights'' HttpResponseMessage as is: same status code, headers and body. http_status
+            is therefore whatever Insights sent. — When: Insights answered with a non-2xx status: relayed unchanged (status,
+            headers, body in Insights'' own format). — Fix: Inspect the relayed body; a 401/403 here comes from Insights''
+            own token validation, not from TLP''s.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.reporting.insightsservicewidgetdata.gethourkpipermonthprivilegewidget
+  /v2/insights-service/invoiced-per-month:
+    get:
+      operationId: getInvoicedPerMonthV2
+      summary: Get invoiced amount per month (Insights widget)
+      description: |-
+        Insights endpoint invoiced-per-month-widget-data. Help text: 'Compares the monthly invoicing in the current fiscal year to the previous fiscal year. You can only see data from projects you manage, and all invoices are included, no matter their status. Values are shown in system currency, and invoices in different currencies are converted.' Formula, VAT basis, conversion rate/date, fiscal-year boundaries and timezone are not established. PASS-THROUGH PROXY. Insights' HTTP status, headers and body are returned to the caller unchanged. The controller says it exists only so the React frontend can reach Insights and must not be used for anything else.
+
+        **Use it to:**
+        - Show a project manager their projects' invoicing trend
+
+        **Not for:**
+        - Revenue reporting — no stable contract; use the invoicing APIs
+
+        **Behaviour:**
+        - Read-after-write consistency: not yet documented.
+
+        > **Not yet documented:** behaviour; examples; purpose → description; response → default ordering; response → empty result; response → pagination; response → success.
+      tags:
+      - Dashboard widgets and reports
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). Insights body relayed unchanged. As the frontend reads it: a TAF-style object whose properties = InsightsInvoicedPerMonthRead (wire casing not established — the frontend camel-cases keys). Status/headers are Insights’.
+
+            > **Not yet documented:** paging.
+
+            Order: not yet documented.
+
+            Empty result: not yet documented.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/InsightsInvoicedPerMonthRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No / invalid token (captured: unauthorized scenario).
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 100** — Unhandled server error.
+
+            - **Code 499** — Misleading. — When: Insights does not answer within HttpClient's default 100 s. — Fix: Retry later; if persistent, Insights is down or slow — contact TimeLog support.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        default:
+          description: '- TLP returns Insights'' HttpResponseMessage as is: same status code, headers and body. http_status
+            is therefore whatever Insights sent. — When: Insights answered with a non-2xx status: relayed unchanged (status,
+            headers, body in Insights'' own format). — Fix: Inspect the relayed body; a 401/403 here comes from Insights''
+            own token validation, not from TLP''s.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.reporting.insightsservicewidgetdata.getinvoicedpermonth
+  /v2/insights-service/time-tracking-delay:
+    get:
+      operationId: getTimeTrackingDelayWidgetV2
+      summary: Get my time-tracking delay (Insights widget)
+      description: |-
+        Insights endpoint time-tracking-delay-widget-data. Help text: 'Shows the average number of days, between when the hours incurred and when they were registered … the trend compared to the previous month', plus a company target in days. Presented as the caller's own figure ('Your time tracking delay'); nothing in TLP restricts it to the caller. PASS-THROUGH PROXY. Insights' HTTP status, headers and body are returned to the caller unchanged. The controller says it exists only so the React frontend can reach Insights and must not be used for anything else.
+
+        **Use it to:**
+        - Show an employee how promptly they register time
+
+        **Not for:**
+        - Compliance reporting across employees — caller-oriented widget
+
+        **Behaviour:**
+        - Read-after-write consistency: not yet documented.
+
+        **See also:** `GET /v2/widget-data/time-registration-accuracy`
+
+        > **Not yet documented:** behaviour; examples; purpose → description; response → default ordering; response → empty result; response → pagination; response → success.
+      tags:
+      - Dashboard widgets and reports
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). Insights body relayed unchanged. As the frontend reads it: a TAF-style object whose properties = InsightsTimeTrackingDelayRead (wire casing not established — the frontend camel-cases keys). Status/headers are Insights’.
+
+            > **Not yet documented:** paging.
+
+            Order: not yet documented.
+
+            Empty result: not yet documented.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/InsightsTimeTrackingDelayRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No / invalid token (captured: unauthorized scenario).
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 100** — Unhandled server error.
+
+            - **Code 499** — Misleading. — When: Insights does not answer within HttpClient's default 100 s. — Fix: Retry later; if persistent, Insights is down or slow — contact TimeLog support.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        default:
+          description: '- TLP returns Insights'' HttpResponseMessage as is: same status code, headers and body. http_status
+            is therefore whatever Insights sent. — When: Insights answered with a non-2xx status: relayed unchanged (status,
+            headers, body in Insights'' own format). — Fix: Inspect the relayed body; a 401/403 here comes from Insights''
+            own token validation, not from TLP''s.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.reporting.insightsservicewidgetdata.gettimetrackingdelaywidget
+  /v2/insights-service/vacation-calculation:
+    get:
+      operationId: getVacationCalculationWidgetV2
+      summary: Get my vacation balance (Insights widget)
+      description: |-
+        Insights endpoint vacation-calculation-widget-data. Help text: 'The vacation balance is your current status of days available for vacation. The end of month vacation balance, is calculated by taking the current balance, adding the accrued vacation, and subtracting taken and planned vacation. "Extra vacation days" (if used) are treated in the same way … Planned vacation, includes all registered vacation for the current month.' The frontend shows four rows (Previous month's balance, Accrued vacation, Planned vacation, Expected balance end of month) with one column per month, and expands each into absence codes (e.g. Vacation, Additional Vacation Days). Unit: days, as the help text states. Presented as the caller's OWN balance; the frontend sends no query parameter and the consumer declares no employee selector. Nothing in TLP restricts the answer to the caller, and whether Insights honours an extra query parameter selecting another employee is not established. PASS-THROUGH PROXY. Insights' HTTP status, headers and body are returned to the caller unchanged. The controller says it exists only so the React frontend can reach Insights and must not be used for anything else.
+
+        **Use it to:**
+        - Show an employee their projected vacation balance month by month
+
+        **Not for:**
+        - Vacation / absence accounting or payroll export — use the absence and vacation APIs
+        - Anything outside the front-page widget (controller comment)
+
+        **Behaviour:**
+        - Read-after-write consistency: not yet documented.
+
+        > **Not yet documented:** behaviour; examples; purpose → description; response → default ordering; response → empty result; response → pagination; response → success.
+      tags:
+      - Dashboard widgets and reports
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). Insights body relayed unchanged. As the frontend reads it: a TAF-style object whose properties = InsightsVacationCalculationRead (wire casing not established — the frontend camel-cases keys). Status/headers are Insights’.
+
+            > **Not yet documented:** paging.
+
+            Order: not yet documented.
+
+            Empty result: not yet documented.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/InsightsVacationCalculationRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No / invalid token (captured: unauthorized scenario).
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 100** — Unhandled server error.
+
+            - **Code 499** — Misleading. — When: Insights does not answer within HttpClient's default 100 s. — Fix: Retry later; if persistent, Insights is down or slow — contact TimeLog support.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        default:
+          description: '- TLP returns Insights'' HttpResponseMessage as is: same status code, headers and body. http_status
+            is therefore whatever Insights sent. — When: Insights answered with a non-2xx status: relayed unchanged (status,
+            headers, body in Insights'' own format). — Fix: Inspect the relayed body; a 401/403 here comes from Insights''
+            own token validation, not from TLP''s.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.reporting.insightsservicewidgetdata.getvacationcalculationwidget
+  /v2/report-project/results/table:
+    post:
+      operationId: reportProjectTableResultsFromFilter
+      summary: Search projects for the POC report table
+      description: |-
+        Returns up to 100 projects (by name) matching optional include/exclude filters on project, project manager, department and customer — across the whole tenant.
+
+        Filters projects with up to four include/exclude ID filters (ANDed) and returns at most 100 rows, ordered by project name, with project number, project manager (employee ID, name, initials), customer and department. No status filter: templates, closed and cancelled projects are included. NOT scoped to the caller: rows come from all projects of the tenant. The 100-row cap is silent — no paging, no total, no indication that rows were cut. Filterable fields (body → column; every filter is optional and ignored unless its ID list is non-empty AND its is…Inclusive switch is true or false): | Body pair | Matches | true | false | |---|---|---|---| | ProjectIds + IsProjectInclusive | ProjectID | in list | not in list | | ProjectManagerIds + IsProjectManagerInclusive | ProjectManagerID (employee ID) | in list | not in list | | DepartmentIds + IsDepartmentInclusive | DepartmentID (exact, no sub-departments) | in list | not in list — projects WITHOUT a department never match either way | | CustomerIds + IsCustomerInclusive | CustomerID | in list | not in list | Projects whose project-manager employee row or customer row is missing are never returned (inner joins).
+
+        **Use it to:**
+        - None for integrators: POC endpoint. Use `GET /v2/projects` (scoped, more filters) instead.
+
+        **Not for:**
+        - Listing projects the caller may see — this route ignores project privileges
+        - Complete result sets — capped at 100 rows
+
+        **Rules across fields:**
+        - Each ID list acts only together with its is…Inclusive switch: list non-empty + switch null → filter silently ignored; switch set + list empty → ignored.
+        - Body omitted or JSON null → 500 Code 100. An empty object {} returns the first 100 projects (captured).
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **See also:** `GET /v2/projects`
+      tags:
+      - Dashboard widgets and reports
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportProjectSearchCreate.create'
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). No list Properties (no TotalRecord / paging) — captured.
+
+            Order: Project name ascending; only the first 100 rows in that order.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/ReportProjectSearchResultRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.reporting.reportproject.searchresultsbyfilters
+  /v2/widget-data/billable-percentage:
+    get:
+      operationId: getWidgetDataBillablePercentageV2
+      summary: Get my billable percentage
+      description: |-
+        Returns the caller's billable hours as a percentage of norm minus absence (month to date and last month) and their billable amount per registered hour over the last 29 days.
+
+        For the CALLER only: CurrentMonthToDateBillablePercentage and LastMonthBillablePercentage = round(billable hours ÷ (norm hours − absence hours) × 100) as integers, and AverageHourlyRate = billable amount ÷ ALL registered hours over currentDate−29 … currentDate−1, in the system base currency (CurrencyAbb), 2 decimals. Only registrations that already have financial data are counted (written asynchronously after a registration is saved — a just-saved registration may not be reflected yet). The norm and absence definitions differ from the external-percentage route (all absence codes here, holiday only there; no employment-period clipping here). Full definitions on WidgetDataBillablePercentageRead.
+
+        **Use it to:**
+        - Show a consultant their billable utilisation this month vs last month
+
+        **Not for:**
+        - Utilisation of another employee or a team — always the caller
+        - Billable rate per billable hour — AverageHourlyRate divides by all registered hours
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Consistency: eventual
+
+        **See also:** `GET /v2/widget-data/external-percentage`, `GET /v1/time-registration-financial-data/get-by-date-range`
+
+        > **Not yet documented:** examples; purpose → description.
+      tags:
+      - Dashboard widgets and reports
+      parameters:
+      - name: currentDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+        description: |-
+          The reference day ('today'). Windows: month start … currentDate; previous calendar month; currentDate−29 … currentDate−1 for the rate. Time part dropped. Omitted → 404 action not matched (captured).
+
+          Date only — no time component.
+      responses:
+        '200':
+          description: The object, wrapped in the TAF envelope (`Properties`). Properties = WidgetDataBillablePercentageRead.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/WidgetDataBillablePercentageRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: currentDate not parseable
+            as a date (model binding; src_only). — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token, once the action matched.
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: currentDate omitted (captured: every scenario omitted it, incl. the unauthenticated
+            one).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.reporting.widgetdata.getwidgetdatabillablepercentage
+  /v2/widget-data/external-percentage:
+    get:
+      operationId: getWidgetDataExternalPercentageV2
+      summary: Get my external percentage
+      description: |-
+        Returns the caller's hours on external-customer projects as a percentage of their net norm hours, for month to date, last month and the last 90 days.
+
+        For the CALLER only: percentage = round(hours registered on projects whose customer is not the tenant's own company ÷ (norm hours − holiday hours) × 100), as integers, for three windows relative to currentDate — month to date (today included), the previous calendar month, and a rolling 90 days ending yesterday (not three calendar months). 0 when the net norm is 0. Full definitions on WidgetDataExternalPercentageRead. currentDate's time part is dropped; no timezone conversion — the caller decides which calendar day "today" is.
+
+        **Use it to:**
+        - Show a consultant how much of their capacity went to customer (external) work
+
+        **Not for:**
+        - Billable share → `GET /v2/widget-data/billable-percentage` (different numerator AND a different norm definition)
+        - Another employee or a team — always the caller
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **See also:** `GET /v2/widget-data/billable-percentage`, `GET /v2/widget/all-active-widgets`
+
+        > **Not yet documented:** examples.
+      tags:
+      - Dashboard widgets and reports
+      parameters:
+      - name: currentDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+        description: |-
+          The reference day ('today'). Windows: month start … currentDate; previous calendar month; currentDate−90 … currentDate−1. Time part dropped. Omitted → 404 action not matched (captured).
+
+          Date only — no time component.
+      responses:
+        '200':
+          description: The object, wrapped in the TAF envelope (`Properties`). Properties = WidgetDataExternalPercentageRead
+            (integers).
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/WidgetDataExternalPercentageRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: currentDate not parseable
+            as a date (model binding; src_only). — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token, once the action matched.
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: currentDate omitted (captured: every scenario omitted it, incl. the unauthenticated
+            one).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.reporting.widgetdata.getwidgetexternalpercentage
+  /v2/widget-data/time-registration-accuracy:
+    get:
+      operationId: getTimeRegistrationAccuracyInPeriodV2
+      summary: Get my time-registration accuracy for a period
+      description: |-
+        Returns how many days, on average, the caller registered project time after the work date — for a period and for the equally long period before it.
+
+        Computes, for the CALLER only, the average delay in days between a project time registration's work date and its creation day, over registrations whose work date lies in [startDate, endDate] (AccuracyCurrentPeriod) and in the equally long period immediately before startDate (AccuracyPreviousPeriod), plus the timestamp of the caller's latest change to a project registration (LastRegistrationDate). Full formula, rounding, exclusions and the previous-period arithmetic are on WidgetDataTimeRegistrationAccuracyRead. Both dates are reduced to calendar days (time part dropped); no timezone conversion. There is no validation that startDate ≤ endDate: with startDate after endDate no registration matches and both values are 0 (src_only).
+
+        **Use it to:**
+        - Show a user how promptly they register time, and the trend against the previous period
+
+        **Not for:**
+        - Another employee's or a team's registration delay — the route always computes the caller's own
+
+        **Rules across fields:**
+        - startDate ≤ endDate is expected but not checked; a reversed range returns 0 for both periods (src_only).
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **See also:** `GET /v2/widget-data/external-percentage`, `GET /v2/widget-data/billable-percentage`
+
+        > **Not yet documented:** errors; examples.
+      tags:
+      - Dashboard widgets and reports
+      parameters:
+      - name: startDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+          x-timelog-filter:
+            operators:
+            - gte
+        description: |-
+          First day of the period (inclusive). Any time part is dropped. Omitted → 404 action not matched (captured).
+
+          Filters on `time registration work date` (gte).
+
+          Date only — no time component.
+      - name: endDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+          x-timelog-filter:
+            operators:
+            - lte
+        description: |-
+          Last day of the period (inclusive). Any time part is dropped. Omitted → 404 action not matched.
+
+          Filters on `time registration work date` (lte).
+
+          Date only — no time component.
+      responses:
+        '200':
+          description: The object, wrapped in the TAF envelope (`Properties`). Properties = WidgetDataTimeRegistrationAccuracyRead.
+            Integers / numbers serialize as numbers.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/WidgetDataTimeRegistrationAccuracyRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: startDate / endDate
+            not parseable as a date (model binding; src_only). — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token, once the action matched.
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: startDate or endDate omitted (captured: every scenario omitted both, incl. the unauthenticated
+            one — action selection runs before authentication).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.reporting.widgetdata.gettimeregistrationaccuracyinperiod
+  /v2/widget/all-active-widgets:
+    get:
+      operationId: getActiveWidgetsForUserV2
+      summary: List my front-page widgets
+      description: |-
+        Returns the caller's widgets as WidgetType names, first to last. A widget is included only when one of the caller's ACTIVE roles is mapped to its widget page, the page is enabled for the tenant (system page validation), AND the widget is listed in the caller's personal widget order (front-page setting PersonalWidgetSettings, "pageId:order;…"). New users get that setting from the tenant setting DefaultPersonalWidgetSettingsForNewUsers, whose seed lists 12 widgets — not OverdueInvoices and not BudgetRemaining — so a role-granted widget missing from the user's personal order is not returned. A user with no role-granted widget gets an empty WidgetList. IsReportWidgetActive is always true.
+
+        **Use it to:**
+        - Decide which widget-data routes to call for the current user, in display order
+
+        **Not for:**
+        - The widgets of another user, or the role ↔ widget mapping (admin) — not in this unit
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `GET /v2/widget-data/billable-percentage`, `GET /v2/widget-data/external-percentage`
+
+        > **Not yet documented:** purpose → description.
+      tags:
+      - Dashboard widgets and reports
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). Properties = WidgetListRead {WidgetList: [{Type}], IsReportWidgetActive}. Type as the member NAME (captured).
+
+            Order: The caller's stored display order (ascending order number).
+
+            Empty result: 200 with WidgetList [] and IsReportWidgetActive true (src_only).
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/WidgetListRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.reporting.widget.getactivewidgetsforuser
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: |-
+        OAuth 2.0 bearer token, sent as `Authorization: Bearer <token>`. JWT and reference tokens are both accepted. The token must carry the required scope (default `tlp`).
+
+        The token's `sub` claim is the acting user. A token WITHOUT `sub` (client-credentials) acts as the system service user. If the `sub` user cannot log in (inactive, locked, deleted), the request is rejected with 401 — it is no longer let through without a user.
+
+        > **Not yet documented:** how to obtain a token.
+
+        > **Not yet documented:** token lifetime.
+  schemas:
+    InsightsHourKpiFilterOptionRead:
+      type: object
+      properties:
+        filterId:
+          type: number
+          readOnly: true
+          description: Value to pass as ?filter= to hour-kpi-per-month / hour-kpi-bar-per-month. The frontend's mock fixture
+            uses 1 HasMyHours, 2 HasMyProjects, 3 HasDepartment, 4 HasAllProjects; the producer's numbering is not established.
+        name:
+          type: string
+          readOnly: true
+          description: 'Option key; the frontend shows the translation of Filter<name>: HasMyHours ''My hours'', HasMyProjects
+            ''My projects'', HasDepartment "My department''s hours", HasAllProjects ''All'', HasMyEmployees ''My employees''.
+            Other names not established.'
+      description: |-
+        One filter option the caller may choose on the Added-value-per-month widgets; its filterId is sent as ?filter= to the data routes. CONSUMER-DECLARED SHAPE. Meanings come from the frontend's use and the product's widget help text, not from the producer.
+
+        > **Not yet documented:** source type.
+    InsightsHourKpiMonthRead:
+      type: object
+      properties:
+        year:
+          type: number
+          readOnly: true
+          description: Calendar year of the month.
+        month:
+          type: string
+          readOnly: true
+          description: Month label; the frontend translates `Month<value>`, and its fixture uses English abbreviations ('Jan').
+            Format not established.
+        amountRegistered:
+          type: number
+          readOnly: true
+          description: |-
+            Value of the month's registered hours at sales price, in baseCurrencyAbb (help text: internal hours = zero value, absence hours omitted).
+
+            Contains financial data.
+        amountEstimated:
+          type: number
+          readOnly: true
+          description: |-
+            Estimated value of the month's hours, in baseCurrencyAbb. How the estimate is formed is not established.
+
+            Contains financial data.
+        hours:
+          type: number
+          readOnly: true
+          description: |-
+            Hours worked in the month (absence omitted per help text).
+
+            Unit: hours
+
+            Contains personal data.
+        hoursEstimated:
+          type: number
+          readOnly: true
+          description: |-
+            Estimated hours for the month. Basis not established.
+
+            Unit: hours
+
+            Contains personal data.
+        estimatedAmountYTD:
+          type: number
+          readOnly: true
+          description: |-
+            Fiscal-year-to-date sum of amountEstimated.
+
+            Contains financial data.
+        registeredAmountYTD:
+          type: number
+          readOnly: true
+          description: |-
+            Fiscal-year-to-date sum of amountRegistered.
+
+            Contains financial data.
+        hoursYTD:
+          type: number
+          readOnly: true
+          description: |-
+            Fiscal-year-to-date sum of hours.
+
+            Unit: hours
+
+            Contains personal data.
+        hoursEstimatedYTD:
+          type: number
+          readOnly: true
+          description: |-
+            Fiscal-year-to-date sum of hoursEstimated.
+
+            Unit: hours
+
+            Contains personal data.
+      description: |-
+        One month of added value: hours and their value at sales price, registered and estimated, with fiscal-year-to-date sums. Whose hours depends on the route and `filter`. CONSUMER-DECLARED SHAPE. Meanings come from the frontend's use and the product's widget help text, not from the producer.
+
+        > **Not yet documented:** source type.
+    InsightsHourKpiPerMonthDataRead:
+      type: object
+      properties:
+        hourKPIPerMonths:
+          type: array
+          items:
+            $ref: '#/components/schemas/InsightsHourKpiMonthRead'
+          readOnly: true
+          description: One row per month of the fiscal year (the widget is empty when the list is empty).
+      description: |-
+        Container of the month rows. CONSUMER-DECLARED SHAPE. Meanings come from the frontend's use and the product's widget help text, not from the producer.
+
+        > **Not yet documented:** source type.
+    InsightsHourKpiPerMonthRead:
+      type: object
+      properties:
+        type:
+          type: string
+          readOnly: true
+          description: Widget identifier; the frontend passes it on as the widget's name.
+        width:
+          type: number
+          readOnly: true
+          description: Layout width hint (declared, not read).
+        height:
+          type: number
+          readOnly: true
+          description: Layout height hint (declared, not read).
+        sortOrder:
+          type: number
+          readOnly: true
+          description: Widget position hint (declared, not read).
+        baseCurrencyAbb:
+          type: string
+          readOnly: true
+          description: 'Currency code of every amount in `data` (shown as the axis label); help text: the system currency,
+            other-currency invoices converted. Code format not established.'
+        data:
+          $ref: '#/components/schemas/InsightsHourKpiPerMonthDataRead'
+          readOnly: true
+          description: Holds the month rows.
+      description: |-
+        Added value per month for the fiscal year (used by hour-kpi-per-month and hour-kpi-per-month-hours-only). Not paged; `data.hourKPIPerMonths` holds one row per month. CONSUMER-DECLARED SHAPE. Meanings come from the frontend's use and the product's widget help text, not from the producer.
+
+        > **Not yet documented:** source type.
+    InsightsInvoicedMonthRead:
+      type: object
+      properties:
+        invoicedAmount:
+          type: number
+          readOnly: true
+          description: |-
+            Amount invoiced in this month of the current fiscal year. Help text: projects the caller manages, all invoices regardless of status, in system currency with other currencies converted. VAT basis and conversion rate/date not established.
+
+            Contains financial data.
+        invoicedAmountLastYear:
+          type: number
+          readOnly: true
+          description: |-
+            Same month of the previous fiscal year, same basis.
+
+            Contains financial data.
+        year:
+          type: number
+          readOnly: true
+          description: Year of the current-period month.
+        lastYear:
+          type: number
+          readOnly: true
+          description: Year of the comparison month.
+        month:
+          type: string
+          readOnly: true
+          description: Month label (a string). Format (name, number, locale) not established.
+      description: |-
+        One month: invoiced amount this fiscal year vs the same month of the previous fiscal year. CONSUMER-DECLARED SHAPE. Meanings come from the frontend's use and the product's widget help text, not from the producer.
+
+        > **Not yet documented:** source type.
+    InsightsInvoicedPerMonthRead:
+      type: object
+      properties:
+        type:
+          type: string
+          readOnly: true
+          description: Widget identifier; the frontend passes it on as the widget's name.
+        width:
+          type: number
+          readOnly: true
+          description: Layout width hint (declared, not read).
+        height:
+          type: number
+          readOnly: true
+          description: Layout height hint (declared, not read).
+        sortOrder:
+          type: number
+          readOnly: true
+          description: Widget position hint (declared, not read).
+        baseCurrencyAbb:
+          type: string
+          readOnly: true
+          description: Currency abbreviation the amounts are displayed in.
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/InsightsInvoicedMonthRead'
+          readOnly: true
+          description: 'One entry per month; an empty list is the frontend''s empty state (help: no invoices, or the caller
+            is not a project manager).'
+      description: |-
+        Invoiced per month widget: monthly invoicing of the current fiscal year vs the previous one. Not paged. CONSUMER-DECLARED SHAPE. Meanings come from the frontend's use and the product's widget help text, not from the producer.
+
+        > **Not yet documented:** source type.
+    InsightsTimeTrackingDelayDataRead:
+      type: object
+      properties:
+        lastRegistration:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            When the caller last registered time (label 'Last registration on:').
+
+            Time zone: not yet documented.
+        currentPeriodDelayedTimeTracking:
+          type: number
+          readOnly: true
+          description: |-
+            Average delay in days for the current month ('DELAY IN {{month}}'). Rounding not established.
+
+            Unit: days
+        previousPeriodDelayedTimeTracking:
+          type: number
+          readOnly: true
+          description: |-
+            Average delay in days for the previous month.
+
+            Unit: days
+        currentPeriodRegistrationCount:
+          type: number
+          readOnly: true
+        companyTargetDays:
+          type: number
+          readOnly: true
+          description: |-
+            The company's target delay in days ('Company target: N day(s)'). Which tenant setting supplies it is not established.
+
+            Unit: days
+      description: |-
+        The caller's own time-tracking delay: average days between when hours were incurred and when they were registered, this month vs the previous month. CONSUMER-DECLARED SHAPE. Meanings come from the frontend's use and the product's widget help text, not from the producer.
+
+        > **Not yet documented:** source type.
+    InsightsTimeTrackingDelayRead:
+      type: object
+      properties:
+        type:
+          type: string
+          readOnly: true
+          description: Widget identifier; the frontend passes it on as the widget's name.
+        width:
+          type: number
+          readOnly: true
+          description: Layout width hint (declared, not read).
+        height:
+          type: number
+          readOnly: true
+          description: Layout height hint (declared, not read).
+        sortOrder:
+          type: number
+          readOnly: true
+          description: Widget position hint (declared, not read).
+        data:
+          $ref: '#/components/schemas/InsightsTimeTrackingDelayDataRead'
+          readOnly: true
+          description: The caller's delay figures (a single object, not a list).
+      description: |-
+        Time tracking delay widget for the CALLER (help text: 'your time tracking delay'). Not paged; `data` is one object. CONSUMER-DECLARED SHAPE. Meanings come from the frontend's use and the product's widget help text, not from the producer.
+
+        > **Not yet documented:** source type.
+    InsightsVacationCalculationDataRead:
+      type: object
+      properties:
+        previousMonthTotals:
+          type: object
+          readOnly: true
+          description: |-
+            Balance carried in from the previous month, in days, per month. Object keyed by month (key format in the frontend's fixture: yyyyMMM, e.g. '2024Jan'; the frontend turns each key into a column header); value = days.
+
+            Unit: days
+
+            Contains personal data.
+        assignedVacations:
+          type: object
+          readOnly: true
+          description: |-
+            Vacation days accrued in the month. Object keyed by month (key format in the frontend's fixture: yyyyMMM, e.g. '2024Jan'; the frontend turns each key into a column header); value = days.
+
+            Unit: days
+
+            Contains personal data.
+        absences:
+          type: object
+          readOnly: true
+          description: |-
+            Vacation taken or planned in the month (help text: 'includes all registered vacation for the current month'); the fixture shows these as negative numbers. Object keyed by month (key format in the frontend's fixture: yyyyMMM, e.g. '2024Jan'; the frontend turns each key into a column header); value = days.
+
+            Unit: days
+
+            Contains personal data.
+        availableTimeOff:
+          type: object
+          readOnly: true
+          description: |-
+            Expected vacation balance at month end = previous balance + accrued − taken/planned (help text). Negative = owed to the company. Object keyed by month (key format in the frontend's fixture: yyyyMMM, e.g. '2024Jan'; the frontend turns each key into a column header); value = days.
+
+            Unit: days
+
+            Contains personal data.
+        previousMonthTotalsDetails:
+          type: object
+          readOnly: true
+          description: |-
+            Breakdown of `previousMonthTotals` per month: object keyed by month (as above) whose value is a list of InsightsVacationAbsenceCodeDaysRead (one per absence code, e.g. 'Vacation', 'Additional Vacation Days'). Any key ending in 'Details' is treated as a breakdown by the frontend.
+
+            Contains personal data.
+        assignedVacationsDetails:
+          type: object
+          readOnly: true
+          description: |-
+            Breakdown of `assignedVacations` per month: object keyed by month (as above) whose value is a list of InsightsVacationAbsenceCodeDaysRead (one per absence code, e.g. 'Vacation', 'Additional Vacation Days'). Any key ending in 'Details' is treated as a breakdown by the frontend.
+
+            Contains personal data.
+        absencesDetails:
+          type: object
+          readOnly: true
+          description: |-
+            Breakdown of `absences` per month: object keyed by month (as above) whose value is a list of InsightsVacationAbsenceCodeDaysRead (one per absence code, e.g. 'Vacation', 'Additional Vacation Days'). Any key ending in 'Details' is treated as a breakdown by the frontend.
+
+            Contains personal data.
+        availableTimeOffDetails:
+          type: object
+          readOnly: true
+          description: |-
+            Breakdown of `availableTimeOff` per month: object keyed by month (as above) whose value is a list of InsightsVacationAbsenceCodeDaysRead (one per absence code, e.g. 'Vacation', 'Additional Vacation Days'). Any key ending in 'Details' is treated as a breakdown by the frontend.
+
+            Contains personal data.
+      description: |-
+        The four month-keyed balance rows of the caller's vacation calculation and their per-absence-code breakdowns. All values in days. CONSUMER-DECLARED SHAPE. Meanings come from the frontend's use and the product's widget help text, not from the producer.
+
+        > **Not yet documented:** source type.
+    InsightsVacationCalculationRead:
+      type: object
+      properties:
+        type:
+          type: string
+          readOnly: true
+          description: Widget identifier; the frontend passes it on as the widget's name.
+        width:
+          type: number
+          readOnly: true
+          description: Layout width hint (declared, not read).
+        height:
+          type: number
+          readOnly: true
+          description: Layout height hint (declared, not read).
+        sortOrder:
+          type: number
+          readOnly: true
+          description: Widget position hint (declared, not read).
+        data:
+          $ref: '#/components/schemas/InsightsVacationCalculationDataRead'
+          readOnly: true
+          description: Month-keyed balance rows plus their per-absence-code detail (a single object).
+      description: |-
+        Vacation balance widget for the CALLER (help text: 'your current status of days available for vacation'). Not paged; `data` is one object of month-keyed rows. CONSUMER-DECLARED SHAPE. Meanings come from the frontend's use and the product's widget help text, not from the producer.
+
+        > **Not yet documented:** source type.
+    MessageError:
+      type: object
+      description: Body of 401 and some framework errors — not the ResponseError shape.
+      properties:
+        Message:
+          type: string
+    ReportProjectSearchCreate.create:
+      type: object
+      properties:
+        ProjectIds:
+          type:
+          - string
+          - 'null'
+          writeOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Comma-separated project IDs to include or exclude (see IsProjectInclusive).
+
+            Refers to `ProjectRead.ProjectID`.
+
+            Null: null / empty / whitespace = no project filter.
+
+            - An entry is not an integer (e.g. 'abc', '1.5') — Convert.ToInt32 throws → 500 Code 100.
+
+            - An entry is empty (e.g. '1,,2') — Read as 0 (matches no project).
+        IsProjectInclusive:
+          type:
+          - boolean
+          - 'null'
+          x-timelog-condition: 'Needed for ProjectIds to have any effect: with a non-empty ProjectIds and IsProjectInclusive
+            null/omitted the project filter is silently ignored.'
+          writeOnly: true
+          description: |-
+            true = only projects in ProjectIds; false = every project except those in ProjectIds.
+
+            **Conditional.** Needed for ProjectIds to have any effect: with a non-empty ProjectIds and IsProjectInclusive null/omitted the project filter is silently ignored.
+
+            - ProjectIds empty — The DAO does not send the pair; no filter.
+        ProjectManagerIds:
+          type:
+          - string
+          - 'null'
+          writeOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Comma-separated EMPLOYEE IDs of project managers to include or exclude (see IsProjectManagerInclusive).
+
+            Refers to `EmployeeRead.EmployeeID`.
+
+            Null: null / empty = no project-manager filter.
+
+            - An entry is not an integer — 500 Code 100.
+        IsProjectManagerInclusive:
+          type:
+          - boolean
+          - 'null'
+          x-timelog-condition: Needed for ProjectManagerIds to have any effect (null = filter ignored).
+          writeOnly: true
+          description: |-
+            true = only projects managed by one of ProjectManagerIds; false = all other projects.
+
+            **Conditional.** Needed for ProjectManagerIds to have any effect (null = filter ignored).
+        DepartmentIds:
+          type:
+          - string
+          - 'null'
+          writeOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Comma-separated department IDs (the project's own department, exact match — no sub-departments).
+
+            Refers to `DepartmentRead.DepartmentID`.
+
+            Null: null / empty = no department filter.
+
+            - An entry is not an integer — 500 Code 100.
+
+            - Projects WITHOUT a department — Never match: 0 does not match SQL NULL when including, and NULL NOT IN (…) is not true when excluding — such projects drop out of every department filter (src_only).
+        IsDepartmentInclusive:
+          type:
+          - boolean
+          - 'null'
+          x-timelog-condition: Needed for DepartmentIds to have any effect (null = filter ignored).
+          writeOnly: true
+          description: |-
+            true = only projects in one of DepartmentIds; false = projects in any other department.
+
+            **Conditional.** Needed for DepartmentIds to have any effect (null = filter ignored).
+        CustomerIds:
+          type:
+          - string
+          - 'null'
+          writeOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Comma-separated customer IDs to include or exclude (see IsCustomerInclusive).
+
+            Refers to `CustomerRead.CustomerID`.
+
+            Null: null / empty = no customer filter.
+
+            - An entry is not an integer — 500 Code 100.
+        IsCustomerInclusive:
+          type:
+          - boolean
+          - 'null'
+          x-timelog-condition: Needed for CustomerIds to have any effect (null = filter ignored).
+          writeOnly: true
+          description: |-
+            true = only projects of one of CustomerIds; false = projects of all other customers.
+
+            **Conditional.** Needed for CustomerIds to have any effect (null = filter ignored).
+      description: 'Filter criteria for the POC report-project table: up to four include/exclude ID filters, ANDed together.'
+    ReportProjectSearchResultRead:
+      type: object
+      properties:
+        ProjectID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            The project's integer ID.
+
+            Identifier of this object, unique per TimeLog site.
+
+            Filterable via `ProjectIds` (in).
+        ProjectNo:
+          type: string
+          readOnly: true
+          description: The project number.
+        ProjectName:
+          type: string
+          readOnly: true
+          description: The project's name. Rows are ordered by it (ascending).
+        ProjectManagerID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            EMPLOYEE ID (not user ID) of the project's project manager.
+
+            Refers to `EmployeeRead.EmployeeID`.
+
+            Filterable via `ProjectManagerIds` (in).
+        ProjectManagerName:
+          type: string
+          readOnly: true
+          description: |-
+            First name + ' ' + last name of the project manager.
+
+            Contains personal data.
+        ProjectManagerInitials:
+          type: string
+          readOnly: true
+          description: |-
+            The project manager's initials.
+
+            Contains personal data.
+        CustomerID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            ID of the project's customer.
+
+            Refers to `CustomerRead.CustomerID`.
+
+            Filterable via `CustomerIds` (in).
+        CustomerName:
+          type: string
+          readOnly: true
+          description: The customer's company name.
+        DepartmentID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            ID of the project's department; 0 when the project has no department (SQL NULL mapped to 0 — captured).
+
+            Refers to `DepartmentRead.DepartmentID`.
+
+            Filterable via `DepartmentIds` (in).
+        DepartmentName:
+          type: string
+          readOnly: true
+          description: The department's name; empty string when the project has no department.
+      description: A project with its project manager, customer and department labels — one row of the POC report table.
+    ResponseError:
+      type: object
+      description: Error body for validation (400), privilege (403), business-rule (422/500) and other server errors. `Details`
+        lists strings for validation errors, or `{ErrorCode, Message}` objects for business-rule violations. `Parameters`
+        echoes the request arguments, including the full payload.
+      properties:
+        Code:
+          type: integer
+          description: 'TimeLog error class (not the HTTP status): 100 unexpected, 102 business rule, 103 privilege, 200 validation.'
+        Message:
+          type: string
+        Details:
+          type: array
+          items: {}
+        Parameters:
+          type:
+          - string
+          - object
+          - 'null'
+        Url:
+          type: string
+    TafAction:
+      type: object
+      description: A hypermedia action the caller may take on the object. Present only where the operation registers actions.
+    TafLink:
+      type: object
+      properties:
+        Href:
+          type: string
+        Rel:
+          type: string
+    TafListPaging:
+      type: object
+      description: 'Paging values. They are returned as STRINGS, for example `"TotalRecord": "12"`.'
+      properties:
+        TotalRecord:
+          type: string
+        TotalPage:
+          type: string
+        PageNumber:
+          type: string
+    WidgetDataBillablePercentageRead:
+      type: object
+      properties:
+        UserId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The caller's user ID (always the caller).
+
+            Refers to `UserRead.UserID`.
+        CurrentMonthToDateBillablePercentage:
+          type: integer
+          format: int32
+          readOnly: true
+          description: |-
+            Window: first day of currentDate's calendar month through currentDate, both inclusive (today included).
+
+            Unit: percent
+        LastMonthBillablePercentage:
+          type: integer
+          format: int32
+          readOnly: true
+          description: |-
+            Window: the whole calendar month before currentDate's month (1st through EOMONTH).
+
+            Unit: percent
+        AverageHourlyRate:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            The denominator is ALL registered hours (billable and non-billable), so this is billable amount per registered hour, not the average billable rate. 0 when there are no hours. Rounded to 2 decimals. Amount in the system base currency (BillableAmount is stored in base currency; no conversion).
+
+            Unit: currency (system base currency — CurrencyAbb) per hour
+
+            Contains financial data.
+        CurrencyName:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: Application value BaseCurrency of the tenant, as stored (the value's format — code or name — is tenant
+            data).
+        CurrencyAbb:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          description: Setting BaseCurrencyAbb — the abbreviation of the currency AverageHourlyRate is in.
+      description: |-
+        "Billable percentage" of ONE user (the caller): billable hours as a percentage of the user's norm hours minus absence hours, month to date and for the previous month, plus the caller's average billable amount per registered hour over the last 29 days, in the system base currency. Formula, per window: round(BillableHours / (NormHours − AbsenceHours) × 100) as an integer; 0 when the denominator is 0. - BillableHours = SUM of the caller's registrations dated in the window. Only registrations that already have a financial-data row count (inner join; that row is written asynchronously — see TimeRegistrationFinancialDataRead). - NormHours = SUM for the caller in the window (not clipped to the employment period, unlike the external widget). - AbsenceHours = SUM(ActualHours) of the caller's registrations with EntityType 149 (= any absence code, not only holiday) in the window that have a financial-data row. - The denominator can be negative or tiny; the percentage is not capped.
+
+        > **Not yet documented:** description.
+    WidgetDataExternalPercentageRead:
+      type: object
+      properties:
+        UserId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The caller's user ID (always the caller).
+
+            Refers to `UserRead.UserID`.
+        CurrentMonthPercentage:
+          type: integer
+          format: int32
+          minimum: 0
+          readOnly: true
+          description: |-
+            Window: first day of currentDate's calendar month through currentDate, both inclusive (month to date, today included). Norm is computed over the same window.
+
+            Unit: percent
+
+            Range: min 0, step 1, unit percent.
+        LastMonthPercentage:
+          type: integer
+          format: int32
+          minimum: 0
+          readOnly: true
+          description: |-
+            Window: the whole calendar month before currentDate's month (1st to last day). Norm over the same month.
+
+            Unit: percent
+
+            Range: min 0, step 1, unit percent.
+        LastThreeMonthsPercentage:
+          type: integer
+          format: int32
+          minimum: 0
+          readOnly: true
+          description: |-
+            Window: currentDate − 90 days through currentDate − 1 day (yesterday), both inclusive — a rolling 90-day window that EXCLUDES today, not three calendar months. Norm over the same window.
+
+            Unit: percent
+
+            Range: min 0, step 1, unit percent.
+      description: '"External percentage" of ONE user (the caller): registered hours on projects of external customers as
+        a percentage of the user''s norm hours (expected working hours) minus holiday, for three windows relative to currentDate.
+        Formula, per window: round(ExternalHours / NetNormHours × 100) as an integer; 0 when NetNormHours = 0. - ExternalHours
+        = SUM of the caller''s project time registrations (those linked to a task allocation through a work unit row) on projects
+        whose customer is NOT the tenant''s own company (application value FirmaID). Billable and non-billable hours both
+        count. Registrations without such a work unit (e.g. absence) are not counted. - NetNormHours = Function_Calulate_Norm_New(employee,
+        from, to, SubtractVacation = 1): SUM of the employee''s NormalWorkingHours in the window, clipped to the employment
+        period (hire / dismissal date), minus hours registered on absence codes whose system absence code type is 2 (holiday);
+        never below 0. - Values can exceed 100 (more external hours than norm).'
+    WidgetDataTimeRegistrationAccuracyRead:
+      type: object
+      properties:
+        UserId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The caller's user ID (echo of the user the metric was computed for — always the caller).
+
+            Refers to `UserRead.UserID`.
+        StartDate:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            Echo of the requested startDate, time part removed (first day of the period, inclusive).
+
+            Date only — no time component.
+        EndDate:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            Echo of the requested endDate, time part removed (last day of the period, inclusive).
+
+            Date only — no time component.
+        LastRegistrationDate:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+          description: |-
+            Timestamp of the caller's most recent CHANGE to any project time registration, considering changes made on or before EndDate — regardless of the registration's work date and not limited to the period. Despite the name it is not the latest work date registered. null when the user has no such registration.
+
+            Null: null = no project time registration modified on or before EndDate.
+
+            Time zone: not yet documented.
+        AccuracyCurrentPeriod:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Average delay in DAYS between work date and creation, over the caller's project time registrations whose work date (Date) is in [StartDate, EndDate]: AVG(day of Created − Date), rounded to 2 decimals. Creation is truncated to midnight first (Function_DateRemoveMinutes drops the whole time part), so a same-day registration counts 0 and the value is a whole-day difference averaged. Registrations dated 2 or more days AFTER their creation day (planned ahead) are excluded (Date < Created + 2 days). A NEGATIVE value is possible (registrations dated up to one day ahead). 0 when there are no registrations in the period.
+
+            Unit: days
+
+            Range: step 0.01, unit days.
+        AccuracyPreviousPeriod:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Same metric as AccuracyCurrentPeriod for the period of the same length immediately before StartDate: [StartDate − (EndDate − StartDate) − 1 day, StartDate − 1 day]. Example: startDate 2026-10-01, endDate 2026-10-31 → previous period 2026-08-31 … 2026-09-30 (31 days).
+
+            Unit: days
+
+            Range: step 0.01, unit days.
+      description: '"Time registration accuracy" of ONE user (the caller): on average, how many days after the work date the
+        user''s project time registrations were created, for a period and for the equally long period just before it. 0 =
+        registered on the day (or no registrations); higher = registered later. Only project time counts (registrations of
+        EntityType 43 = Allocation, i.e. on a task allocation); absence is excluded.'
+    WidgetListRead:
+      type: object
+      properties:
+        WidgetList:
+          type: array
+          items:
+            $ref: '#/components/schemas/WidgetRead'
+          readOnly: true
+          description: The caller's widgets, first to last in the caller's display order. A widget appears only when BOTH
+            (a) one of the caller's active roles is mapped to the widget page and the page is enabled for the tenant, and
+            (b) the widget is listed in the caller's personal widget order (front-page setting PersonalWidgetSettings). Widgets
+            missing from the personal order are not returned even when a role grants them.
+        IsReportWidgetActive:
+          type: boolean
+          readOnly: true
+          description: 'Always true: the adapter passes the constant true. Carries no information.'
+    WidgetRead:
+      type: object
+      properties:
+        Type:
+          $ref: '#/components/schemas/WidgetType'
+          enum:
+          - OverdueInvoices
+          - PlannedAbsence
+          - InvoicedPerMonth
+          - BudgetRemaining
+          - ProjectEconomyHealth
+          - AverageHourlyRate
+          - TimeTrackingDelay
+          - VacationCalculation
+          - HourKPI
+          - HourKPIWithBAR
+          - HourKPIHoursOnly
+          - BillablePercentage
+          - ExternalPercentage
+          - PersonalPlan
+          x-enum-descriptions:
+          - Overdue invoices widget (page WidgetOverdueInvoices = 1150). Not in the default widget order given to new users.
+          - Planned absence widget (page 1151).
+          - Invoiced per month widget (page 1152).
+          - Budget remaining widget (page 1153). Not in the default widget order given to new users.
+          - Project economy health widget (page 1154).
+          - Average hourly rate widget (page 1155).
+          - Time tracking delay widget (page 1156).
+          - Vacation calculation widget (page 1157).
+          - Hour KPI widget (page 1158).
+          - Hour KPI widget including BAR (page 1159).
+          - Hour KPI widget, hours only (page 1160).
+          - Billable percentage widget (page 1161), backed by GET /v2/widget-data/billable-percentage.
+          - External percentage widget (page 1162), backed by GET /v2/widget-data/external-percentage.
+          - Personal plan widget (page 1163).
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: parent
+            uniqueness_enforced: true
+            id_format: string
+          description: |-
+            Which widget this is. Serialized as the member name (e.g. "BillablePercentage").
+
+            Identifier of this object, unique within its parent.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `1` | OverdueInvoices | Overdue invoices widget (page WidgetOverdueInvoices = 1150). Not in the default widget order given to new users. |
+            | `2` | PlannedAbsence | Planned absence widget (page 1151). |
+            | `3` | InvoicedPerMonth | Invoiced per month widget (page 1152). |
+            | `4` | BudgetRemaining | Budget remaining widget (page 1153). Not in the default widget order given to new users. |
+            | `5` | ProjectEconomyHealth | Project economy health widget (page 1154). |
+            | `6` | AverageHourlyRate | Average hourly rate widget (page 1155). |
+            | `7` | TimeTrackingDelay | Time tracking delay widget (page 1156). |
+            | `8` | VacationCalculation | Vacation calculation widget (page 1157). |
+            | `9` | HourKPI | Hour KPI widget (page 1158). |
+            | `10` | HourKPIWithBAR | Hour KPI widget including BAR (page 1159). |
+            | `11` | HourKPIHoursOnly | Hour KPI widget, hours only (page 1160). |
+            | `12` | BillablePercentage | Billable percentage widget (page 1161), backed by GET /v2/widget-data/billable-percentage. |
+            | `13` | ExternalPercentage | External percentage widget (page 1162), backed by GET /v2/widget-data/external-percentage. |
+            | `14` | PersonalPlan | Personal plan widget (page 1163). |
+    WidgetType:
+      type: string
+      enum:
+      - OverdueInvoices
+      - PlannedAbsence
+      - InvoicedPerMonth
+      - BudgetRemaining
+      - ProjectEconomyHealth
+      - AverageHourlyRate
+      - TimeTrackingDelay
+      - VacationCalculation
+      - HourKPI
+      - HourKPIWithBAR
+      - HourKPIHoursOnly
+      - BillablePercentage
+      - ExternalPercentage
+      - PersonalPlan
+      x-enum-descriptions:
+      - Overdue invoices widget (page WidgetOverdueInvoices = 1150). Not in the default widget order given to new users.
+      - Planned absence widget (page 1151).
+      - Invoiced per month widget (page 1152).
+      - Budget remaining widget (page 1153). Not in the default widget order given to new users.
+      - Project economy health widget (page 1154).
+      - Average hourly rate widget (page 1155).
+      - Time tracking delay widget (page 1156).
+      - Vacation calculation widget (page 1157).
+      - Hour KPI widget (page 1158).
+      - Hour KPI widget including BAR (page 1159).
+      - Hour KPI widget, hours only (page 1160).
+      - Billable percentage widget (page 1161), backed by GET /v2/widget-data/billable-percentage.
+      - External percentage widget (page 1162), backed by GET /v2/widget-data/external-percentage.
+      - Personal plan widget (page 1163).
+      description: |-
+        Which widgets a user sees is decided by their roles (role ↔ widget page mapping) and by the widget pages enabled for the tenant; the order is the user's personal widget order.
+
+        Allowed values:
+
+        | Value | Name | Meaning |
+        |---|---|---|
+        | `1` | OverdueInvoices | Overdue invoices widget (page WidgetOverdueInvoices = 1150). Not in the default widget order given to new users. |
+        | `2` | PlannedAbsence | Planned absence widget (page 1151). |
+        | `3` | InvoicedPerMonth | Invoiced per month widget (page 1152). |
+        | `4` | BudgetRemaining | Budget remaining widget (page 1153). Not in the default widget order given to new users. |
+        | `5` | ProjectEconomyHealth | Project economy health widget (page 1154). |
+        | `6` | AverageHourlyRate | Average hourly rate widget (page 1155). |
+        | `7` | TimeTrackingDelay | Time tracking delay widget (page 1156). |
+        | `8` | VacationCalculation | Vacation calculation widget (page 1157). |
+        | `9` | HourKPI | Hour KPI widget (page 1158). |
+        | `10` | HourKPIWithBAR | Hour KPI widget including BAR (page 1159). |
+        | `11` | HourKPIHoursOnly | Hour KPI widget, hours only (page 1160). |
+        | `12` | BillablePercentage | Billable percentage widget (page 1161), backed by GET /v2/widget-data/billable-percentage. |
+        | `13` | ExternalPercentage | External percentage widget (page 1162), backed by GET /v2/widget-data/external-percentage. |
+        | `14` | PersonalPlan | Personal plan widget (page 1163). |
+x-timelog-service: Reporting

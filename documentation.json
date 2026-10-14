@@ -1,7 +1,5 @@
 {
-  "name": "TimeLog",
-  "logo-light": "https://timelog.com/hubfs/timelog-logo-2023.png",
-  "logo-dark": "https://timelog.com/hubfs/timelog-logo-2023.png",
+  "name": "Timelog",
   "colors": {
     "light": {
       "brand": "#e84895"
@@ -148,14 +146,166 @@
           {
             "group": "API reference — v1",
             "icon": "book-open",
-            "pages": [],
-            "openapi": "api-reference/rest/v1/openapi.yaml"
+            "expandable": true,
+            "pages": [
+              {
+                "group": "Time registrations",
+                "icon": "clock",
+                "openapi": "api-reference/rest/v1/time-registration.yaml",
+                "pages": []
+              },
+              {
+                "group": "Projects",
+                "icon": "folder-kanban",
+                "openapi": "api-reference/rest/v1/project-management.yaml",
+                "pages": []
+              },
+              {
+                "group": "Employees",
+                "icon": "users",
+                "openapi": "api-reference/rest/v1/employees.yaml",
+                "pages": []
+              },
+              {
+                "group": "Expenses",
+                "icon": "receipt",
+                "openapi": "api-reference/rest/v1/expenses.yaml",
+                "pages": []
+              },
+              {
+                "group": "Customers",
+                "icon": "building-2",
+                "openapi": "api-reference/rest/v1/crm.yaml",
+                "pages": []
+              },
+              {
+                "group": "Users and organisation",
+                "icon": "network",
+                "openapi": "api-reference/rest/v1/organization.yaml",
+                "pages": []
+              },
+              {
+                "group": "Settings",
+                "icon": "settings",
+                "openapi": "api-reference/rest/v1/settings.yaml",
+                "pages": []
+              },
+              {
+                "group": "Salary and absence",
+                "icon": "wallet",
+                "openapi": "api-reference/rest/v1/salary.yaml",
+                "pages": []
+              },
+              {
+                "group": "Invoicing",
+                "icon": "file-text",
+                "openapi": "api-reference/rest/v1/invoicing.yaml",
+                "pages": []
+              },
+              {
+                "group": "Integrations",
+                "icon": "plug",
+                "openapi": "api-reference/rest/v1/integration.yaml",
+                "pages": []
+              },
+              {
+                "group": "Timesheet (time tracking items)",
+                "icon": "calendar-check",
+                "openapi": "api-reference/rest/v1/registration.yaml",
+                "pages": []
+              },
+              {
+                "group": "Roles and privileges",
+                "icon": "shield",
+                "openapi": "api-reference/rest/v1/security.yaml",
+                "pages": []
+              },
+              {
+                "group": "Reference data and tenant settings",
+                "icon": "database",
+                "openapi": "api-reference/rest/v1/common.yaml",
+                "pages": []
+              },
+              {
+                "group": "API root",
+                "icon": "home",
+                "openapi": "api-reference/rest/v1/root.yaml",
+                "pages": []
+              }
+            ]
           },
           {
             "group": "API reference — v2",
             "icon": "book-open",
-            "pages": [],
-            "openapi": "api-reference/rest/v2/openapi.yaml"
+            "expandable": true,
+            "pages": [
+              {
+                "group": "Time registrations",
+                "icon": "clock",
+                "openapi": "api-reference/rest/v2/time-registration.yaml",
+                "pages": []
+              },
+              {
+                "group": "Projects",
+                "icon": "folder-kanban",
+                "openapi": "api-reference/rest/v2/project-management.yaml",
+                "pages": []
+              },
+              {
+                "group": "Employee",
+                "icon": "users",
+                "openapi": "api-reference/rest/v2/employee.yaml",
+                "pages": []
+              },
+              {
+                "group": "Expenses",
+                "icon": "receipt",
+                "openapi": "api-reference/rest/v2/expenses.yaml",
+                "pages": []
+              },
+              {
+                "group": "Users and organisation",
+                "icon": "network",
+                "openapi": "api-reference/rest/v2/organization.yaml",
+                "pages": []
+              },
+              {
+                "group": "Settings",
+                "icon": "settings",
+                "openapi": "api-reference/rest/v2/settings.yaml",
+                "pages": []
+              },
+              {
+                "group": "Global search",
+                "icon": "search",
+                "openapi": "api-reference/rest/v2/search.yaml",
+                "pages": []
+              },
+              {
+                "group": "Saved filter views",
+                "icon": "filter",
+                "openapi": "api-reference/rest/v2/filter.yaml",
+                "pages": []
+              },
+              {
+                "group": "Navigation (menus, bookmarks, pages, filters)",
+                "icon": "compass",
+                "openapi": "api-reference/rest/v2/navigation.yaml",
+                "pages": []
+              },
+              {
+                "group": "Dashboard widgets and reports",
+                "icon": "bar-chart-3",
+                "openapi": "api-reference/rest/v2/reporting.yaml",
+                "pages": []
+              },
+              {
+                "group": "API root",
+                "icon": "home",
+                "openapi": "api-reference/rest/v2/root.yaml",
+                "pages": []
+              }
+            ]
           }
         ]
       },
