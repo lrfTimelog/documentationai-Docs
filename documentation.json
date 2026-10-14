@@ -71,6 +71,17 @@
         "icon": "braces",
         "groups": [
           {
+            "group": "Authentication",
+            "icon": "key-round",
+            "pages": [
+              {
+                "title": "Authentication",
+                "path": "rest/authentication",
+                "icon": "lock"
+              }
+            ]
+          },
+          {
             "group": "Conventions",
             "icon": "ruler",
             "pages": [

@@ -1,0 +1,152 @@
+---
+title: Authentication
+description: How to authenticate to the TimeLog REST API with a bearer token, which user your requests act as, how to test a token, and how to troubleshoot 401 responses.
+---
+
+## Overview
+
+Every TimeLog REST API request must carry an access token in the `Authorization` header, as a bearer token:
+
+```http
+Authorization: Bearer <your-token>
+```
+
+There is no anonymous access. A request without a valid token is rejected with `401 Unauthorized`.
+v1 and v2 use the same authentication: the same token works for both, and there is no version-specific scope or setting.
+
+The token decides two things:
+
+- **Whether the request is accepted at all.** The token must be valid, not expired, and carry the TimeLog API scope.
+- **Who the request acts as.** Every request runs as the token's user. What you can read and change is what that user can read and change in TimeLog.
+
+## Personal access tokens
+
+For an integration, the token is a **personal access token** (PAT).
+A personal access token belongs to the TimeLog user who generated it. Every request made with it acts as that user and is checked against that user's permissions.
+
+Personal access tokens are generated at `https://login.timelog.com/personaltoken`.
+
+<Callout kind="alert">**Not yet documented.** The step-by-step flow for creating, naming and revoking a personal access token in TimeLog is not yet described here.</Callout>
+
+<Callout kind="alert">**Not yet documented.** How long a token stays valid, and whether its lifetime can be chosen, is not yet confirmed.</Callout>
+
+### Which user should own the token
+
+Because a token acts as its user, the choice of user is a design decision for your integration:
+
+- Actions are attributed to the token's user.
+- Permissions are checked against the token's user. An operation the user is not allowed to perform fails, even if the token itself is valid. See [Errors](/rest/errors) for the `403` response.
+- If the user can no longer log in to TimeLog (inactive, locked or deleted), every request with the token is rejected with `401`.
+
+Tokens that are not tied to a user act as a system user. Prefer tokens tied to a user, so that actions are attributed to a person and permission-checked.
+
+<Callout kind="alert">**Not yet documented.** An OAuth client flow for third-party applications (for example a "Connect to TimeLog" button) is not yet documented.</Callout>
+
+## Base URL
+
+Send requests to your TimeLog site, followed by `/api/` and the API version:
+
+```text
+https://{region-node}.timelog.com/{account}/api/v1/...
+https://{region-node}.timelog.com/{account}/api/v2/...
+```
+
+| Placeholder | Meaning |
+|---|---|
+| `{region-node}` | The TimeLog server your site runs on. It is the first part of the host name you see in the browser when you use TimeLog. |
+| `{account}` | Your TimeLog account name. It is the first path segment after the host name in the same browser URL. |
+
+Other pages in these docs write this part of the URL as `https://{your-timelog-host}/{tlp-virtual-directory}`. It is the same thing.
+
+## Make an authenticated request
+
+Pass the token in the `Authorization` header on every request:
+
+```bash
+curl https://{region-node}.timelog.com/{account}/api/v1/user/me \
+  -H "Authorization: Bearer $TIMELOG_TOKEN" \
+  -H "Accept: application/json"
+```
+
+Read the token from an environment variable or a secret store, as above. Do not paste it into scripts or commit it to source control.
+
+## Test your token
+
+Before you build anything else, check the token with `GET /v1/user/me`.
+It reads nothing but the token's own user and changes nothing, so it is safe to call at any time.
+
+<Steps>
+  <Step title="Call GET /v1/user/me" icon="terminal">
+    Send the request from [Make an authenticated request](#make-an-authenticated-request) with your token and your site's base URL.
+  </Step>
+  <Step title="Check the status code" icon="check">
+    `200` means the token is accepted. `401` means it is not: see [Troubleshooting 401 responses](#troubleshooting-401-responses).
+  </Step>
+  <Step title="Check the user" icon="user">
+    The response is the user the token acts as. Confirm it is the user you expect. Keep `UserID` if your integration registers time for that user.
+  </Step>
+</Steps>
+
+A successful response (abbreviated: some properties removed, e-mail redacted):
+
+```json
+{
+  "Properties": {
+    "UserID": 1,
+    "ID": "1b9afd4f-5ea9-4447-94bf-2bfd7ce96a25",
+    "FirstName": "FirstName_Admin1",
+    "LastName": "LastName",
+    "IsActive": true,
+    "UserType": "Employee",
+    "Email": "<redacted>"
+  },
+  "Links": [
+    { "Href": "https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/user/me", "Rel": "self" }
+  ]
+}
+```
+
+The user is under `Properties`, as in every single-object response. See [Response envelope](/rest/conventions/response-envelope).
+
+The same request without a token:
+
+```json
+{ "Message": "Authorization has been denied for this request." }
+```
+
+## Troubleshooting 401 responses
+
+A `401 Unauthorized` response always has the same body, whatever the cause:
+
+```json
+{ "Message": "Authorization has been denied for this request." }
+```
+
+This is **not** the regular error body with `Code`, `Details` and `Parameters`. Check the HTTP status before you parse the body. See [Errors](/rest/errors#401-unauthorized).
+
+The body does not say which check failed. Work through the causes in order:
+
+| Cause | What to check |
+|---|---|
+| No `Authorization` header | The header is present and has the form `Authorization: Bearer <token>`. |
+| Wrong or truncated token | The full token was copied, with no surrounding quotes, spaces or line breaks. |
+| Wrong base URL | `{region-node}` and `{account}` match the URL of the TimeLog site the token belongs to. |
+| Expired or revoked token | Generate a new token and try again. |
+| Token without the TimeLog API scope | The token was issued for the TimeLog API. A personal access token generated as described above carries it. |
+| The token's user cannot log in | The user is still active in TimeLog and is not locked or deleted. A valid token for such a user is rejected. |
+
+Retrying a `401` with the same token does not help. Fix the cause, then retry once. If the second attempt also returns `401`, stop and report an authentication problem instead of retrying in a loop.
+
+## Security hygiene
+
+A personal access token gives the same API access as its user. Treat it like a password.
+
+- **Store tokens as secrets.** Keep them in your platform's secret store or an environment variable, never in source code, logs, or URLs.
+- **Use one token per integration.** If one integration is compromised or retired, you can revoke its token without breaking the others.
+- **Revoke tokens you no longer use.** A forgotten token still works as long as it is valid.
+- **Choose the token's user deliberately.** Give the integration a user with only the permissions it needs.
+- **Do not log request headers.** The token travels in the `Authorization` header on every request.
+
+## Rate limits
+
+<Callout kind="alert">**Not yet documented.** Rate limits for the REST API are not yet confirmed. See [Rate limits and known limitations](/rest/limitations).</Callout>
