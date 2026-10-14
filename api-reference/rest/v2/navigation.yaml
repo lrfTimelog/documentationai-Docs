@@ -49771,7 +49771,8 @@ components:
           - array
           - 'null'
           items:
-            $ref: '#/components/schemas/MenuRead'
+            type: object
+            description: Same shape as `MenuRead` (nested).
           readOnly: true
           description: |-
             The entries of a group heading, in definition order. Omitted (not an empty list) when there are none. Sub-entries never carry SubMenus themselves (one level only).

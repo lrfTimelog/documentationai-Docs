@@ -2459,7 +2459,8 @@ components:
           - array
           - 'null'
           items:
-            $ref: '#/components/schemas/DropDownItemRead'
+            type: object
+            description: Same shape as `DropDownItemRead` (nested).
           readOnly: true
           description: |-
             Child options of a tree dropdown (sub-tasks under their parent task). Omitted from the JSON when null (NullValueHandling.Ignore) — a leaf and every option of a flat dropdown carry no Items key.
@@ -2991,7 +2992,8 @@ components:
         Actions:
           type: array
           items:
-            $ref: '#/components/schemas/ProjectActionRead'
+            type: object
+            description: Same shape as `ProjectActionRead` (nested).
           x-timelog-condition: Groups only (ChangeStatusTo, ChangeStageTo, ResourcePlanner).
           readOnly: true
           description: |-
