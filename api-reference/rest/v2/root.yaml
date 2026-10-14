@@ -17,14 +17,13 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://{your-timelog-host}/{tlp-virtual-directory}/api
-  description: Your TimeLog site.
+  description: 'Your TimeLog site. `your-timelog-host` is the host of your TimeLog site (Not yet documented: the production
+    host pattern); `tlp-virtual-directory` is the virtual directory your TimeLog site is hosted under.'
   variables:
     your-timelog-host:
       default: your-timelog-host
-      description: 'The host of your TimeLog site. Not yet documented: the production host pattern.'
     tlp-virtual-directory:
       default: your-virtual-directory
-      description: The virtual directory your TimeLog site is hosted under.
 security:
 - bearer: []
 tags:
