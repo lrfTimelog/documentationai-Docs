@@ -83,6 +83,11 @@
                 "title": "Pagination",
                 "path": "rest/conventions/pagination",
                 "icon": "list-ordered"
+              },
+              {
+                "title": "Data types",
+                "path": "rest/conventions/data-types",
+                "icon": "binary"
               }
             ]
           },
