@@ -14,14 +14,15 @@ info:
 
     > **Not yet documented:** rate limits.
 servers:
-- url: https://{your-timelog-host}/{tlp-virtual-directory}/api
-  description: 'Your TimeLog site. `your-timelog-host` is the host of your TimeLog site (Not yet documented: the production
-    host pattern); `tlp-virtual-directory` is the virtual directory your TimeLog site is hosted under.'
+- url: https://{region-node}.timelog.com/{account}/api
+  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
+    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
+    it.'
   variables:
-    your-timelog-host:
-      default: your-timelog-host
-    tlp-virtual-directory:
-      default: your-virtual-directory
+    region-node:
+      default: app3
+    account:
+      default: your-account
 security:
 - bearer: []
 tags:
@@ -103,7 +104,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: ''
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/barrier
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/barrier
       x-timelog-key: rest.v1.settings.barrier.list
     post:
       operationId: createBarrier
@@ -171,7 +172,7 @@ paths:
                     - '''Name'' must not be empty.'
                     Message: Invalid model state error.
                     Parameters: 'barrier: {"Id":"00000000-0000-0000-0000-000000000000","Name":null}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/barrier
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/barrier
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
             Obtain a new token and retry.'
@@ -247,7 +248,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'barrierApi: {"Id":"00000000-0000-0000-0000-000000000000","Name":null}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/barrier
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/barrier
       x-timelog-key: rest.v1.settings.barrier.update
   /v1/barrier/{barrierId}:
     get:
@@ -328,7 +329,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'barrierId: 1'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/barrier/1
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/barrier/1
       x-timelog-key: rest.v1.settings.barrier.get
   /v1/barrier/{id}:
     delete:
@@ -405,7 +406,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'id: "00000000-0000-0000-0000-000000000001"'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/barrier/00000000-0000-0000-0000-000000000001
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/barrier/00000000-0000-0000-0000-000000000001
       x-timelog-key: rest.v1.settings.barrier.delete
   /v1/car:
     get:
@@ -600,7 +601,7 @@ paths:
                     - '''License Plate'' must not be empty.'
                     Message: Invalid model state error.
                     Parameters: 'model: {"Name":null,"LicensePlate":null,"IsDefault":false}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/car
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/car
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
             Obtain a new token and retry.'
@@ -709,7 +710,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'carApiUpdateModel: {"CarID":0,"Name":null,"LicensePlate":null,"IsDefault":false}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/car
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/car
       x-timelog-key: rest.v1.settings.car.update
   /v1/car/default:
     get:
@@ -800,7 +801,7 @@ paths:
                       IsDefault: true
                       AllowEmployeeChangeMileageRate: false
                     Links:
-                    - Href: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/car/default
+                    - Href: https://{region-node}.timelog.com/{account}/api/v1/car/default
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
@@ -893,7 +894,7 @@ paths:
                       ErrorCode: 37830
                     Message: Business rules exception.
                     Parameters: 'id: 1'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/car/1
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/car/1
       x-timelog-key: rest.v1.settings.car.delete
     get:
       operationId: getCar
@@ -997,7 +998,7 @@ paths:
                       IsDefault: false
                       AllowEmployeeChangeMileageRate: true
                     Links:
-                    - Href: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/car/1
+                    - Href: https://{region-node}.timelog.com/{account}/api/v1/car/1
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
@@ -1027,7 +1028,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'carID: 99999999'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/car/99999999
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/car/99999999
       x-timelog-key: rest.v1.settings.car.get
   /v1/feature:
     put:

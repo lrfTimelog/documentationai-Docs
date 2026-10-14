@@ -16,14 +16,15 @@ info:
 
     > **Not yet documented:** rate limits.
 servers:
-- url: https://{your-timelog-host}/{tlp-virtual-directory}/api
-  description: 'Your TimeLog site. `your-timelog-host` is the host of your TimeLog site (Not yet documented: the production
-    host pattern); `tlp-virtual-directory` is the virtual directory your TimeLog site is hosted under.'
+- url: https://{region-node}.timelog.com/{account}/api
+  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
+    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
+    it.'
   variables:
-    your-timelog-host:
-      default: your-timelog-host
-    tlp-virtual-directory:
-      default: your-virtual-directory
+    region-node:
+      default: app3
+    account:
+      default: your-account
 security:
 - bearer: []
 tags:
@@ -154,7 +155,7 @@ paths:
                 example1:
                   summary: searchText missing
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/search'.
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v2/search'.
                     MessageDetail: No action was found on the controller 'Search' that matches the request.
         '500':
           description: '- **Code 100** — Unhandled server error.'
@@ -236,7 +237,7 @@ paths:
                         Name: Employee
                         IsSelected: false
                     Links:
-                    - Href: https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/search/categories
+                    - Href: https://{region-node}.timelog.com/{account}/api/v2/search/categories
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
@@ -303,7 +304,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'categories: {"Categories":null}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/search/categories
+                    Url: https://{region-node}.timelog.com/{account}/api/v2/search/categories
       x-timelog-key: rest.v2.search.search.updatesearchcategories
 components:
   securitySchemes:

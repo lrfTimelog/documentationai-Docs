@@ -16,14 +16,15 @@ info:
 
     > **Not yet documented:** rate limits.
 servers:
-- url: https://{your-timelog-host}/{tlp-virtual-directory}/api
-  description: 'Your TimeLog site. `your-timelog-host` is the host of your TimeLog site (Not yet documented: the production
-    host pattern); `tlp-virtual-directory` is the virtual directory your TimeLog site is hosted under.'
+- url: https://{region-node}.timelog.com/{account}/api
+  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
+    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
+    it.'
   variables:
-    your-timelog-host:
-      default: your-timelog-host
-    tlp-virtual-directory:
-      default: your-virtual-directory
+    region-node:
+      default: app3
+    account:
+      default: your-account
 security:
 - bearer: []
 tags:
@@ -242,7 +243,7 @@ paths:
                     - '''Country ID'' must be greater than 0.'
                     Message: Invalid model state error.
                     Parameters: 'contact: {...}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/contact/validate-new-contact
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/contact/validate-new-contact
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
           content:
@@ -441,7 +442,7 @@ paths:
                     Details: []
                     Message: 'No customer found with customer number: test'
                     Parameters: 'customerNumber: "test"'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/customer/by-number/test
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/customer/by-number/test
       x-timelog-key: rest.v1.crm.customer.getbynumber
   /v1/customer/create:
     post:
@@ -1014,7 +1015,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'customer: {"CustomerID":0,"Name":null, ...}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/customer/update
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/customer/update
       x-timelog-key: rest.v1.crm.customer.update
   /v1/customer/validate-new-customer:
     post:
@@ -1074,7 +1075,7 @@ paths:
                     - '''Country ID'' must not be empty.'
                     Message: Invalid model state error.
                     Parameters: 'customer: {...}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/customer/validate-new-customer
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/customer/validate-new-customer
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
           content:
@@ -1194,7 +1195,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'customerID: 1'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/customer/1
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/customer/1
       x-timelog-key: rest.v1.crm.customer.get
   /v1/customerstatus:
     get:
@@ -1307,7 +1308,7 @@ paths:
                         IsActive: true
                         CustomerStatusType: 2
                     Links:
-                    - Href: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/customerstatus
+                    - Href: https://{region-node}.timelog.com/{account}/api/v1/customerstatus
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'

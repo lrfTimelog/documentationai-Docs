@@ -56,7 +56,6 @@ https://{region-node}.timelog.com/{account}/api/v2/...
 | `{region-node}` | The TimeLog server your site runs on. It is the first part of the host name you see in the browser when you use TimeLog. |
 | `{account}` | Your TimeLog account name. It is the first path segment after the host name in the same browser URL. |
 
-Other pages in these docs write this part of the URL as `https://{your-timelog-host}/{tlp-virtual-directory}`. It is the same thing.
 
 ## Make an authenticated request
 
@@ -101,7 +100,7 @@ A successful response (abbreviated: some properties removed, e-mail redacted):
     "Email": "<redacted>"
   },
   "Links": [
-    { "Href": "https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/user/me", "Rel": "self" }
+    { "Href": "https://{region-node}.timelog.com/{account}/api/v1/user/me", "Rel": "self" }
   ]
 }
 ```

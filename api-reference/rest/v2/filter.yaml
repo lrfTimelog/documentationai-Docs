@@ -14,14 +14,15 @@ info:
 
     > **Not yet documented:** rate limits.
 servers:
-- url: https://{your-timelog-host}/{tlp-virtual-directory}/api
-  description: 'Your TimeLog site. `your-timelog-host` is the host of your TimeLog site (Not yet documented: the production
-    host pattern); `tlp-virtual-directory` is the virtual directory your TimeLog site is hosted under.'
+- url: https://{region-node}.timelog.com/{account}/api
+  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
+    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
+    it.'
   variables:
-    your-timelog-host:
-      default: your-timelog-host
-    tlp-virtual-directory:
-      default: your-virtual-directory
+    region-node:
+      default: app3
+    account:
+      default: your-account
 security:
 - bearer: []
 tags:
@@ -99,7 +100,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'id: 99999999'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/filter-view/99999999
+                    Url: https://{region-node}.timelog.com/{account}/api/v2/filter-view/99999999
       x-timelog-key: rest.v2.filter.filterview.delete
   /v2/filter-view/{pageIdentifier}:
     get:
@@ -1715,7 +1716,7 @@ paths:
                   summary: Page with no saved views (captured at 3774fda)
                   value:
                     Links:
-                    - Href: https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/filter-view/12345
+                    - Href: https://{region-node}.timelog.com/{account}/api/v2/filter-view/12345
                       Rel: self
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier is
@@ -1733,7 +1734,7 @@ paths:
                     - The value 'test' is not valid for PageIdentifier.
                     Message: Invalid model state error.
                     Parameters: 'pageIdentifier: null'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/filter-view/test
+                    Url: https://{region-node}.timelog.com/{account}/api/v2/filter-view/test
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
             Obtain a new token and retry.'
@@ -3360,7 +3361,7 @@ paths:
                     - '''Name'' must not be empty.'
                     Message: Invalid model state error.
                     Parameters: 'model: {"Name":null,"IsDefault":false,"FilterValues":null}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/filter-view/test
+                    Url: https://{region-node}.timelog.com/{account}/api/v2/filter-view/test
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
             Obtain a new token and retry.'
@@ -4992,7 +4993,7 @@ paths:
                     - '''Name'' must not be empty.'
                     Message: Invalid model state error.
                     Parameters: 'model: {"FilterViewId":0,"Name":null,"IsDefault":false,"FilterValues":null}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/filter-view/test
+                    Url: https://{region-node}.timelog.com/{account}/api/v2/filter-view/test
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
             Obtain a new token and retry.'

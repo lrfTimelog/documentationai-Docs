@@ -20,15 +20,14 @@ https://{region-node}.timelog.com/{account}/api/v2/...
 ```
 
 The placeholders are explained in [Authentication: Base URL](/rest/authentication#base-url).
-Other pages in these docs write the part before `/api/` as `https://{your-timelog-host}/{tlp-virtual-directory}`. It is the same thing.
 
 ## The version is a URL segment
 
 The version is selected only by the path segment after `/api/`: `v1` or `v2`.
 
 ```text
-GET https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/time-tracker/active-time-tracker
-GET https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/time-tracker/active
+GET https://{region-node}.timelog.com/{account}/api/v1/time-tracker/active-time-tracker
+GET https://{region-node}.timelog.com/{account}/api/v2/time-tracker/active
 ```
 
 Things to know:

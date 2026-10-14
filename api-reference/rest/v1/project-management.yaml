@@ -16,14 +16,15 @@ info:
 
     > **Not yet documented:** rate limits.
 servers:
-- url: https://{your-timelog-host}/{tlp-virtual-directory}/api
-  description: 'Your TimeLog site. `your-timelog-host` is the host of your TimeLog site (Not yet documented: the production
-    host pattern); `tlp-virtual-directory` is the virtual directory your TimeLog site is hosted under.'
+- url: https://{region-node}.timelog.com/{account}/api
+  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
+    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
+    it.'
   variables:
-    your-timelog-host:
-      default: your-timelog-host
-    tlp-virtual-directory:
-      default: your-virtual-directory
+    region-node:
+      default: app3
+    account:
+      default: your-account
 security:
 - bearer: []
 tags:
@@ -116,7 +117,7 @@ paths:
                         ContractModelID: 8
                         Name: ContinuousItemInvoicing
                     Links:
-                    - Href: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/ContractModel
+                    - Href: https://{region-node}.timelog.com/{account}/api/v1/ContractModel
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
@@ -220,7 +221,7 @@ paths:
                         ProductNo: ''
                         ID: 7805fec2-67b9-41be-a1ad-4cc0e990c130
                     Links:
-                    - Href: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/ProjectCategory
+                    - Href: https://{region-node}.timelog.com/{account}/api/v1/ProjectCategory
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
@@ -903,7 +904,7 @@ paths:
                 example1:
                   summary: projectID omitted
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/contract'.
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/contract'.
                     MessageDetail: No action was found on the controller 'ProjectSubContract' that matches the request.
         '500':
           description: '- **Code 100** — Unhandled server error.'
@@ -997,7 +998,7 @@ paths:
                     - '''Contract Status'' has a range of values which does not include ''0''.'
                     Message: Invalid model state error.
                     Parameters: 'contractModel: {...}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/contract/create-fixed-price-basic-contract
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/contract/create-fixed-price-basic-contract
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured. — Fix: Obtain a new token and retry.'
           content:
@@ -1108,7 +1109,7 @@ paths:
                     - '''Hourly Rate Name'' must not be empty.'
                     Message: Invalid model state error.
                     Parameters: 'contractModel: {...}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/contract/create-prepaid-services-contract
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/contract/create-prepaid-services-contract
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured. — Fix: Obtain a new token and retry.'
           content:
@@ -1218,7 +1219,7 @@ paths:
                     - '''Contract Status'' has a range of values which does not include ''0''.'
                     Message: Invalid model state error.
                     Parameters: 'contractModel: {...}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/contract/create-task-driven-revenue-contract
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/contract/create-task-driven-revenue-contract
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured. — Fix: Obtain a new token and retry.'
           content:
@@ -1324,7 +1325,7 @@ paths:
                     - '''Contract Status'' has a range of values which does not include ''0''.'
                     Message: Invalid model state error.
                     Parameters: 'contractModel: {...}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/contract/create-time-material-account-end-balancing-contract
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/contract/create-time-material-account-end-balancing-contract
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured. — Fix: Obtain a new token and retry.'
           content:
@@ -1430,7 +1431,7 @@ paths:
                     - '''Contract Status'' has a range of values which does not include ''0''.'
                     Message: Invalid model state error.
                     Parameters: 'contractModel: {...}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/contract/create-time-material-basic-contract
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/contract/create-time-material-basic-contract
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured. — Fix: Obtain a new token and retry.'
           content:
@@ -1551,7 +1552,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'model: {"ProjectId":0,"ProjectSubContractId":0,"PaymentPlanAmount":0.0}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/contract/update-recurring-contract-payment-plan-amount
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/contract/update-recurring-contract-payment-plan-amount
       x-timelog-key: rest.v1.projectmanagement.contract.updaterecurringpaymentplanamount
   /v1/contract/validate-fixed-price-basic-contract:
     post:
@@ -1618,7 +1619,7 @@ paths:
                     - '''Contract Status'' has a range of values which does not include ''0''.'
                     Message: Invalid model state error.
                     Parameters: 'contractModel: {...}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/contract/validate-fixed-price-basic-contract
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/contract/validate-fixed-price-basic-contract
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured. — Fix: Obtain a new token and retry.'
           content:
@@ -1709,7 +1710,7 @@ paths:
                     - '''Hourly Rate Name'' must not be empty.'
                     Message: Invalid model state error.
                     Parameters: 'contractModel: {...}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/contract/validate-prepaid-services-contract
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/contract/validate-prepaid-services-contract
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured. — Fix: Obtain a new token and retry.'
           content:
@@ -1799,7 +1800,7 @@ paths:
                     - '''Contract Status'' has a range of values which does not include ''0''.'
                     Message: Invalid model state error.
                     Parameters: 'contractModel: {...}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/contract/validate-task-driven-revenue-contract
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/contract/validate-task-driven-revenue-contract
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured. — Fix: Obtain a new token and retry.'
           content:
@@ -1885,7 +1886,7 @@ paths:
                     - '''Contract Status'' has a range of values which does not include ''0''.'
                     Message: Invalid model state error.
                     Parameters: 'contractModel: {...}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/contract/validate-time-material-account-end-balancing-contract
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/contract/validate-time-material-account-end-balancing-contract
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured. — Fix: Obtain a new token and retry.'
           content:
@@ -1971,7 +1972,7 @@ paths:
                     - '''Contract Status'' has a range of values which does not include ''0''.'
                     Message: Invalid model state error.
                     Parameters: 'contractModel: {...}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/contract/validate-time-material-basic-contract
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/contract/validate-time-material-basic-contract
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured. — Fix: Obtain a new token and retry.'
           content:
@@ -2069,7 +2070,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'model: {"ProjectId":0,"ProjectSubContractId":0,"PaymentPlanAmount":0.0}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/contract/validate-update-recurring-contract-payment-plan-amount
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/contract/validate-update-recurring-contract-payment-plan-amount
       x-timelog-key: rest.v1.projectmanagement.contract.validateupdaterecurringpaymentplanamount
   /v1/contract/{contractID}:
     get:
@@ -2156,7 +2157,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'contractID: 99999999'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/contract/99999999
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/contract/99999999
       x-timelog-key: rest.v1.projectmanagement.contract.get
   /v1/payment:
     get:
@@ -2382,7 +2383,7 @@ paths:
                       ErrorCode: 37042
                     Message: Business rules exception.
                     Parameters: 'createModel: {"Name":null, ...}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/payment
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/payment
       x-timelog-key: rest.v1.projectmanagement.payment.create
   /v1/payment/validate-new-payment:
     post:
@@ -3279,7 +3280,7 @@ paths:
                 example1:
                   summary: customerID omitted
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/project-header/search-for-expense-travel-registration-by-customer-id-order-by-recent-registration'.
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/project-header/search-for-expense-travel-registration-by-customer-id-order-by-recent-registration'.
                     MessageDetail: No action was found on the controller 'ProjectHeader' that matches the request.
         '500':
           description: '- **Code 100** — Unhandled server error.'
@@ -3708,7 +3709,7 @@ paths:
                 example1:
                   summary: customerID omitted
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/project-header/search-for-time-tracking-by-customer-id'.
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/project-header/search-for-time-tracking-by-customer-id'.
                     MessageDetail: No action was found on the controller 'ProjectHeader' that matches the request.
         '500':
           description: '- **Code 100** — Unhandled server error.'
@@ -3856,7 +3857,7 @@ paths:
                 example1:
                   summary: customerID omitted
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/project-header/search-for-time-tracking-by-customer-id-order-by-recent-registration'.
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/project-header/search-for-time-tracking-by-customer-id-order-by-recent-registration'.
                     MessageDetail: No action was found on the controller 'ProjectHeader' that matches the request.
         '500':
           description: '- **Code 100** — Unhandled server error.'
@@ -4641,7 +4642,7 @@ paths:
                       TotalPage: '0'
                       PageNumber: '1'
                     Links:
-                    - Href: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/project/1/external-keys
+                    - Href: https://{region-node}.timelog.com/{account}/api/v1/project/1/external-keys
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
@@ -4741,7 +4742,7 @@ paths:
                     - '''External System ID'' must be greater than ''0''.'
                     Message: Invalid model state error.
                     Parameters: 'externalKeysUpdateModel: {"ExternalID":null,"ExternalSystemID":0}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/project/1/external-keys
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/project/1/external-keys
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
           content:
@@ -5048,7 +5049,7 @@ paths:
                   value:
                     code: UnsupportedApiVersion
                     error: No route providing a controller name with API version '1' was found to match HTTP method 'GET'
-                      and request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/task'.
+                      and request URI 'https://{region-node}.timelog.com/{account}/api/v1/task'.
                     type: https://docs.api-versioning.org/problems#unsupported
                     title: Unsupported API version
                     status: 405
@@ -5177,7 +5178,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'taskModel: {"TaskNo":null,"TaskName":null,...,"BudgetHours":null,"BudgetAmount":null,"ProjectSubContractID":null,...,"HourlyRateID":null,"ProjectID":0,"ParentTaskID":null,...}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/task
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/task
       x-timelog-key: rest.v1.projectmanagement.task.create
   /v1/task/create-sub-task:
     post:
@@ -5292,7 +5293,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'taskModel: {...,"ProjectID":0,"ParentTaskID":null,...}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/task/create-sub-task
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/task/create-sub-task
       x-timelog-key: rest.v1.projectmanagement.task.createsubtask
   /v1/task/filter:
     get:
@@ -5697,7 +5698,7 @@ paths:
                     - '''Task ID'' must be greater than ''0''.'
                     Message: Invalid model state error.
                     Parameters: 'model: {...}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/task/registration
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/task/registration
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
           content:
@@ -6322,7 +6323,7 @@ paths:
                 example1:
                   summary: customerID omitted
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/task/search-for-time-tracking-by-customer-id'.
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/task/search-for-time-tracking-by-customer-id'.
                     MessageDetail: No action was found on the controller 'Task' that matches the request.
         '500':
           description: '- **Code 100** — Unhandled server error.'
@@ -6490,7 +6491,7 @@ paths:
                 example1:
                   summary: customerID omitted
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/task/search-for-time-tracking-by-customer-id-order-by-recent-registration'.
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/task/search-for-time-tracking-by-customer-id-order-by-recent-registration'.
                     MessageDetail: No action was found on the controller 'Task' that matches the request.
         '500':
           description: '- **Code 100** — Unhandled server error.'
@@ -6673,7 +6674,7 @@ paths:
                 example1:
                   summary: projectID omitted
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/task/search-for-time-tracking-by-project-id'.
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/task/search-for-time-tracking-by-project-id'.
                     MessageDetail: No action was found on the controller 'Task' that matches the request.
         '500':
           description: '- **Code 100** — Unhandled server error.'
@@ -6842,7 +6843,7 @@ paths:
                 example1:
                   summary: projectID omitted
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/task/search-for-time-tracking-by-project-id-order-by-recent-registration'.
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/task/search-for-time-tracking-by-project-id-order-by-recent-registration'.
                     MessageDetail: No action was found on the controller 'Task' that matches the request.
         '500':
           description: '- **Code 100** — Unhandled server error.'
@@ -7003,7 +7004,7 @@ paths:
                 example1:
                   summary: projectID omitted
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/task/search-for-time-tracking-by-project-id-order-by-travel-time-task'.
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/task/search-for-time-tracking-by-project-id-order-by-travel-time-task'.
                     MessageDetail: No action was found on the controller 'Task' that matches the request.
         '500':
           description: '- **Code 100** — Unhandled server error.'
@@ -7298,7 +7299,7 @@ paths:
                 example1:
                   summary: projectID omitted
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/task/travel-time-task-for-time-tracking'.
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/task/travel-time-task-for-time-tracking'.
                     MessageDetail: No action was found on the controller 'Task' that matches the request.
         '500':
           description: '- **Code 100** — Unhandled server error.'
@@ -7399,7 +7400,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'taskModel: {...,"ProjectID":0,...}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/task/validate-new-task
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/task/validate-new-task
       x-timelog-key: rest.v1.projectmanagement.task.validatenew
   /v1/task/{taskID}:
     delete:
@@ -8144,7 +8145,7 @@ paths:
                       TotalPage: '0'
                       PageNumber: '1'
                     Links:
-                    - Href: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/task/1/external-keys
+                    - Href: https://{region-node}.timelog.com/{account}/api/v1/task/1/external-keys
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
@@ -8242,7 +8243,7 @@ paths:
                     - '''External System ID'' must be greater than ''0''.'
                     Message: Invalid model state error.
                     Parameters: 'externalKeysUpdateModel: {"ExternalID":null,"ExternalSystemID":0}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/task/1/external-keys
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/task/1/external-keys
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
           content:

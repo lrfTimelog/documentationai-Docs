@@ -16,14 +16,15 @@ info:
 
     > **Not yet documented:** rate limits.
 servers:
-- url: https://{your-timelog-host}/{tlp-virtual-directory}/api
-  description: 'Your TimeLog site. `your-timelog-host` is the host of your TimeLog site (Not yet documented: the production
-    host pattern); `tlp-virtual-directory` is the virtual directory your TimeLog site is hosted under.'
+- url: https://{region-node}.timelog.com/{account}/api
+  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
+    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
+    it.'
   variables:
-    your-timelog-host:
-      default: your-timelog-host
-    tlp-virtual-directory:
-      default: your-virtual-directory
+    region-node:
+      default: app3
+    account:
+      default: your-account
 security:
 - bearer: []
 tags:
@@ -125,7 +126,7 @@ paths:
                         FullAddress: Adresse, Adresse2, Adresse3, PostCode, City, State, Storbritannien
                         FullDetailAddress: Name_Customer140, Adresse, Adresse2, Adresse3, PostCode, City, State, Storbritannien
                     Links:
-                    - Href: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/address/home-work
+                    - Href: https://{region-node}.timelog.com/{account}/api/v1/address/home-work
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid token (captured). — Fix: Obtain
@@ -269,7 +270,7 @@ paths:
                 example1:
                   summary: No parameter (captured)
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/address/search'.
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/address/search'.
                     MessageDetail: No action was found on the controller 'Address' that matches the request.
         '500':
           description: '- **Code 100** — Unhandled server error.'
@@ -777,7 +778,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'endDate: null'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/employee-expense-financial-data/get-all-time-total
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/employee-expense-financial-data/get-all-time-total
       x-timelog-key: rest.v1.expenses.employeeexpensefinancialdata.getalltimetotal
   /v1/employee-expense-financial-data/get-by-date:
     get:
@@ -867,7 +868,7 @@ paths:
                 example1:
                   summary: date omitted (captured)
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/employee-expense-financial-data/get-by-date'.
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/employee-expense-financial-data/get-by-date'.
                     MessageDetail: No action was found on the controller 'EmployeeExpenseFinancialData' that matches the request.
         '500':
           description: '- **Code 100** — Unhandled server error.'
@@ -1005,7 +1006,7 @@ paths:
                 example1:
                   summary: Dates omitted (captured)
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/employee-expense-financial-data/get-by-date-range'.
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/employee-expense-financial-data/get-by-date-range'.
                     MessageDetail: No action was found on the controller 'EmployeeExpenseFinancialData' that matches the request.
         '500':
           description: '- **Code 100** — Unhandled server error.'
@@ -1108,7 +1109,7 @@ paths:
                       ErrorCode: 37703
                     Message: Business rules exception.
                     Parameters: 'employeeExpenseID: 1'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/employee-expense/1
+                    Url: https://{region-node}.timelog.com/{account}/api/v2/employee-expense/1
       x-timelog-key: rest.v1.expenses.employeeexpense.delete
     get:
       operationId: getEmployeeExpense
@@ -2029,7 +2030,7 @@ paths:
                       ReimbursementCurrencyID: 9
                       LegalEntityID: 1
                     Links:
-                    - Href: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/mileage-rate/1
+                    - Href: https://{region-node}.timelog.com/{account}/api/v1/mileage-rate/1
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
@@ -2058,7 +2059,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'mileageRateID: 99999999'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/mileage-rate/99999999
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/mileage-rate/99999999
       x-timelog-key: rest.v1.expenses.mileagerate.get
   /v1/mileage-registration:
     get:
@@ -2336,7 +2337,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'model: null'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/mileage-registration
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/mileage-registration
       x-timelog-key: rest.v1.expenses.mileageregistration.create
     put:
       operationId: updateMileageRegistration
@@ -2568,7 +2569,7 @@ paths:
                       ErrorCode: 37848
                     Message: Business rules exception.
                     Parameters: 'ignoreTravelTimeRegistration: false'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/mileage-registration/1
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/mileage-registration/1
                 example2:
                   summary: Unknown ID (v1 route)
                   value:
@@ -2576,7 +2577,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'ignoreTravelTimeRegistration: false'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/mileage-registration/99999999
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/mileage-registration/99999999
       x-timelog-key: rest.v1.expenses.mileageregistration.delete
     get:
       operationId: getMileageRegistration
@@ -2693,7 +2694,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'mileageRegistrationID: 99999999'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/mileage-registration/99999999
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/mileage-registration/99999999
       x-timelog-key: rest.v1.expenses.mileageregistration.get
   /v1/payment-method/{status}:
     get:
@@ -3030,7 +3031,7 @@ paths:
                   value:
                     code: UnsupportedApiVersion
                     error: No route providing a controller name with API version '1' was found to match HTTP method 'GET'
-                      and request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/project-expense'.
+                      and request URI 'https://{region-node}.timelog.com/{account}/api/v1/project-expense'.
                     traceId: …
                     type: https://docs.api-versioning.org/problems#unsupported
                     title: Unsupported API version
@@ -3169,7 +3170,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'createModel: null'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/project-expense
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/project-expense
       x-timelog-key: rest.v1.expenses.projectexpense.create
   /v1/project-expense/validate-project-expense:
     post:
@@ -3351,7 +3352,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'expenseID: 1'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/project-expense/1
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/project-expense/1
       x-timelog-key: rest.v1.expenses.projectexpense.get
   /v1/project-expense/{expenseID}/file:
     delete:
@@ -3808,7 +3809,7 @@ paths:
                       TotalPage: '0'
                       PageNumber: '1'
                     Links:
-                    - Href: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/project-product
+                    - Href: https://{region-node}.timelog.com/{account}/api/v1/project-product
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'

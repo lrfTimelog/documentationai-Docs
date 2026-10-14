@@ -16,14 +16,15 @@ info:
 
     > **Not yet documented:** rate limits.
 servers:
-- url: https://{your-timelog-host}/{tlp-virtual-directory}/api
-  description: 'Your TimeLog site. `your-timelog-host` is the host of your TimeLog site (Not yet documented: the production
-    host pattern); `tlp-virtual-directory` is the virtual directory your TimeLog site is hosted under.'
+- url: https://{region-node}.timelog.com/{account}/api
+  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
+    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
+    it.'
   variables:
-    your-timelog-host:
-      default: your-timelog-host
-    tlp-virtual-directory:
-      default: your-virtual-directory
+    region-node:
+      default: app3
+    account:
+      default: your-account
 security:
 - bearer: []
 tags:
@@ -269,7 +270,7 @@ paths:
                 example1:
                   summary: date omitted
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/time-registration-financial-data/get-by-date'.
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/time-registration-financial-data/get-by-date'.
                     MessageDetail: No action was found on the controller 'TimeRegistrationFinancialData' that matches the
                       request.
       x-timelog-key: rest.v1.timeregistration.financialdata.getbydate
@@ -392,7 +393,7 @@ paths:
                 example1:
                   summary: Parameters omitted
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/time-registration-financial-data/get-by-date-range'.
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/time-registration-financial-data/get-by-date-range'.
                     MessageDetail: No action was found on the controller 'TimeRegistrationFinancialData' that matches the
                       request.
         '500':
@@ -475,7 +476,7 @@ paths:
                 example1:
                   summary: date omitted
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/time-registration-financial-data/get-status-by-date'.
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/time-registration-financial-data/get-status-by-date'.
                     MessageDetail: No action was found on the controller 'TimeRegistrationFinancialData' that matches the
                       request.
         '500':
@@ -603,7 +604,7 @@ paths:
                 example1:
                   summary: Parameters omitted
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/time-registration-financial-data/get-status-by-date-range'.
+                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/time-registration-financial-data/get-status-by-date-range'.
                     MessageDetail: No action was found on the controller 'TimeRegistrationFinancialData' that matches the
                       request.
         '500':

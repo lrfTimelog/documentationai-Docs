@@ -16,14 +16,15 @@ info:
 
     > **Not yet documented:** rate limits.
 servers:
-- url: https://{your-timelog-host}/{tlp-virtual-directory}/api
-  description: 'Your TimeLog site. `your-timelog-host` is the host of your TimeLog site (Not yet documented: the production
-    host pattern); `tlp-virtual-directory` is the virtual directory your TimeLog site is hosted under.'
+- url: https://{region-node}.timelog.com/{account}/api
+  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
+    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
+    it.'
   variables:
-    your-timelog-host:
-      default: your-timelog-host
-    tlp-virtual-directory:
-      default: your-virtual-directory
+    region-node:
+      default: app3
+    account:
+      default: your-account
 security:
 - bearer: []
 tags:
@@ -194,7 +195,7 @@ paths:
                     - '''Description'' must not be empty.'
                     Message: Invalid model state error.
                     Parameters: 'externalSystemCreateModel: {"Name":null,"Description":null}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/external-systems
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/external-systems
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
           content:
@@ -215,7 +216,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'externalSystemCreateModel: null'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/external-systems
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/external-systems
       x-timelog-key: rest.v1.integration.externalsystem.create
   /v1/external-systems/{externalSystemID}:
     get:
@@ -303,7 +304,7 @@ paths:
                       ErrorCode: 37045
                     Message: Business rules exception.
                     Parameters: 'externalSystemID: 1'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/external-systems/1
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/external-systems/1
       x-timelog-key: rest.v1.integration.externalsystem.get
     put:
       operationId: updateExternalSystem
@@ -384,7 +385,7 @@ paths:
                     - '''Description'' must not be empty.'
                     Message: Invalid model state error.
                     Parameters: 'externalSystemUpdateModel: {"Name":null,"Description":null}'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/external-systems/1
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/external-systems/1
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
           content:
@@ -417,7 +418,7 @@ paths:
                       ErrorCode: 37045
                     Message: Business rules exception.
                     Parameters: 'externalSystemUpdateModel: null'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/external-systems/1
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/external-systems/1
       x-timelog-key: rest.v1.integration.externalsystem.update
   /v1/integration-conflicts:
     get:
@@ -692,7 +693,7 @@ paths:
                       ErrorCode: 37048
                     Message: Business rules exception.
                     Parameters: 'integrationConflictID: 1'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v1/integration-conflicts/1
+                    Url: https://{region-node}.timelog.com/{account}/api/v1/integration-conflicts/1
       x-timelog-key: rest.v1.integration.integrationconflict.get
 components:
   securitySchemes:

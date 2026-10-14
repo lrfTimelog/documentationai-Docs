@@ -16,14 +16,15 @@ info:
 
     > **Not yet documented:** rate limits.
 servers:
-- url: https://{your-timelog-host}/{tlp-virtual-directory}/api
-  description: 'Your TimeLog site. `your-timelog-host` is the host of your TimeLog site (Not yet documented: the production
-    host pattern); `tlp-virtual-directory` is the virtual directory your TimeLog site is hosted under.'
+- url: https://{region-node}.timelog.com/{account}/api
+  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
+    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
+    it.'
   variables:
-    your-timelog-host:
-      default: your-timelog-host
-    tlp-virtual-directory:
-      default: your-virtual-directory
+    region-node:
+      default: app3
+    account:
+      default: your-account
 security:
 - bearer: []
 tags:
@@ -638,13 +639,13 @@ paths:
                         Name: test task
                         Value: 16
                     Links:
-                    - Href: https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/adjustments/move-hours/projects/1/tasks
+                    - Href: https://{region-node}.timelog.com/{account}/api/v2/adjustments/move-hours/projects/1/tasks
                       Rel: self
                 example2:
                   summary: Unknown project
                   value:
                     Links:
-                    - Href: https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/adjustments/move-hours/projects/99999999/tasks
+                    - Href: https://{region-node}.timelog.com/{account}/api/v2/adjustments/move-hours/projects/99999999/tasks
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
@@ -1551,7 +1552,7 @@ paths:
                           Body:
                             IsAddingToResourcePlanner: false
                     Links:
-                    - Href: https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/projects/actions
+                    - Href: https://{region-node}.timelog.com/{account}/api/v2/projects/actions
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
@@ -1654,7 +1655,7 @@ paths:
                   value:
                     code: UnsupportedApiVersion
                     error: No route providing a controller name with API version '2' was found to match HTTP method 'PUT'
-                      and request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/projects/resource-planner'.
+                      and request URI 'https://{region-node}.timelog.com/{account}/api/v2/projects/resource-planner'.
                     traceId: …
                     type: https://docs.api-versioning.org/problems#unsupported
                     title: Unsupported API version
@@ -1763,7 +1764,7 @@ paths:
                   value:
                     code: UnsupportedApiVersion
                     error: No route providing a controller name with API version '2' was found to match HTTP method 'PUT'
-                      and request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/projects/stage'.
+                      and request URI 'https://{region-node}.timelog.com/{account}/api/v2/projects/stage'.
                     traceId: …
                     type: https://docs.api-versioning.org/problems#unsupported
                     title: Unsupported API version
@@ -1883,7 +1884,7 @@ paths:
                   value:
                     code: UnsupportedApiVersion
                     error: No route providing a controller name with API version '2' was found to match HTTP method 'PUT'
-                      and request URI 'https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/projects/status'.
+                      and request URI 'https://{region-node}.timelog.com/{account}/api/v2/projects/status'.
                     traceId: …
                     type: https://docs.api-versioning.org/problems#unsupported
                     title: Unsupported API version
@@ -2343,7 +2344,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'projectId: 99999999'
-                    Url: https://{your-timelog-host}/{tlp-virtual-directory}/api/v2/projects/99999999/time-registrations
+                    Url: https://{region-node}.timelog.com/{account}/api/v2/projects/99999999/time-registrations
       x-timelog-key: rest.v2.projectmanagement.searchprojects.getprojecttimeregistrationsv2
 components:
   securitySchemes:
