@@ -91,6 +91,11 @@
             "icon": "ruler",
             "pages": [
               {
+                "title": "Base URL and versioning",
+                "path": "rest/conventions/versioning",
+                "icon": "git-branch"
+              },
+              {
                 "title": "Response envelope",
                 "path": "rest/conventions/response-envelope",
                 "icon": "package"
