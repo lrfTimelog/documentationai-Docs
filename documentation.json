@@ -78,6 +78,11 @@
                 "title": "Authentication",
                 "path": "rest/authentication",
                 "icon": "lock"
+              },
+              {
+                "title": "Permissions and data scope",
+                "path": "rest/permissions",
+                "icon": "shield-check"
               }
             ]
           },
