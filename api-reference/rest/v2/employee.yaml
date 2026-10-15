@@ -14,13 +14,14 @@ info:
 
     > **Not yet documented:** rate limits.
 servers:
-- url: https://{region-node}.timelog.com/{account}/api
-  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
-    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
-    it.'
+- url: https://app{server-number}.timelog.com/{account}/api
+  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
+    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
+    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.'
   variables:
-    region-node:
-      default: app3
+    server-number:
+      default: '3'
     account:
       default: your-account
 security:
@@ -92,7 +93,7 @@ paths:
                         GroupName: Skills
                         CanBeDeleted: true
                     Links:
-                    - Href: https://{region-node}.timelog.com/{account}/api/v2/competence-groups
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v2/competence-groups
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
@@ -177,7 +178,7 @@ paths:
                       ErrorCode: 60015
                     Message: Business rules exception.
                     Parameters: 'model: {"Name":null}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v2/competence-groups
+                    Url: https://app{server-number}.timelog.com/{account}/api/v2/competence-groups
       x-timelog-key: rest.v2.employee.competencegroups.create
     put:
       operationId: updateCompetenceGroup
@@ -241,7 +242,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'model: {"ID":0,"Name":null}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v2/competence-groups
+                    Url: https://app{server-number}.timelog.com/{account}/api/v2/competence-groups
       x-timelog-key: rest.v2.employee.competencegroups.update
   /v2/competence-groups/{id}:
     delete:
@@ -325,7 +326,7 @@ paths:
                       ErrorCode: 38011
                     Message: Business rules exception.
                     Parameters: 'id: 1'
-                    Url: https://{region-node}.timelog.com/{account}/api/v2/competence-groups/1
+                    Url: https://app{server-number}.timelog.com/{account}/api/v2/competence-groups/1
       x-timelog-key: rest.v2.employee.competencegroups.delete
   /v2/competences:
     get:
@@ -437,7 +438,7 @@ paths:
                         IsActive: true
                         CanBeDeleted: true
                     Links:
-                    - Href: https://{region-node}.timelog.com/{account}/api/v2/competences
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v2/competences
                       Rel: self
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: isActive not a boolean
@@ -531,7 +532,7 @@ paths:
                       ErrorCode: 60015
                     Message: Business rules exception.
                     Parameters: 'model: {"Name":null,"GroupId":0,"IsActive":false}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v2/competences
+                    Url: https://app{server-number}.timelog.com/{account}/api/v2/competences
       x-timelog-key: rest.v2.employee.competences.create
     put:
       operationId: updateCompetence
@@ -596,7 +597,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'model: {"ID":0,"Name":null,"GroupId":0,"IsActive":false}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v2/competences
+                    Url: https://app{server-number}.timelog.com/{account}/api/v2/competences
       x-timelog-key: rest.v2.employee.competences.update
   /v2/competences/by-group:
     get:
@@ -707,7 +708,7 @@ paths:
                           IsActive: true
                           CanBeDeleted: true
                     Links:
-                    - Href: https://{region-node}.timelog.com/{account}/api/v2/competences/by-group
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v2/competences/by-group
                       Rel: self
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: isActive not a boolean
@@ -811,7 +812,7 @@ paths:
                       ErrorCode: 38008
                     Message: Business rules exception.
                     Parameters: 'id: 1'
-                    Url: https://{region-node}.timelog.com/{account}/api/v2/competences/1
+                    Url: https://app{server-number}.timelog.com/{account}/api/v2/competences/1
       x-timelog-key: rest.v2.employee.competences.delete
   /v2/employee-competences:
     get:
@@ -922,7 +923,7 @@ paths:
                   value:
                     code: UnsupportedApiVersion
                     error: No route providing a controller name with API version '2' was found to match HTTP method 'GET'
-                      and request URI 'https://{region-node}.timelog.com/{account}/api/v2/employee-competences'.
+                      and request URI 'https://app{server-number}.timelog.com/{account}/api/v2/employee-competences'.
                     type: https://docs.api-versioning.org/problems#unsupported
                     title: Unsupported API version
                     status: 405
@@ -1016,7 +1017,7 @@ paths:
                       ErrorCode: 37040
                     Message: Business rules exception.
                     Parameters: 'model: {"UserId":0,"CompetenceId":0,"Value":0}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v2/employee-competences
+                    Url: https://app{server-number}.timelog.com/{account}/api/v2/employee-competences
       x-timelog-key: rest.v2.employee.employeecompetences.createemployeecompetence
     put:
       operationId: updateEmployeeCompetence
@@ -1085,7 +1086,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'model: {"ID":0,"Value":0}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v2/employee-competences
+                    Url: https://app{server-number}.timelog.com/{account}/api/v2/employee-competences
       x-timelog-key: rest.v2.employee.employeecompetences.updateemployeecompetence
   /v2/employee-competences/available:
     get:
@@ -1199,7 +1200,7 @@ paths:
                   value:
                     code: UnsupportedApiVersion
                     error: No route providing a controller name with API version '2' was found to match HTTP method 'GET'
-                      and request URI 'https://{region-node}.timelog.com/{account}/api/v2/employee-competences/available'.
+                      and request URI 'https://app{server-number}.timelog.com/{account}/api/v2/employee-competences/available'.
                     type: https://docs.api-versioning.org/problems#unsupported
                     title: Unsupported API version
                     status: 405
@@ -1294,7 +1295,7 @@ paths:
                     - The value 'bulk' is not valid for Int32.
                     Message: Invalid model state error.
                     Parameters: 'id: null'
-                    Url: https://{region-node}.timelog.com/{account}/api/v2/employee-competences/bulk
+                    Url: https://app{server-number}.timelog.com/{account}/api/v2/employee-competences/bulk
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
             Obtain a new token and retry.'
@@ -1386,7 +1387,7 @@ paths:
                     - ''
                     Message: Invalid model state error.
                     Parameters: 'model: {"UserId":0,"EmployeeCompetences":null}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v2/employee-competences/bulk
+                    Url: https://app{server-number}.timelog.com/{account}/api/v2/employee-competences/bulk
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
             Obtain a new token and retry.'

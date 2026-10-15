@@ -19,7 +19,7 @@ The rules are the same in v1 and v2. The difference is that far fewer v2 list op
 | `$pagesize` | `10` | The number of items per page. |
 
 ```text
-GET https://{region-node}.timelog.com/{account}/api/v1/project/get-all?$page=2&$pagesize=50
+GET https://app{server-number}.timelog.com/{account}/api/v1/project/get-all?$page=2&$pagesize=50
 ```
 
 Things to know about these parameters:
@@ -53,7 +53,7 @@ Example: `GET /v1/country/get-all` with the default page size (three of the ten 
     { "Properties": { "CountryID": 53, "Country": "Amerikanske Jomfruøer", "ISO": "VI", "DefaultCurrencyID": 31 } }
   ],
   "Links": [
-    { "Href": "https://{region-node}.timelog.com/{account}/api/v1/country/get-all", "Rel": "self" }
+    { "Href": "https://app{server-number}.timelog.com/{account}/api/v1/country/get-all", "Rel": "self" }
   ]
 }
 ```

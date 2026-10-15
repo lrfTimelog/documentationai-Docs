@@ -44,14 +44,14 @@ Example: `GET /v1/project/1` (abbreviated: some properties and all but one actio
     "EndDate": "2020-08-24T00:00:00"
   },
   "Links": [
-    { "Href": "https://{region-node}.timelog.com/{account}/api/v1/project/1", "Rel": "self" }
+    { "Href": "https://app{server-number}.timelog.com/{account}/api/v1/project/1", "Rel": "self" }
   ],
   "Actions": [
     {
       "Name": "create-from-template",
       "Title": "Create project from template",
       "Method": "Post",
-      "Href": "https://{region-node}.timelog.com/{account}/api/v1/project/create-from-template"
+      "Href": "https://app{server-number}.timelog.com/{account}/api/v1/project/create-from-template"
     }
   ]
 }
@@ -88,7 +88,7 @@ Example: `GET /v1/project/get-all` (abbreviated: one of ten entities shown, some
         "EndDate": "2020-11-21T00:00:00"
       },
       "Links": [
-        { "Href": "https://{region-node}.timelog.com/{account}/api/v1/project/9", "Rel": "self" }
+        { "Href": "https://app{server-number}.timelog.com/{account}/api/v1/project/9", "Rel": "self" }
       ]
     }
   ]
@@ -118,7 +118,7 @@ Example of an unpaged list: `GET /v2/competences`. There is no list-level `Prope
     }
   ],
   "Links": [
-    { "Href": "https://{region-node}.timelog.com/{account}/api/v2/competences", "Rel": "self" }
+    { "Href": "https://app{server-number}.timelog.com/{account}/api/v2/competences", "Rel": "self" }
   ]
 }
 ```
@@ -145,14 +145,14 @@ Example of an empty paged list: `GET /v1/time-tracker` for a user with no time t
 {
   "Properties": { "TotalRecord": "0", "TotalPage": "0", "PageNumber": "1" },
   "Links": [
-    { "Href": "https://{region-node}.timelog.com/{account}/api/v1/time-tracker", "Rel": "self" }
+    { "Href": "https://app{server-number}.timelog.com/{account}/api/v1/time-tracker", "Rel": "self" }
   ],
   "Actions": [
     {
       "Name": "add-item",
       "Title": "Add Item",
       "Method": "Post",
-      "Href": "https://{region-node}.timelog.com/{account}/api/v1/time-tracker",
+      "Href": "https://app{server-number}.timelog.com/{account}/api/v1/time-tracker",
       "Type": "application/json"
     }
   ]

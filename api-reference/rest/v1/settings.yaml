@@ -14,13 +14,14 @@ info:
 
     > **Not yet documented:** rate limits.
 servers:
-- url: https://{region-node}.timelog.com/{account}/api
-  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
-    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
-    it.'
+- url: https://app{server-number}.timelog.com/{account}/api
+  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
+    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
+    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.'
   variables:
-    region-node:
-      default: app3
+    server-number:
+      default: '3'
     account:
       default: your-account
 security:
@@ -99,7 +100,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: ''
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/barrier
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/barrier
       x-timelog-key: rest.v1.settings.barrier.list
     post:
       operationId: createBarrier
@@ -165,7 +166,7 @@ paths:
                     - '''Name'' must not be empty.'
                     Message: Invalid model state error.
                     Parameters: 'barrier: {"Id":"00000000-0000-0000-0000-000000000000","Name":null}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/barrier
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/barrier
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
             Obtain a new token and retry.'
@@ -239,7 +240,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'barrierApi: {"Id":"00000000-0000-0000-0000-000000000000","Name":null}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/barrier
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/barrier
       x-timelog-key: rest.v1.settings.barrier.update
   /v1/barrier/{barrierId}:
     get:
@@ -318,7 +319,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'barrierId: 1'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/barrier/1
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/barrier/1
       x-timelog-key: rest.v1.settings.barrier.get
   /v1/barrier/{id}:
     delete:
@@ -393,7 +394,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'id: "00000000-0000-0000-0000-000000000001"'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/barrier/00000000-0000-0000-0000-000000000001
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/barrier/00000000-0000-0000-0000-000000000001
       x-timelog-key: rest.v1.settings.barrier.delete
   /v1/car:
     get:
@@ -584,7 +585,7 @@ paths:
                     - '''License Plate'' must not be empty.'
                     Message: Invalid model state error.
                     Parameters: 'model: {"Name":null,"LicensePlate":null,"IsDefault":false}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/car
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/car
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
             Obtain a new token and retry.'
@@ -691,7 +692,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'carApiUpdateModel: {"CarID":0,"Name":null,"LicensePlate":null,"IsDefault":false}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/car
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/car
       x-timelog-key: rest.v1.settings.car.update
   /v1/car/default:
     get:
@@ -780,7 +781,7 @@ paths:
                       IsDefault: true
                       AllowEmployeeChangeMileageRate: false
                     Links:
-                    - Href: https://{region-node}.timelog.com/{account}/api/v1/car/default
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v1/car/default
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
@@ -871,7 +872,7 @@ paths:
                       ErrorCode: 37830
                     Message: Business rules exception.
                     Parameters: 'id: 1'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/car/1
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/car/1
       x-timelog-key: rest.v1.settings.car.delete
     get:
       operationId: getCar
@@ -973,7 +974,7 @@ paths:
                       IsDefault: false
                       AllowEmployeeChangeMileageRate: true
                     Links:
-                    - Href: https://{region-node}.timelog.com/{account}/api/v1/car/1
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v1/car/1
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
@@ -1003,7 +1004,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'carID: 99999999'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/car/99999999
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/car/99999999
       x-timelog-key: rest.v1.settings.car.get
   /v1/feature:
     put:

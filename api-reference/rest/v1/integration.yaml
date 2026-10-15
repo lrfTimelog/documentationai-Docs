@@ -16,13 +16,14 @@ info:
 
     > **Not yet documented:** rate limits.
 servers:
-- url: https://{region-node}.timelog.com/{account}/api
-  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
-    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
-    it.'
+- url: https://app{server-number}.timelog.com/{account}/api
+  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
+    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
+    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.'
   variables:
-    region-node:
-      default: app3
+    server-number:
+      default: '3'
     account:
       default: your-account
 security:
@@ -187,7 +188,7 @@ paths:
                     - '''Description'' must not be empty.'
                     Message: Invalid model state error.
                     Parameters: 'externalSystemCreateModel: {"Name":null,"Description":null}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/external-systems
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/external-systems
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
           content:
@@ -208,7 +209,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'externalSystemCreateModel: null'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/external-systems
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/external-systems
       x-timelog-key: rest.v1.integration.externalsystem.create
   /v1/external-systems/{externalSystemID}:
     get:
@@ -294,7 +295,7 @@ paths:
                       ErrorCode: 37045
                     Message: Business rules exception.
                     Parameters: 'externalSystemID: 1'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/external-systems/1
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/external-systems/1
       x-timelog-key: rest.v1.integration.externalsystem.get
     put:
       operationId: updateExternalSystem
@@ -373,7 +374,7 @@ paths:
                     - '''Description'' must not be empty.'
                     Message: Invalid model state error.
                     Parameters: 'externalSystemUpdateModel: {"Name":null,"Description":null}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/external-systems/1
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/external-systems/1
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
           content:
@@ -406,7 +407,7 @@ paths:
                       ErrorCode: 37045
                     Message: Business rules exception.
                     Parameters: 'externalSystemUpdateModel: null'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/external-systems/1
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/external-systems/1
       x-timelog-key: rest.v1.integration.externalsystem.update
   /v1/integration-conflicts:
     get:
@@ -675,7 +676,7 @@ paths:
                       ErrorCode: 37048
                     Message: Business rules exception.
                     Parameters: 'integrationConflictID: 1'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/integration-conflicts/1
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/integration-conflicts/1
       x-timelog-key: rest.v1.integration.integrationconflict.get
 components:
   securitySchemes:

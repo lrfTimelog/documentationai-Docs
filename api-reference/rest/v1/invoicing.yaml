@@ -14,13 +14,14 @@ info:
 
     > **Not yet documented:** rate limits.
 servers:
-- url: https://{region-node}.timelog.com/{account}/api
-  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
-    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
-    it.'
+- url: https://app{server-number}.timelog.com/{account}/api
+  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
+    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
+    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.'
   variables:
-    region-node:
-      default: app3
+    server-number:
+      default: '3'
     account:
       default: your-account
 security:
@@ -149,7 +150,7 @@ paths:
                 example1:
                   summary: contractID omitted (captured)
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/contract-hourly-rate'.
+                    Message: No HTTP resource was found that matches the request URI 'https://app{server-number}.timelog.com/{account}/api/v1/contract-hourly-rate'.
                     MessageDetail: No action was found on the controller 'ContractHourlyRate' that matches the request.
         '500':
           description: '- **Code 100** — Unhandled server error.'
@@ -233,7 +234,7 @@ paths:
                 example1:
                   summary: contractHourlyRateID omitted (captured)
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/contract-hourly-rate/get-by-id'.
+                    Message: No HTTP resource was found that matches the request URI 'https://app{server-number}.timelog.com/{account}/api/v1/contract-hourly-rate/get-by-id'.
                     MessageDetail: No action was found on the controller 'ContractHourlyRate' that matches the request.
         '500':
           description: '- **Code 100** — Unhandled server error.'
@@ -323,7 +324,7 @@ paths:
                       ErrorCode: 37014
                     Message: Business rules exception.
                     Parameters: 'contractHourlyRateModel: {"ContractHourlyRateCreateCategory":0,"ProjectId":0,"ProjectSubContractId":0,"ContractHourlyRateName":null,"ContractHourlyRateValue":0.0,"ProductNo":null}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/contract-hourly-rate/validate-hourly-rate
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/contract-hourly-rate/validate-hourly-rate
       x-timelog-key: rest.v1.invoicing.contracthourlyrate.validate
   /v1/cost-price:
     get:
@@ -687,7 +688,7 @@ paths:
                         CurrencyID: 9
                         PaymentTermGuid: 6b218693-3f85-4430-87a8-7cdb930b126a
                     Links:
-                    - Href: https://{region-node}.timelog.com/{account}/api/v1/payment-term
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v1/payment-term
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:

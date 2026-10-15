@@ -16,13 +16,14 @@ info:
 
     > **Not yet documented:** rate limits.
 servers:
-- url: https://{region-node}.timelog.com/{account}/api
-  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
-    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
-    it.'
+- url: https://app{server-number}.timelog.com/{account}/api
+  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
+    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
+    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.'
   variables:
-    region-node:
-      default: app3
+    server-number:
+      default: '3'
     account:
       default: your-account
 security:
@@ -165,7 +166,7 @@ paths:
                 example1:
                   summary: No parameters
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/get-status-by-dates'.
+                    Message: No HTTP resource was found that matches the request URI 'https://app{server-number}.timelog.com/{account}/api/v1/approval/timesheets/get-status-by-dates'.
                     MessageDetail: No action was found on the controller 'ApprovalTimesheet' that matches the request.
         '500':
           description: |-
@@ -309,7 +310,7 @@ paths:
                 example1:
                   summary: No parameters
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/get-status-by-period'.
+                    Message: No HTTP resource was found that matches the request URI 'https://app{server-number}.timelog.com/{account}/api/v1/approval/timesheets/get-status-by-period'.
                     MessageDetail: No action was found on the controller 'ApprovalTimesheet' that matches the request.
         '500':
           description: |-
@@ -447,7 +448,7 @@ paths:
                 example1:
                   summary: No parameters
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/get-status-by-period-with-rejected-time-tracking-items'.
+                    Message: No HTTP resource was found that matches the request URI 'https://app{server-number}.timelog.com/{account}/api/v1/approval/timesheets/get-status-by-period-with-rejected-time-tracking-items'.
                     MessageDetail: No action was found on the controller 'ApprovalTimesheet' that matches the request.
         '500':
           description: |-
@@ -590,7 +591,7 @@ paths:
                 example1:
                   summary: No parameters
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/get-status-by-week-of-year'.
+                    Message: No HTTP resource was found that matches the request URI 'https://app{server-number}.timelog.com/{account}/api/v1/approval/timesheets/get-status-by-week-of-year'.
                     MessageDetail: No action was found on the controller 'ApprovalTimesheet' that matches the request.
         '500':
           description: |-
@@ -756,7 +757,7 @@ paths:
                 example1:
                   summary: No parameters
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/get-status-range-by-nearby-week-of-year'.
+                    Message: No HTTP resource was found that matches the request URI 'https://app{server-number}.timelog.com/{account}/api/v1/approval/timesheets/get-status-range-by-nearby-week-of-year'.
                     MessageDetail: No action was found on the controller 'ApprovalTimesheet' that matches the request.
         '500':
           description: |-
@@ -828,7 +829,7 @@ paths:
                     - '''Employee User ID'' must be greater than ''0''.'
                     Message: Invalid model state error.
                     Parameters: 'model: {"TimeRegistrationIds":null,"EmployeeUserID":0}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/resubmit-rejected-time-registrations
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/approval/timesheets/resubmit-rejected-time-registrations
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured. — Fix: Obtain a new token and retry.'
           content:
@@ -860,7 +861,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'model: null'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/resubmit-rejected-time-registrations
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/approval/timesheets/resubmit-rejected-time-registrations
       x-timelog-key: rest.v1.employees.approvaltimesheet.resubmitrejectedtimeregistrations
   /v1/approval/timesheets/submit-dates:
     post:
@@ -925,7 +926,7 @@ paths:
                     - '''Employee User ID'' must be greater than ''0''.'
                     Message: Invalid model state error.
                     Parameters: 'model: {"Dates":null,"Comment":null,"EmployeeUserID":0}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/submit-dates
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/approval/timesheets/submit-dates
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured. — Fix: Obtain a new token and retry.'
           content:
@@ -955,7 +956,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'model: null'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/submit-dates
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/approval/timesheets/submit-dates
       x-timelog-key: rest.v1.employees.approvaltimesheet.submitdates
   /v1/approval/timesheets/submit-period:
     post:
@@ -1024,7 +1025,7 @@ paths:
                     - '''Employee User ID'' must be greater than ''0''.'
                     Message: Invalid model state error.
                     Parameters: 'model: {"StartDate":"0001-01-01T00:00:00","EndDate":"0001-01-01T00:00:00","Comment":null,"EmployeeUserID":0}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/submit-period
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/approval/timesheets/submit-period
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured. — Fix: Obtain a new token and retry.'
           content:
@@ -1054,7 +1055,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'model: null'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/submit-period
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/approval/timesheets/submit-period
       x-timelog-key: rest.v1.employees.approvaltimesheet.submitperiod
   /v1/approval/timesheets/submit-time-registrations:
     post:
@@ -1119,7 +1120,7 @@ paths:
                     - '''Employee User ID'' must be greater than ''0''.'
                     Message: Invalid model state error.
                     Parameters: 'model: {"TimeRegistrationIds":null,"EmployeeUserID":0}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/submit-time-registrations
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/approval/timesheets/submit-time-registrations
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured. — Fix: Obtain a new token and retry.'
           content:
@@ -1151,7 +1152,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'model: null'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/approval/timesheets/submit-time-registrations
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/approval/timesheets/submit-time-registrations
       x-timelog-key: rest.v1.employees.approvaltimesheet.submittimeregistrations
   /v1/employee-type:
     get:
@@ -1228,7 +1229,7 @@ paths:
                         IsActive: true
                         Name: Student assistant
                     Links:
-                    - Href: https://{region-node}.timelog.com/{account}/api/v1/employee-type
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v1/employee-type
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
@@ -1402,7 +1403,7 @@ paths:
                       ErrorCode: 37040
                     Message: Business rules exception.
                     Parameters: 'assignment: {"UserId":0,"NormalWorkingTimeId":0,"StartsAt":"0001-01-01T00:00:00"}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/normal-working-time/assign-to-employee
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/normal-working-time/assign-to-employee
                 example2:
                   summary: No body
                   value:
@@ -1410,7 +1411,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'assignment: null'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/normal-working-time/assign-to-employee
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/normal-working-time/assign-to-employee
       x-timelog-key: rest.v1.employees.normalworkingtime.assigntoemployee
   /v1/timesheet-status/weekly:
     get:
@@ -1600,7 +1601,7 @@ paths:
                 example1:
                   summary: No parameters
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/timesheet-status/weekly'.
+                    Message: No HTTP resource was found that matches the request URI 'https://app{server-number}.timelog.com/{account}/api/v1/timesheet-status/weekly'.
                     MessageDetail: No action was found on the controller 'TimesheetStatus' that matches the request.
         '500':
           description: '- **Code 100** — Unhandled server error.'
@@ -1672,7 +1673,7 @@ paths:
                     - EndDate is not a valid date.
                     Message: Invalid model state error.
                     Parameters: 'model: {"StartDate":"0001-01-01T00:00:00","EndDate":"0001-01-01T00:00:00","Hours":0.0,"EmployeeId":0,"TaskId":0}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/workload/book
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/workload/book
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
             a new token and retry.'
@@ -1701,7 +1702,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'model: null'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/workload/book
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/workload/book
       x-timelog-key: rest.v1.employees.workload.bookworkload
 components:
   securitySchemes:

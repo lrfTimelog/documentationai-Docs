@@ -15,8 +15,8 @@ They differ in a few conventions, most visibly in how enum values are written in
 Every request goes to your TimeLog site, followed by `/api/` and the version:
 
 ```text
-https://{region-node}.timelog.com/{account}/api/v1/...
-https://{region-node}.timelog.com/{account}/api/v2/...
+https://app{server-number}.timelog.com/{account}/api/v1/...
+https://app{server-number}.timelog.com/{account}/api/v2/...
 ```
 
 The placeholders are explained in [Authentication: Base URL](/rest/authentication#base-url).
@@ -26,8 +26,8 @@ The placeholders are explained in [Authentication: Base URL](/rest/authenticatio
 The version is selected only by the path segment after `/api/`: `v1` or `v2`.
 
 ```text
-GET https://{region-node}.timelog.com/{account}/api/v1/time-tracker/active-time-tracker
-GET https://{region-node}.timelog.com/{account}/api/v2/time-tracker/active
+GET https://app{server-number}.timelog.com/{account}/api/v1/time-tracker/active-time-tracker
+GET https://app{server-number}.timelog.com/{account}/api/v2/time-tracker/active
 ```
 
 Things to know:

@@ -14,13 +14,14 @@ info:
 
     > **Not yet documented:** rate limits.
 servers:
-- url: https://{region-node}.timelog.com/{account}/api
-  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
-    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
-    it.'
+- url: https://app{server-number}.timelog.com/{account}/api
+  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
+    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
+    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.'
   variables:
-    region-node:
-      default: app3
+    server-number:
+      default: '3'
     account:
       default: your-account
 security:
@@ -186,7 +187,7 @@ paths:
                     - Url of the page to bookmark must be set.
                     Message: Invalid model state error.
                     Parameters: 'createModel: {"PageId":"00000000-0000-0000-0000-000000000000","Url":null,"EntityId":null}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v2/bookmarks
+                    Url: https://app{server-number}.timelog.com/{account}/api/v2/bookmarks
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
             Obtain a new token and retry.'
@@ -208,7 +209,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'createModel: null'
-                    Url: https://{region-node}.timelog.com/{account}/api/v2/bookmarks
+                    Url: https://app{server-number}.timelog.com/{account}/api/v2/bookmarks
       x-timelog-key: rest.v2.navigation.bookmarks.create
   /v2/bookmarks/{bookmarkId}:
     delete:
@@ -275,7 +276,7 @@ paths:
                     - The value 'not_an_integer' is not valid for Int32.
                     Message: Invalid model state error.
                     Parameters: 'bookmarkId: null'
-                    Url: https://{region-node}.timelog.com/{account}/api/v2/bookmarks/not_an_integer
+                    Url: https://app{server-number}.timelog.com/{account}/api/v2/bookmarks/not_an_integer
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
             Obtain a new token and retry.'
@@ -297,7 +298,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'bookmarkId: 99999999'
-                    Url: https://{region-node}.timelog.com/{account}/api/v2/bookmarks/99999999
+                    Url: https://app{server-number}.timelog.com/{account}/api/v2/bookmarks/99999999
       x-timelog-key: rest.v2.navigation.bookmarks.delete
   /v2/filters/account-manager/content:
     get:
@@ -2270,7 +2271,7 @@ paths:
                     - The value 'test' is not valid for PageIdentifier.
                     Message: Invalid model state error.
                     Parameters: 'pageIdentifier: null'
-                    Url: https://{region-node}.timelog.com/{account}/api/v2/filters/list/test
+                    Url: https://app{server-number}.timelog.com/{account}/api/v2/filters/list/test
         '401':
           description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
             Obtain a new token and retry.'

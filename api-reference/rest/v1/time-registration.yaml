@@ -16,13 +16,14 @@ info:
 
     > **Not yet documented:** rate limits.
 servers:
-- url: https://{region-node}.timelog.com/{account}/api
-  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
-    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
-    it.'
+- url: https://app{server-number}.timelog.com/{account}/api
+  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
+    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
+    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.'
   variables:
-    region-node:
-      default: app3
+    server-number:
+      default: '3'
     account:
       default: your-account
 security:
@@ -261,7 +262,7 @@ paths:
                 example1:
                   summary: date omitted
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/time-registration-financial-data/get-by-date'.
+                    Message: No HTTP resource was found that matches the request URI 'https://app{server-number}.timelog.com/{account}/api/v1/time-registration-financial-data/get-by-date'.
                     MessageDetail: No action was found on the controller 'TimeRegistrationFinancialData' that matches the
                       request.
       x-timelog-key: rest.v1.timeregistration.financialdata.getbydate
@@ -382,7 +383,7 @@ paths:
                 example1:
                   summary: Parameters omitted
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/time-registration-financial-data/get-by-date-range'.
+                    Message: No HTTP resource was found that matches the request URI 'https://app{server-number}.timelog.com/{account}/api/v1/time-registration-financial-data/get-by-date-range'.
                     MessageDetail: No action was found on the controller 'TimeRegistrationFinancialData' that matches the
                       request.
         '500':
@@ -463,7 +464,7 @@ paths:
                 example1:
                   summary: date omitted
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/time-registration-financial-data/get-status-by-date'.
+                    Message: No HTTP resource was found that matches the request URI 'https://app{server-number}.timelog.com/{account}/api/v1/time-registration-financial-data/get-status-by-date'.
                     MessageDetail: No action was found on the controller 'TimeRegistrationFinancialData' that matches the
                       request.
         '500':
@@ -589,7 +590,7 @@ paths:
                 example1:
                   summary: Parameters omitted
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/time-registration-financial-data/get-status-by-date-range'.
+                    Message: No HTTP resource was found that matches the request URI 'https://app{server-number}.timelog.com/{account}/api/v1/time-registration-financial-data/get-status-by-date-range'.
                     MessageDetail: No action was found on the controller 'TimeRegistrationFinancialData' that matches the
                       request.
         '500':

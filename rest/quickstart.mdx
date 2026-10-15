@@ -31,7 +31,7 @@ The examples use shell variables. Set `TIMELOG_TOKEN` and `TIMELOG_BASE` in step
 
     ```bash
     export TIMELOG_TOKEN='<your-personal-access-token>'
-    export TIMELOG_BASE='https://{region-node}.timelog.com/{account}/api/v1'
+    export TIMELOG_BASE='https://app{server-number}.timelog.com/{account}/api/v1'
     ```
 
     Every request below sends the token as `Authorization: Bearer <token>`.
@@ -60,7 +60,7 @@ The examples use shell variables. Set `TIMELOG_TOKEN` and `TIMELOG_BASE` in step
         "Email": "<redacted>"
       },
       "Links": [
-        { "Href": "https://{region-node}.timelog.com/{account}/api/v1/user/me", "Rel": "self" }
+        { "Href": "https://app{server-number}.timelog.com/{account}/api/v1/user/me", "Rel": "self" }
       ]
     }
     ```
@@ -111,7 +111,7 @@ The examples use shell variables. Set `TIMELOG_TOKEN` and `TIMELOG_BASE` in step
             "IsFavourite": true
           },
           "Links": [
-            { "Href": "https://{region-node}.timelog.com/{account}/api/v1/task/4335", "Rel": "self" }
+            { "Href": "https://app{server-number}.timelog.com/{account}/api/v1/task/4335", "Rel": "self" }
           ]
         }
       ]

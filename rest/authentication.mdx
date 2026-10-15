@@ -47,14 +47,16 @@ Tokens that are not tied to a user act as a system user. Prefer tokens tied to a
 Send requests to your TimeLog site, followed by `/api/` and the API version:
 
 ```text
-https://{region-node}.timelog.com/{account}/api/v1/...
-https://{region-node}.timelog.com/{account}/api/v2/...
+https://app{server-number}.timelog.com/{account}/api/v1/...
+https://app{server-number}.timelog.com/{account}/api/v2/...
 ```
 
 | Placeholder | Meaning |
 |---|---|
-| `{region-node}` | The TimeLog server your site runs on. It is the first part of the host name you see in the browser when you use TimeLog. |
-| `{account}` | Your TimeLog account name. It is the first path segment after the host name in the same browser URL. |
+| `{server-number}` | The number after `app` in your TimeLog address, for example `3` in `https://app3.timelog.com`. |
+| `{account}` | Your TimeLog account name, the same one you use to log in. It is the first path segment after the host name. |
+
+If your browser shows `https://app.timelog.com` without a number, find your site URL in TimeLog under **System Administration > Integrations and API > Reporting API settings**, in the section **Your TimeLog API URL**. It follows the pattern `https://app[X].timelog.com/[account name]`.
 
 
 ## Make an authenticated request
@@ -62,7 +64,7 @@ https://{region-node}.timelog.com/{account}/api/v2/...
 Pass the token in the `Authorization` header on every request:
 
 ```bash
-curl https://{region-node}.timelog.com/{account}/api/v1/user/me \
+curl https://app{server-number}.timelog.com/{account}/api/v1/user/me \
   -H "Authorization: Bearer $TIMELOG_TOKEN" \
   -H "Accept: application/json"
 ```
@@ -100,7 +102,7 @@ A successful response (abbreviated: some properties removed, e-mail redacted):
     "Email": "<redacted>"
   },
   "Links": [
-    { "Href": "https://{region-node}.timelog.com/{account}/api/v1/user/me", "Rel": "self" }
+    { "Href": "https://app{server-number}.timelog.com/{account}/api/v1/user/me", "Rel": "self" }
   ]
 }
 ```
@@ -129,7 +131,7 @@ The body does not say which check failed. Work through the causes in order:
 |---|---|
 | No `Authorization` header | The header is present and has the form `Authorization: Bearer <token>`. |
 | Wrong or truncated token | The full token was copied, with no surrounding quotes, spaces or line breaks. |
-| Wrong base URL | `{region-node}` and `{account}` match the URL of the TimeLog site the token belongs to. |
+| Wrong base URL | `{server-number}` and `{account}` match the URL of the TimeLog site the token belongs to. |
 | Expired or revoked token | Generate a new token and try again. |
 | Token without the TimeLog API scope | The token was issued for the TimeLog API. A personal access token generated as described above carries it. |
 | The token's user cannot log in | The user is still active in TimeLog and is not locked or deleted. A valid token for such a user is rejected. |

@@ -16,13 +16,14 @@ info:
 
     > **Not yet documented:** rate limits.
 servers:
-- url: https://{region-node}.timelog.com/{account}/api
-  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
-    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
-    it.'
+- url: https://app{server-number}.timelog.com/{account}/api
+  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
+    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
+    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.'
   variables:
-    region-node:
-      default: app3
+    server-number:
+      default: '3'
     account:
       default: your-account
 security:
@@ -147,7 +148,7 @@ paths:
                       - Name: add-registration
                         Title: Add Registration
                         Method: Post
-                        Href: https://{region-node}.timelog.com/{account}/api/v1/absence-code/registration-by-half-day
+                        Href: https://app{server-number}.timelog.com/{account}/api/v1/absence-code/registration-by-half-day
                         Type: application/json
                         Fields:
                         - Name: Type
@@ -163,7 +164,7 @@ paths:
                           Type: Text
                     - … 9 more
                     Links:
-                    - Href: https://{region-node}.timelog.com/{account}/api/v1/absence-code/get-recently-registered
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v1/absence-code/get-recently-registered
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
@@ -678,7 +679,7 @@ paths:
                       - Name: add-registration
                         Title: Add Registration
                         Method: Post
-                        Href: https://{region-node}.timelog.com/{account}/api/v1/absence-code/registration-by-hours
+                        Href: https://app{server-number}.timelog.com/{account}/api/v1/absence-code/registration-by-hours
                         Type: application/json
                         Fields:
                         - Name: Hours
@@ -694,7 +695,7 @@ paths:
                       - Name: time-tracker
                         Title: Create Time Tracker
                         Method: Post
-                        Href: https://{region-node}.timelog.com/{account}/api/v1/absence-code/time-tracker
+                        Href: https://app{server-number}.timelog.com/{account}/api/v1/absence-code/time-tracker
                         Type: application/json
                         Fields:
                         - Name: AbsenceCodeID
@@ -708,7 +709,7 @@ paths:
                           Type: Number
                     - … 9 more
                     Links:
-                    - Href: https://{region-node}.timelog.com/{account}/api/v1/absence-code/1
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v1/absence-code/1
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
@@ -820,7 +821,7 @@ paths:
                         Description: DK
                     - … 1 more
                     Links:
-                    - Href: https://{region-node}.timelog.com/{account}/api/v1/allowance-legislation
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v1/allowance-legislation
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
@@ -927,7 +928,7 @@ paths:
                         ID: 40810eae-4810-4289-9c6a-26ec1c678bb7
                         Description: Default Holiday Calendar
                     Links:
-                    - Href: https://{region-node}.timelog.com/{account}/api/v1/holiday-calendar
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v1/holiday-calendar
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
@@ -1033,7 +1034,7 @@ paths:
                         IsSystemSalaryAccount: false
                     - … 9 more
                     Links:
-                    - Href: https://{region-node}.timelog.com/{account}/api/v1/salary-account
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v1/salary-account
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
@@ -1169,7 +1170,7 @@ paths:
                     - The BalanceDate field is required.
                     Message: Invalid model state error.
                     Parameters: 'model: {"UserId":null,"BalanceDate":"0001-01-01T00:00:00"}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/salary-account/1/aggregation
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/salary-account/1/aggregation
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
             a new token and retry.'
@@ -1255,7 +1256,7 @@ paths:
                     - At least one employee is required.
                     Message: Invalid model state error.
                     Parameters: 'salaryAccountEmployeeManualPostingCreateModel: {"BalanceDate":"0001-01-01T00:00:00","EmployeeUsers":[]}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/salary-account/1/posting
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/salary-account/1/posting
         '401':
           description: '- Missing, invalid or expired bearer token. — When: Captured (no / malformed token). — Fix: Obtain
             a new token and retry.'
@@ -1387,7 +1388,7 @@ paths:
                         IsActive: true
                         IsSystemSalaryGroup: true
                     Links:
-                    - Href: https://{region-node}.timelog.com/{account}/api/v1/salary-group
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v1/salary-group
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
