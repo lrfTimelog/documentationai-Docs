@@ -25,9 +25,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Invoicing
-  description: Enums are integers in v1.
 paths:
   /v1/contract-hourly-rate:
     get:
@@ -58,8 +55,6 @@ paths:
         **See also:** `GET /v1/hourly-rate`
 
         > **Not yet documented:** examples.
-      tags:
-      - Invoicing
       parameters:
       - name: contractID
         in: query
@@ -183,8 +178,6 @@ paths:
         **Call first:** `GET /v1/contract-hourly-rate`
 
         > **Not yet documented:** examples.
-      tags:
-      - Invoicing
       parameters:
       - name: contractHourlyRateID
         in: query
@@ -278,8 +271,6 @@ paths:
         **See also:** `GET /v1/contract-hourly-rate`
 
         > **Not yet documented:** examples.
-      tags:
-      - Invoicing
       requestBody:
         required: true
         content:
@@ -357,8 +348,6 @@ paths:
         **Next:** `POST /v1/user/create`
 
         **See also:** `GET /v1/project-product`
-      tags:
-      - Invoicing
       parameters:
       - name: $page
         in: query
@@ -450,8 +439,6 @@ paths:
         **Next:** `POST /v1/user/create`
 
         **See also:** `GET /v1/hourly-rate/default`, `GET /v1/contract-hourly-rate`
-      tags:
-      - Invoicing
       parameters:
       - name: $page
         in: query
@@ -537,8 +524,6 @@ paths:
         - Changes are visible to the next read immediately.
 
         **See also:** `GET /v1/hourly-rate`
-      tags:
-      - Invoicing
       parameters:
       - name: $page
         in: query
@@ -625,8 +610,6 @@ paths:
         - Changes are visible to the next read immediately.
 
         **Next:** `POST /v1/customer/create`
-      tags:
-      - Invoicing
       parameters:
       - name: $page
         in: query

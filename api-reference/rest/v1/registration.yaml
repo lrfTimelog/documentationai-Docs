@@ -27,10 +27,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Timesheet (time tracking items)
-  description: Read the caller's time registrations the way the timesheet shows them, toggle favourites, and check whether
-    a period can be closed.
 paths:
   /v1/time-tracking-item/get-by-date:
     get:
@@ -60,8 +56,6 @@ paths:
         **See also:** `GET /v1/time-tracking-item/get-by-date-order-by-recent-registration`, `GET /v1/time-tracking-item/get-weekly-registrations`
 
         > **Not yet documented:** examples; request → query params.
-      tags:
-      - Timesheet (time tracking items)
       parameters:
       - name: startDate
         in: query
@@ -187,8 +181,6 @@ paths:
         **See also:** `GET /v1/time-tracking-item/get-by-date`, `GET /v1/customer/search-for-time-tracking-order-by-recent-registration`
 
         > **Not yet documented:** examples.
-      tags:
-      - Timesheet (time tracking items)
       parameters:
       - name: startDate
         in: query
@@ -317,8 +309,6 @@ paths:
         **See also:** `GET /v1/time-tracking-item/get-by-date`
 
         > **Not yet documented:** examples.
-      tags:
-      - Timesheet (time tracking items)
       parameters:
       - name: startDate
         in: query
@@ -410,8 +400,6 @@ paths:
         **Next:** `GET /v1/time-tracking-item/get-by-date`
 
         > **Not yet documented:** examples.
-      tags:
-      - Timesheet (time tracking items)
       requestBody:
         required: true
         content:
@@ -480,8 +468,6 @@ paths:
         **See also:** `GET /v1/time-registration/{timeRegistrationID}`
 
         > **Not yet documented:** examples.
-      tags:
-      - Timesheet (time tracking items)
       parameters:
       - name: timeRegistrationID
         in: path

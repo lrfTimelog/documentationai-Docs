@@ -25,9 +25,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Settings
-  description: Enums are integers in v1.
 paths:
   /v1/barrier:
     get:
@@ -47,8 +44,6 @@ paths:
         **Next:** `PUT /v1/barrier`, `DELETE /v1/barrier/{id}`
 
         > **Not yet documented:** response → default ordering.
-      tags:
-      - Settings
       responses:
         '200':
           description: |-
@@ -123,8 +118,6 @@ paths:
         - Changes are visible to the next read immediately.
 
         **Next:** `PUT /v1/barrier`
-      tags:
-      - Settings
       requestBody:
         required: true
         content:
@@ -204,8 +197,6 @@ paths:
         **See also:** `GET /v1/barrier`
 
         > **Not yet documented:** examples.
-      tags:
-      - Settings
       requestBody:
         required: true
         content:
@@ -263,8 +254,6 @@ paths:
         - Changes are visible to the next read immediately.
 
         **See also:** `GET /v1/barrier`
-      tags:
-      - Settings
       parameters:
       - name: barrierId
         in: path
@@ -348,8 +337,6 @@ paths:
         **See also:** `GET /v1/barrier`
 
         > **Not yet documented:** examples.
-      tags:
-      - Settings
       parameters:
       - name: id
         in: path
@@ -433,8 +420,6 @@ paths:
         **See also:** `GET /v1/car/default`
 
         > **Not yet documented:** request → query params → $expand.
-      tags:
-      - Settings
       parameters:
       - name: $page
         in: query
@@ -551,8 +536,6 @@ paths:
         **See also:** `GET /v1/car`, `GET /v1/mileage-rate`
 
         > **Not yet documented:** examples.
-      tags:
-      - Settings
       requestBody:
         required: true
         content:
@@ -645,8 +628,6 @@ paths:
         **See also:** `GET /v1/car/default`
 
         > **Not yet documented:** examples.
-      tags:
-      - Settings
       requestBody:
         required: true
         content:
@@ -734,8 +715,6 @@ paths:
         **See also:** `GET /v1/car`, `PUT /v1/car`
 
         > **Not yet documented:** purpose → description; response → empty result.
-      tags:
-      - Settings
       parameters:
       - name: $expand
         in: query
@@ -834,8 +813,6 @@ paths:
         **See also:** `GET /v1/mileage-registration`
 
         > **Not yet documented:** examples.
-      tags:
-      - Settings
       parameters:
       - name: id
         in: path
@@ -922,8 +899,6 @@ paths:
         **See also:** `GET /v1/mileage-registration/{mileageRegistrationID}`
 
         > **Not yet documented:** transport → variants.
-      tags:
-      - Settings
       parameters:
       - name: id
         in: path
@@ -1058,8 +1033,6 @@ paths:
         **See also:** `PUT /v1/setting`
 
         > **Not yet documented:** behaviour → consistency; behaviour → side effects; examples (success).
-      tags:
-      - Settings
       requestBody:
         required: true
         content:
@@ -1129,8 +1102,6 @@ paths:
         **See also:** `PUT /v1/feature`
 
         > **Not yet documented:** behaviour → consistency; behaviour → idempotent; examples (success).
-      tags:
-      - Settings
       requestBody:
         required: true
         content:

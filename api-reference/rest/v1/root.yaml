@@ -27,9 +27,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: API root
-  description: The REST v1 entry point — build version, server time zone and a hypermedia link to every v1 controller.
 paths:
   /v1:
     get:
@@ -55,8 +52,6 @@ paths:
         **Next:** `GET /v1/user/me`
 
         > **Not yet documented:** examples (success); response → success.
-      tags:
-      - API root
       responses:
         '200':
           description: The object, wrapped in the TAF envelope (`Properties`). Properties = IndexRead; Links = self link +

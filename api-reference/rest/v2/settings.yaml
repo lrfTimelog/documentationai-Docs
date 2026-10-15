@@ -25,9 +25,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Settings
-  description: Enums are strings (member names) in v2 responses.
 paths:
   /v2/features:
     put:
@@ -59,8 +56,6 @@ paths:
         **See also:** `PUT /v1/feature`, `PUT /v2/settings/{settingIdentifier}`
 
         > **Not yet documented:** behaviour → consistency; examples (success); request → query params.
-      tags:
-      - Settings
       parameters:
       - name: identifier
         in: query
@@ -148,8 +143,6 @@ paths:
         **See also:** `GET /v2/features/{id}`, `PUT /v2/features`
 
         > **Not yet documented:** response → success → schema.
-      tags:
-      - Settings
       responses:
         '200':
           description: |-
@@ -248,8 +241,6 @@ paths:
         - Consistency: immediate on the serving web server (cached system configuration)
 
         **See also:** `GET /v2/features/{id}`, `GET /v2/features/front-page`
-      tags:
-      - Settings
       responses:
         '200':
           description: |-
@@ -324,8 +315,6 @@ paths:
         **Next:** `PUT /v2/features`
 
         **See also:** `GET /v2/features/front-page`, `PUT /v1/feature`
-      tags:
-      - Settings
       parameters:
       - name: id
         in: path
@@ -414,8 +403,6 @@ paths:
         **Next:** `PATCH /v2/page-settings/widgets/displayorder`
 
         **See also:** `GET /v2/features/front-page`
-      tags:
-      - Settings
       responses:
         '200':
           description: |-
@@ -515,8 +502,6 @@ paths:
         **Next:** `GET /v2/page-settings/widgets`
 
         **See also:** `GET /v2/page-settings/{pageIdentifier}`
-      tags:
-      - Settings
       requestBody:
         required: true
         content:
@@ -564,8 +549,6 @@ paths:
         **See also:** `GET /v2/page-settings/widgets`
 
         > **Not yet documented:** response → default ordering.
-      tags:
-      - Settings
       parameters:
       - name: pageIdentifier
         in: path
@@ -668,8 +651,6 @@ paths:
         - Changes are visible to the next read immediately.
 
         > **Not yet documented:** behaviour → batch semantics; examples.
-      tags:
-      - Settings
       responses:
         '200':
           description: |-
@@ -751,8 +732,6 @@ paths:
         **Next:** `POST /v2/settings/frontpage-image`, `PUT /v2/settings/{settingIdentifier}`
 
         > **Not yet documented:** response → success.
-      tags:
-      - Settings
       responses:
         '200':
           description: |-
@@ -829,8 +808,6 @@ paths:
         **See also:** `PUT /v1/setting`, `PUT /v2/features`
 
         > **Not yet documented:** behaviour → idempotent; behaviour → safe to retry; examples (success); request → body.
-      tags:
-      - Settings
       parameters:
       - name: settingIdentifier
         in: path
@@ -933,8 +910,6 @@ paths:
         - Side effect: Caches both segmentation maps per user id (TimelogCustomerSegmentationUser<id> / …Account<id>); later calls return the cached maps, so changes (role, department, integrations) may show only after the cache entry expires.
 
         > **Not yet documented:** behaviour → consistency.
-      tags:
-      - Settings
       responses:
         '200':
           description: |-

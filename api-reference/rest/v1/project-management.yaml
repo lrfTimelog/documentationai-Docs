@@ -27,9 +27,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Projects
-  description: Find the projects a user can register on, and register expenses and mileage on a project.
 paths:
   /v1/ContractModel:
     get:
@@ -51,8 +48,6 @@ paths:
         **See also:** `POST /v1/payment`
 
         > **Not yet documented:** related → next.
-      tags:
-      - Projects
       responses:
         '200':
           description: |-
@@ -144,8 +139,6 @@ paths:
         - Changes are visible to the next read immediately.
 
         **Next:** `POST /v1/project/create-from-template`, `PUT /v1/project/{projectID}`
-      tags:
-      - Projects
       parameters:
       - name: $page
         in: query
@@ -254,8 +247,6 @@ paths:
         - Changes are visible to the next read immediately.
 
         **Next:** `POST /v1/project/create-from-template`, `PUT /v1/project/{projectID}`
-      tags:
-      - Projects
       parameters:
       - name: $page
         in: query
@@ -340,8 +331,6 @@ paths:
         - Changes are visible to the next read immediately.
 
         **Next:** `POST /v1/task`, `PUT /v1/task/{taskID}`
-      tags:
-      - Projects
       parameters:
       - name: $page
         in: query
@@ -439,8 +428,6 @@ paths:
         **See also:** `PUT /v1/allocation/{allocationID}`
 
         > **Not yet documented:** behaviour → consistency; examples.
-      tags:
-      - Projects
       parameters:
       - name: allocationID
         in: path
@@ -522,8 +509,6 @@ paths:
         **See also:** `POST /v1/task/{taskID}/allocation`
 
         > **Not yet documented:** examples.
-      tags:
-      - Projects
       parameters:
       - name: allocationID
         in: path
@@ -625,8 +610,6 @@ paths:
         **See also:** `POST /v1/task/{taskID}/allocation`, `DELETE /v1/allocation/{allocationID}`
 
         > **Not yet documented:** behaviour → consistency; behaviour → side effects; examples.
-      tags:
-      - Projects
       parameters:
       - name: allocationID
         in: path
@@ -734,8 +717,6 @@ paths:
         **Next:** `DELETE /v1/allocation/{allocationID}`
 
         > **Not yet documented:** examples.
-      tags:
-      - Projects
       parameters:
       - name: allocationID
         in: path
@@ -818,8 +799,6 @@ paths:
         **See also:** `GET /v1/ContractModel`
 
         > **Not yet documented:** examples; request → query params.
-      tags:
-      - Projects
       parameters:
       - name: projectID
         in: query
@@ -951,8 +930,6 @@ paths:
         **Next:** `GET /v1/contract/{contractID}`, `GET /v1/contract`, `POST /v1/payment`
 
         > **Not yet documented:** behaviour → side effects; examples.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -1061,8 +1038,6 @@ paths:
         **Next:** `GET /v1/contract/{contractID}`, `GET /v1/contract`, `POST /v1/payment`
 
         > **Not yet documented:** behaviour → side effects; examples.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -1172,8 +1147,6 @@ paths:
         **Next:** `GET /v1/contract/{contractID}`, `GET /v1/contract`, `POST /v1/payment`
 
         > **Not yet documented:** behaviour → side effects; examples.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -1278,8 +1251,6 @@ paths:
         **Next:** `GET /v1/contract/{contractID}`, `GET /v1/contract`, `POST /v1/payment`
 
         > **Not yet documented:** behaviour → side effects; examples.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -1384,8 +1355,6 @@ paths:
         **Next:** `GET /v1/contract/{contractID}`, `GET /v1/contract`
 
         > **Not yet documented:** behaviour → side effects; examples.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -1496,8 +1465,6 @@ paths:
         **See also:** `POST /v1/contract/validate-update-recurring-contract-payment-plan-amount`
 
         > **Not yet documented:** behaviour → side effects; errors; examples.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -1585,8 +1552,6 @@ paths:
         **Next:** `POST /v1/contract/create-fixed-price-basic-contract`
 
         > **Not yet documented:** behaviour → side effects; examples.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -1675,8 +1640,6 @@ paths:
         **Next:** `POST /v1/contract/create-prepaid-services-contract`
 
         > **Not yet documented:** behaviour → side effects; examples.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -1766,8 +1729,6 @@ paths:
         **Next:** `POST /v1/contract/create-task-driven-revenue-contract`
 
         > **Not yet documented:** behaviour → side effects; examples.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -1852,8 +1813,6 @@ paths:
         **Next:** `POST /v1/contract/create-time-material-account-end-balancing-contract`
 
         > **Not yet documented:** behaviour → side effects; examples.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -1938,8 +1897,6 @@ paths:
         **Next:** `POST /v1/contract/create-time-material-basic-contract`
 
         > **Not yet documented:** behaviour → side effects; examples.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -2027,8 +1984,6 @@ paths:
         **Next:** `POST /v1/contract/update-recurring-contract-payment-plan-amount`
 
         > **Not yet documented:** behaviour → side effects; errors; examples.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -2099,8 +2054,6 @@ paths:
         **Next:** `GET /v1/payment`
 
         **See also:** `GET /v1/ContractModel`
-      tags:
-      - Projects
       parameters:
       - name: contractID
         in: path
@@ -2182,8 +2135,6 @@ paths:
         **See also:** `POST /v1/payment`
 
         > **Not yet documented:** examples.
-      tags:
-      - Projects
       parameters:
       - name: contractID
         in: query
@@ -2304,8 +2255,6 @@ paths:
         **Next:** `GET /v1/payment/{paymentID}`, `GET /v1/payment`
 
         > **Not yet documented:** behaviour → events emitted; behaviour → side effects on failure; examples; request → body.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -2408,8 +2357,6 @@ paths:
         **Next:** `POST /v1/payment`
 
         > **Not yet documented:** examples.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -2491,8 +2438,6 @@ paths:
         **See also:** `PUT /v1/payment/{paymentID}`, `POST /v1/payment`
 
         > **Not yet documented:** behaviour → side effects; examples.
-      tags:
-      - Projects
       parameters:
       - name: paymentID
         in: path
@@ -2569,8 +2514,6 @@ paths:
         **See also:** `POST /v1/payment`
 
         > **Not yet documented:** examples.
-      tags:
-      - Projects
       parameters:
       - name: paymentID
         in: path
@@ -2663,8 +2606,6 @@ paths:
         **See also:** `POST /v1/payment/{paymentID}/validate-update-payment`, `DELETE /v1/payment/{paymentID}`
 
         > **Not yet documented:** behaviour → events emitted; examples.
-      tags:
-      - Projects
       parameters:
       - name: paymentID
         in: path
@@ -2768,8 +2709,6 @@ paths:
         **Next:** `DELETE /v1/payment/{paymentID}`
 
         > **Not yet documented:** examples.
-      tags:
-      - Projects
       parameters:
       - name: paymentID
         in: path
@@ -2851,8 +2790,6 @@ paths:
         **Next:** `PUT /v1/payment/{paymentID}`
 
         > **Not yet documented:** examples.
-      tags:
-      - Projects
       parameters:
       - name: paymentID
         in: path
@@ -2954,8 +2891,6 @@ paths:
         **See also:** `POST /v1/project-header/mileage-registration`
 
         > **Not yet documented:** examples; response → success.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -3068,8 +3003,6 @@ paths:
         **See also:** `POST /v1/project-header/employee-expense`
 
         > **Not yet documented:** examples; response → success.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -3164,8 +3097,6 @@ paths:
         **See also:** `GET /v1/project-header/search-for-expense-travel-registration-order-by-recent-registration`
 
         > **Not yet documented:** behaviour → consistency; examples; request → query params.
-      tags:
-      - Projects
       parameters:
       - name: customerID
         in: query
@@ -3314,8 +3245,6 @@ paths:
         **See also:** `GET /v1/project-header/search-for-time-tracking-order-by-recent-registration`, `GET /v1/customer/search-for-expense-travel-registration-order-by-recent-registration`
 
         > **Not yet documented:** behaviour → consistency; request → query params; response → variants.
-      tags:
-      - Projects
       parameters:
       - name: searchText
         in: query
@@ -3455,8 +3384,6 @@ paths:
         **See also:** `GET /v1/project-header/search-for-time-tracking-order-by-recent-registration`, `GET /v1/project-header/search-for-time-tracking-by-customer-id`, `GET /v1/customer/search-for-time-tracking`
 
         > **Not yet documented:** behaviour → consistency; request → query params.
-      tags:
-      - Projects
       parameters:
       - name: searchText
         in: query
@@ -3595,8 +3522,6 @@ paths:
         **See also:** `GET /v1/project-header/search-for-time-tracking`, `GET /v1/project-header/search-for-time-tracking-by-customer-id-order-by-recent-registration`
 
         > **Not yet documented:** behaviour → consistency; examples; request → query params.
-      tags:
-      - Projects
       parameters:
       - name: customerID
         in: query
@@ -3743,8 +3668,6 @@ paths:
         **See also:** `GET /v1/project-header/search-for-time-tracking-order-by-recent-registration`, `GET /v1/project-header/search-for-time-tracking-by-customer-id`
 
         > **Not yet documented:** behaviour → consistency; examples; request → query params.
-      tags:
-      - Projects
       parameters:
       - name: customerID
         in: query
@@ -3892,8 +3815,6 @@ paths:
         **See also:** `GET /v1/project-header/search-for-time-tracking`, `GET /v1/customer/search-for-time-tracking-order-by-recent-registration`
 
         > **Not yet documented:** behaviour → consistency; request → query params.
-      tags:
-      - Projects
       parameters:
       - name: searchText
         in: query
@@ -4023,8 +3944,6 @@ paths:
         - Changes are visible to the next read immediately.
 
         **Next:** `POST /v1/project/validate-create-from-template`, `POST /v1/project/create-from-template`
-      tags:
-      - Projects
       responses:
         '200':
           description: |-
@@ -4103,8 +4022,6 @@ paths:
         **Next:** `GET /v1/project/{projectID}`, `PUT /v1/project/{projectID}/status`
 
         > **Not yet documented:** errors; examples.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -4197,8 +4114,6 @@ paths:
         **See also:** `GET /v1/customer`
 
         > **Not yet documented:** examples; response → empty result.
-      tags:
-      - Projects
       parameters:
       - name: customerID
         in: query
@@ -4302,8 +4217,6 @@ paths:
         **Next:** `POST /v1/project/create-from-template`
 
         > **Not yet documented:** examples.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -4373,8 +4286,6 @@ paths:
         **See also:** `GET /v1/project-header/search-for-time-tracking-order-by-recent-registration`
 
         > **Not yet documented:** examples.
-      tags:
-      - Projects
       parameters:
       - name: projectID
         in: path
@@ -4472,8 +4383,6 @@ paths:
         **See also:** `PUT /v1/project/{projectID}/status`
 
         > **Not yet documented:** behaviour → side effects; examples.
-      tags:
-      - Projects
       parameters:
       - name: projectID
         in: path
@@ -4557,8 +4466,6 @@ paths:
         **See also:** `GET /v1/time-registration/{timeRegistrationID}/external-keys`
 
         > **Not yet documented:** response → variants.
-      tags:
-      - Projects
       parameters:
       - name: projectID
         in: path
@@ -4688,8 +4595,6 @@ paths:
         **See also:** `PUT /v1/time-registration/{timeRegistrationID}/external-keys`
 
         > **Not yet documented:** examples.
-      tags:
-      - Projects
       parameters:
       - name: projectID
         in: path
@@ -4787,8 +4692,6 @@ paths:
         **See also:** `POST /v1/project/create-from-template`
 
         > **Not yet documented:** behaviour → consistency; behaviour → duplicate handling; behaviour → side effects; examples; purpose → use cases.
-      tags:
-      - Projects
       parameters:
       - name: projectID
         in: path
@@ -4857,8 +4760,6 @@ paths:
         **See also:** `PUT /v1/project/{projectID}`
 
         > **Not yet documented:** errors.
-      tags:
-      - Projects
       parameters:
       - name: projectID
         in: path
@@ -4942,8 +4843,6 @@ paths:
         **See also:** `GET /v1/task/search-for-time-tracking`
 
         > **Not yet documented:** examples; request → query params.
-      tags:
-      - Projects
       parameters:
       - name: projectID
         in: query
@@ -5101,8 +5000,6 @@ paths:
         **See also:** `POST /v1/task/validate-new-task`
 
         > **Not yet documented:** behaviour → side effects; examples; request → body.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -5219,8 +5116,6 @@ paths:
         **See also:** `POST /v1/task`
 
         > **Not yet documented:** behaviour → side effects; examples.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -5328,8 +5223,6 @@ paths:
         **See also:** `GET /v1/task`, `GET /v1/TaskType`
 
         > **Not yet documented:** request → query params.
-      tags:
-      - Projects
       parameters:
       - name: projectId
         in: query
@@ -5532,8 +5425,6 @@ paths:
         **See also:** `GET /v1/task/search-for-time-tracking`
 
         > **Not yet documented:** behaviour → consistency; request → query params.
-      tags:
-      - Projects
       parameters:
       - name: includeFavouriteOnly
         in: query
@@ -5662,8 +5553,6 @@ paths:
         **See also:** `POST /v1/time-registration`
 
         > **Not yet documented:** behaviour → consistency; examples; request → body.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -5747,8 +5636,6 @@ paths:
         **See also:** `GET /v1/task/search-by-project`, `GET /v1/task/search-for-time-tracking-by-customer-id`
 
         > **Not yet documented:** behaviour → consistency; request → query params.
-      tags:
-      - Projects
       parameters:
       - name: searchText
         in: query
@@ -5885,8 +5772,6 @@ paths:
         **See also:** `GET /v1/task/search-by-customer`, `GET /v1/project-header/search-for-time-tracking-order-by-recent-registration`
 
         > **Not yet documented:** behaviour → consistency; request → query params.
-      tags:
-      - Projects
       parameters:
       - name: searchText
         in: query
@@ -6025,8 +5910,6 @@ paths:
         **See also:** `GET /v1/task/get-recently-registered`, `GET /v1/task/search-for-time-tracking-by-customer-id`, `GET /v1/project-header/search-for-time-tracking`
 
         > **Not yet documented:** behaviour → consistency; request → query params.
-      tags:
-      - Projects
       parameters:
       - name: searchText
         in: query
@@ -6179,8 +6062,6 @@ paths:
         **See also:** `GET /v1/task/search-for-time-tracking`, `GET /v1/project-header/search-for-time-tracking-by-customer-id`
 
         > **Not yet documented:** behaviour → consistency; examples; request → query params.
-      tags:
-      - Projects
       parameters:
       - name: customerID
         in: query
@@ -6360,8 +6241,6 @@ paths:
         **See also:** `GET /v1/task/search-for-time-tracking-order-by-recent-registration`, `GET /v1/task/search-for-time-tracking-by-customer-id`, `GET /v1/project-header/search-for-time-tracking-by-customer-id-order-by-recent-registration`
 
         > **Not yet documented:** behaviour → consistency; examples; request → query params.
-      tags:
-      - Projects
       parameters:
       - name: customerID
         in: query
@@ -6530,8 +6409,6 @@ paths:
         **See also:** `GET /v1/task/search-for-time-tracking`, `GET /v1/task/search-for-time-tracking-by-project-id-order-by-recent-registration`, `GET /v1/task`
 
         > **Not yet documented:** behaviour → consistency; examples; request → query params.
-      tags:
-      - Projects
       parameters:
       - name: projectID
         in: query
@@ -6712,8 +6589,6 @@ paths:
         **See also:** `GET /v1/task/search-for-time-tracking-order-by-recent-registration`, `GET /v1/task/search-for-time-tracking-by-project-id`
 
         > **Not yet documented:** behaviour → consistency; examples; request → query params.
-      tags:
-      - Projects
       parameters:
       - name: projectID
         in: query
@@ -6881,8 +6756,6 @@ paths:
         **See also:** `GET /v1/task/travel-time-task-for-time-tracking`, `GET /v1/task/search-for-time-tracking-by-project-id`
 
         > **Not yet documented:** behaviour → consistency; examples; request → query params; response → success.
-      tags:
-      - Projects
       parameters:
       - name: projectID
         in: query
@@ -7040,8 +6913,6 @@ paths:
         **See also:** `GET /v1/task/search-for-time-tracking`, `GET /v1/task/get-recently-registered`, `GET /v1/project-header/search-for-time-tracking-order-by-recent-registration`
 
         > **Not yet documented:** behaviour → consistency; request → query params; response → success.
-      tags:
-      - Projects
       parameters:
       - name: searchText
         in: query
@@ -7198,8 +7069,6 @@ paths:
         **See also:** `GET /v1/task/search-for-time-tracking`
 
         > **Not yet documented:** examples; request → query params; response → success.
-      tags:
-      - Projects
       parameters:
       - name: projectID
         in: query
@@ -7343,8 +7212,6 @@ paths:
         **See also:** `POST /v1/task/create-sub-task`
 
         > **Not yet documented:** examples.
-      tags:
-      - Projects
       requestBody:
         required: true
         content:
@@ -7437,8 +7304,6 @@ paths:
         **See also:** `PUT /v1/task/{taskID}`
 
         > **Not yet documented:** behaviour → side effects; examples.
-      tags:
-      - Projects
       parameters:
       - name: taskID
         in: path
@@ -7523,8 +7388,6 @@ paths:
         **See also:** `GET /v1/task`
 
         > **Not yet documented:** request → query params.
-      tags:
-      - Projects
       parameters:
       - name: taskID
         in: path
@@ -7628,8 +7491,6 @@ paths:
         **See also:** `POST /v1/task/{taskID}/validate-update-task`, `POST /v1/task`, `DELETE /v1/task/{taskID}`
 
         > **Not yet documented:** behaviour → events emitted; behaviour → side effects; examples.
-      tags:
-      - Projects
       parameters:
       - name: taskID
         in: path
@@ -7731,8 +7592,6 @@ paths:
         **See also:** `POST /v1/task/{taskID}/allocation`
 
         > **Not yet documented:** errors; examples; response → default ordering; response → empty result; response → pagination → total count.
-      tags:
-      - Projects
       parameters:
       - name: taskID
         in: path
@@ -7842,8 +7701,6 @@ paths:
         **See also:** `POST /v1/task/{taskID}/allocation/validate-new-allocation`
 
         > **Not yet documented:** behaviour → consistency; behaviour → duplicate handling; behaviour → side effects; examples.
-      tags:
-      - Projects
       parameters:
       - name: taskID
         in: path
@@ -7968,8 +7825,6 @@ paths:
         **See also:** `GET /v1/task/{taskID}/allocation`
 
         > **Not yet documented:** examples.
-      tags:
-      - Projects
       parameters:
       - name: taskID
         in: path
@@ -8060,8 +7915,6 @@ paths:
         **See also:** `GET /v1/time-registration/{timeRegistrationID}/external-keys`
 
         > **Not yet documented:** related → prerequisites; response → variants.
-      tags:
-      - Projects
       parameters:
       - name: taskID
         in: path
@@ -8189,8 +8042,6 @@ paths:
         **See also:** `PUT /v1/time-registration/{timeRegistrationID}/external-keys`
 
         > **Not yet documented:** examples; related → prerequisites.
-      tags:
-      - Projects
       parameters:
       - name: taskID
         in: path
@@ -8287,8 +8138,6 @@ paths:
         **See also:** `PUT /v1/task/{taskID}`
 
         > **Not yet documented:** examples.
-      tags:
-      - Projects
       parameters:
       - name: taskID
         in: path
@@ -8375,8 +8224,6 @@ paths:
         **See also:** `POST /v1/task/validate-new-task`
 
         > **Not yet documented:** examples; purpose → description.
-      tags:
-      - Projects
       parameters:
       - name: taskID
         in: path

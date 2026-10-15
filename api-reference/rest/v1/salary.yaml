@@ -27,10 +27,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Salary and absence
-  description: Absence codes and self-service absence registration, salary accounts (payroll balances) and their postings,
-    and allowance legislations.
 paths:
   /v1/absence-code/get-recently-registered:
     get:
@@ -55,8 +51,6 @@ paths:
         **Next:** `POST /v1/absence-code/registration-by-hours`, `POST /v1/absence-code/registration-by-half-day`, `POST /v1/absence-code/registration-by-full-day`
 
         **See also:** `GET /v1/absence-code/{status}`
-      tags:
-      - Salary and absence
       parameters:
       - name: includeFavouriteOnly
         in: query
@@ -214,8 +208,6 @@ paths:
         **See also:** `POST /v1/time-registration/update-full-day-absence`, `POST /v1/absence-code/registration-by-half-day`
 
         > **Not yet documented:** behaviour → consistency; examples (success).
-      tags:
-      - Salary and absence
       requestBody:
         required: true
         content:
@@ -300,8 +292,6 @@ paths:
         **See also:** `POST /v1/time-registration/update-half-or-full-day-absence`, `POST /v1/absence-code/registration-by-full-day`
 
         > **Not yet documented:** behaviour → consistency; examples (success).
-      tags:
-      - Salary and absence
       requestBody:
         required: true
         content:
@@ -390,8 +380,6 @@ paths:
         **See also:** `POST /v1/time-registration/update-hours-absence`, `POST /v1/time-registration`, `POST /v1/absence-code/time-tracker`
 
         > **Not yet documented:** behaviour → consistency; examples (success); response (registration ID).
-      tags:
-      - Salary and absence
       requestBody:
         required: true
         content:
@@ -473,8 +461,6 @@ paths:
         **See also:** `POST /v1/time-tracker/absence/start-time-tracker`
 
         > **Not yet documented:** examples (success).
-      tags:
-      - Salary and absence
       requestBody:
         required: true
         content:
@@ -555,8 +541,6 @@ paths:
         **See also:** `GET /v1/absence-code/get-recently-registered`
 
         > **Not yet documented:** request → path params → status (names); request → query params → searchText (empty).
-      tags:
-      - Salary and absence
       parameters:
       - name: status
         in: path
@@ -760,8 +744,6 @@ paths:
         **Next:** `POST /v1/user/create`
 
         **See also:** `GET /v1/country/get-all`
-      tags:
-      - Salary and absence
       parameters:
       - name: $page
         in: query
@@ -872,8 +854,6 @@ paths:
         - Changes are visible to the next read immediately.
 
         **Next:** `POST /v1/user/create`
-      tags:
-      - Salary and absence
       parameters:
       - name: $page
         in: query
@@ -982,8 +962,6 @@ paths:
         **Next:** `GET /v1/salary-account/{salaryAccountId}/aggregation`, `POST /v1/salary-account/{salaryAccountId}/posting`
 
         **See also:** `GET /v1/absence-code/{status}`
-      tags:
-      - Salary and absence
       parameters:
       - name: $page
         in: query
@@ -1097,8 +1075,6 @@ paths:
         **See also:** `POST /v1/salary-account/{salaryAccountId}/posting`
 
         > **Not yet documented:** behaviour → consistency; examples (success).
-      tags:
-      - Salary and absence
       parameters:
       - name: salaryAccountId
         in: path
@@ -1243,8 +1219,6 @@ paths:
         **Next:** `GET /v1/salary-account/{salaryAccountId}/aggregation`
 
         > **Not yet documented:** behaviour (closed / approved periods); behaviour → consistency; examples (success).
-      tags:
-      - Salary and absence
       parameters:
       - name: salaryAccountId
         in: path
@@ -1336,8 +1310,6 @@ paths:
         - Changes are visible to the next read immediately.
 
         **Next:** `POST /v1/user/create`
-      tags:
-      - Salary and absence
       parameters:
       - name: $page
         in: query

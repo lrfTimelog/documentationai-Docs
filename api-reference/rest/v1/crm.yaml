@@ -27,9 +27,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Customers
-  description: Create, read, search and change customers, and read the customer-status and industry value sets.
 paths:
   /v1/contact:
     get:
@@ -56,8 +53,6 @@ paths:
         **See also:** `POST /v1/contact/create`
 
         > **Not yet documented:** response → pagination.
-      tags:
-      - Customers
       responses:
         '200':
           description: |-
@@ -135,8 +130,6 @@ paths:
         **See also:** `POST /v1/contact/validate-new-contact`, `GET /v1/contact`
 
         > **Not yet documented:** examples (success).
-      tags:
-      - Customers
       requestBody:
         required: true
         content:
@@ -209,8 +202,6 @@ paths:
         **Next:** `POST /v1/contact/create`
 
         > **Not yet documented:** examples (success).
-      tags:
-      - Customers
       requestBody:
         required: true
         content:
@@ -286,8 +277,6 @@ paths:
         **Next:** `GET /v1/customer/{customerID}`, `PUT /v1/customer/update`, `GET /v1/customerstatus`
 
         **See also:** `GET /v1/customer/by-number/{customerNumber}`, `GET /v1/customer/search-for-time-tracking`
-      tags:
-      - Customers
       parameters:
       - name: $page
         in: query
@@ -376,8 +365,6 @@ paths:
         **See also:** `GET /v1/customer`
 
         > **Not yet documented:** examples (success); request → path params; response → default ordering.
-      tags:
-      - Customers
       parameters:
       - name: customerNumber
         in: path
@@ -482,8 +469,6 @@ paths:
         **See also:** `POST /v1/customer/validate-new-customer`
 
         > **Not yet documented:** examples (success).
-      tags:
-      - Customers
       requestBody:
         required: true
         content:
@@ -586,8 +571,6 @@ paths:
         **See also:** `GET /v1/customer/search-for-time-tracking-order-by-recent-registration`
 
         > **Not yet documented:** behaviour → consistency.
-      tags:
-      - Customers
       parameters:
       - name: searchText
         in: query
@@ -707,8 +690,6 @@ paths:
         **See also:** `GET /v1/customer/search-for-time-tracking-order-by-recent-registration`, `GET /v1/customer/search-for-expense-travel-registration-order-by-recent-registration`
 
         > **Not yet documented:** behaviour → consistency; request → query params.
-      tags:
-      - Customers
       parameters:
       - name: searchText
         in: query
@@ -821,8 +802,6 @@ paths:
         **See also:** `GET /v1/customer/search-for-time-tracking`, `GET /v1/customer/search-for-expense-travel-registration-order-by-recent-registration`
 
         > **Not yet documented:** behaviour → consistency.
-      tags:
-      - Customers
       parameters:
       - name: searchText
         in: query
@@ -942,8 +921,6 @@ paths:
         **See also:** `POST /v1/customer/create`
 
         > **Not yet documented:** examples (success).
-      tags:
-      - Customers
       requestBody:
         required: true
         content:
@@ -1040,8 +1017,6 @@ paths:
         **Next:** `POST /v1/customer/create`
 
         > **Not yet documented:** examples (success).
-      tags:
-      - Customers
       requestBody:
         required: true
         content:
@@ -1135,8 +1110,6 @@ paths:
         **See also:** `GET /v1/customer/by-number/{customerNumber}`
 
         > **Not yet documented:** examples (success).
-      tags:
-      - Customers
       parameters:
       - name: customerID
         in: path
@@ -1215,8 +1188,6 @@ paths:
         - Changes are visible to the next read immediately.
 
         **Next:** `POST /v1/customer/create`, `PUT /v1/customer/update`
-      tags:
-      - Customers
       parameters:
       - name: $page
         in: query
@@ -1338,8 +1309,6 @@ paths:
         - Changes are visible to the next read immediately.
 
         **Next:** `POST /v1/customer/create`, `PUT /v1/customer/update`
-      tags:
-      - Customers
       parameters:
       - name: $page
         in: query

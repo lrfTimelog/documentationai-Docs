@@ -25,9 +25,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Dashboard widgets and reports
-  description: Enums are strings (member names) in v2 responses.
 paths:
   /v2/insights-service/hour-kpi-per-month-hours-only:
     get:
@@ -47,8 +44,6 @@ paths:
         - Read-after-write consistency: not yet documented.
 
         > **Not yet documented:** behaviour; examples; purpose → description; response → default ordering; response → empty result; response → pagination; response → success.
-      tags:
-      - Dashboard widgets and reports
       responses:
         '200':
           description: |-
@@ -120,8 +115,6 @@ paths:
         - Read-after-write consistency: not yet documented.
 
         > **Not yet documented:** behaviour; examples; purpose → description; response → default ordering; response → empty result; response → pagination; response → success; transport → upstream.
-      tags:
-      - Dashboard widgets and reports
       responses:
         '200':
           description: |-
@@ -201,8 +194,6 @@ paths:
         - Read-after-write consistency: not yet documented.
 
         > **Not yet documented:** behaviour; examples; purpose → description; response → default ordering; response → empty result; response → pagination; response → success.
-      tags:
-      - Dashboard widgets and reports
       responses:
         '200':
           description: |-
@@ -275,8 +266,6 @@ paths:
         **See also:** `GET /v2/widget-data/time-registration-accuracy`
 
         > **Not yet documented:** behaviour; examples; purpose → description; response → default ordering; response → empty result; response → pagination; response → success.
-      tags:
-      - Dashboard widgets and reports
       responses:
         '200':
           description: |-
@@ -348,8 +337,6 @@ paths:
         - Read-after-write consistency: not yet documented.
 
         > **Not yet documented:** behaviour; examples; purpose → description; response → default ordering; response → empty result; response → pagination; response → success.
-      tags:
-      - Dashboard widgets and reports
       responses:
         '200':
           description: |-
@@ -429,8 +416,6 @@ paths:
         - Changes are visible to the next read immediately.
 
         **See also:** `GET /v2/projects`
-      tags:
-      - Dashboard widgets and reports
       requestBody:
         required: true
         content:
@@ -507,8 +492,6 @@ paths:
         **See also:** `GET /v2/widget-data/external-percentage`, `GET /v1/time-registration-financial-data/get-by-date-range`
 
         > **Not yet documented:** examples; purpose → description.
-      tags:
-      - Dashboard widgets and reports
       parameters:
       - name: currentDate
         in: query
@@ -594,8 +577,6 @@ paths:
         **See also:** `GET /v2/widget-data/billable-percentage`, `GET /v2/widget/all-active-widgets`
 
         > **Not yet documented:** examples.
-      tags:
-      - Dashboard widgets and reports
       parameters:
       - name: currentDate
         in: query
@@ -684,8 +665,6 @@ paths:
         **See also:** `GET /v2/widget-data/external-percentage`, `GET /v2/widget-data/billable-percentage`
 
         > **Not yet documented:** errors; examples.
-      tags:
-      - Dashboard widgets and reports
       parameters:
       - name: startDate
         in: query
@@ -789,8 +768,6 @@ paths:
         **Next:** `GET /v2/widget-data/billable-percentage`, `GET /v2/widget-data/external-percentage`
 
         > **Not yet documented:** purpose → description.
-      tags:
-      - Dashboard widgets and reports
       responses:
         '200':
           description: |-

@@ -27,9 +27,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Roles and privileges
-  description: List roles, add or remove a privilege on a role, and read the calling user's data-scope privileges.
 paths:
   /v1/privilege/user-privileges:
     get:
@@ -53,8 +50,6 @@ paths:
         - Safe to retry.
 
         **See also:** `GET /v1/user-setting`, `GET /v1/user/me`
-      tags:
-      - Roles and privileges
       responses:
         '200':
           description: |-
@@ -128,8 +123,6 @@ paths:
         **See also:** `POST /v1/role`
 
         > **Not yet documented:** errors; examples (success).
-      tags:
-      - Roles and privileges
       parameters:
       - name: roleId
         in: query
@@ -220,8 +213,6 @@ paths:
         - Changes are visible to the next read immediately.
 
         **Next:** `POST /v1/user/create`, `PUT /v1/user`, `POST /v1/role`
-      tags:
-      - Roles and privileges
       parameters:
       - name: $page
         in: query
@@ -320,8 +311,6 @@ paths:
         **See also:** `DELETE /v1/role`, `GET /v1/privilege/user-privileges`
 
         > **Not yet documented:** behaviour → consistency; examples (success).
-      tags:
-      - Roles and privileges
       requestBody:
         required: true
         content:

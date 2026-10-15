@@ -27,12 +27,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Expenses
-  description: Employee expenses (out-of-pocket costs to reimburse) with their receipts, project expenses (company costs such
-    as supplier invoices booked on projects), mileage (car travel) registrations, expense types, the caller's expense totals,
-    the address helpers of the mobile mileage form, and the lookups behind them (mileage rates, payment methods, product numbers,
-    the product catalogue).
 paths:
   /v1/address/home-work:
     get:
@@ -58,8 +52,6 @@ paths:
         **Next:** `POST /v1/mileage-registration`
 
         **See also:** `GET /v1/address/search`
-      tags:
-      - Expenses
       responses:
         '200':
           description: |-
@@ -176,8 +168,6 @@ paths:
         **See also:** `GET /v1/address/home-work`
 
         > **Not yet documented:** examples; request → cross field rules; response → variants.
-      tags:
-      - Expenses
       parameters:
       - name: projectId
         in: query
@@ -307,8 +297,6 @@ paths:
         **Next:** `GET /v1/employee-expense/{employeeExpenseID}`, `PUT /v1/employee-expense`
 
         > **Not yet documented:** request → query params → $expand.
-      tags:
-      - Expenses
       parameters:
       - name: userID
         in: query
@@ -476,8 +464,6 @@ paths:
         **See also:** `POST /v1/project-header/employee-expense`
 
         > **Not yet documented:** examples.
-      tags:
-      - Expenses
       requestBody:
         required: true
         content:
@@ -607,8 +593,6 @@ paths:
         **See also:** `DELETE /v1/employee-expense/{employeeExpenseID}`
 
         > **Not yet documented:** behaviour → side effects; examples.
-      tags:
-      - Expenses
       requestBody:
         required: true
         content:
@@ -699,8 +683,6 @@ paths:
         **See also:** `GET /v1/employee-expense-financial-data/get-by-date-range`
 
         > **Not yet documented:** examples; request → query params.
-      tags:
-      - Expenses
       parameters:
       - name: startDate
         in: query
@@ -807,8 +789,6 @@ paths:
         **See also:** `GET /v1/employee-expense-financial-data/get-by-date-range`, `GET /v1/employee-expense-financial-data/get-all-time-total`, `GET /v1/time-registration-financial-data/get-by-date`
 
         > **Not yet documented:** examples; response → empty result.
-      tags:
-      - Expenses
       parameters:
       - name: date
         in: query
@@ -903,8 +883,6 @@ paths:
         **See also:** `GET /v1/employee-expense-financial-data/get-all-time-total`, `GET /v1/time-registration-financial-data/get-by-date-range`
 
         > **Not yet documented:** examples; response → empty result.
-      tags:
-      - Expenses
       parameters:
       - name: startDate
         in: query
@@ -1045,8 +1023,6 @@ paths:
         **See also:** `DELETE /v1/employee-expense/{employeeExpenseID}/image`, `DELETE /v1/employee-expense/{employeeExpenseID}/file`
 
         > **Not yet documented:** examples.
-      tags:
-      - Expenses
       parameters:
       - name: employeeExpenseID
         in: path
@@ -1138,8 +1114,6 @@ paths:
         **Next:** `PUT /v1/employee-expense`, `POST /v1/employee-expense/{employeeExpenseID}/image`, `DELETE /v1/employee-expense/{employeeExpenseID}/image`
 
         > **Not yet documented:** request → query params → $expand.
-      tags:
-      - Expenses
       parameters:
       - name: employeeExpenseID
         in: path
@@ -1261,8 +1235,6 @@ paths:
         **See also:** `DELETE /v1/employee-expense/{employeeExpenseID}/image`
 
         > **Not yet documented:** examples.
-      tags:
-      - Expenses
       parameters:
       - name: employeeExpenseID
         in: path
@@ -1350,8 +1322,6 @@ paths:
         **See also:** `POST /v1/employee-expense/{employeeExpenseID}/image`, `DELETE /v1/employee-expense/{employeeExpenseID}/file`
 
         > **Not yet documented:** examples; request → body → multipart → formats.
-      tags:
-      - Expenses
       parameters:
       - name: employeeExpenseID
         in: path
@@ -1442,8 +1412,6 @@ paths:
         **See also:** `DELETE /v1/employee-expense/{employeeExpenseID}/file`
 
         > **Not yet documented:** examples.
-      tags:
-      - Expenses
       parameters:
       - name: employeeExpenseID
         in: path
@@ -1532,8 +1500,6 @@ paths:
         **See also:** `POST /v1/employee-expense/{employeeExpenseID}/file`, `DELETE /v1/employee-expense/{employeeExpenseID}/image`
 
         > **Not yet documented:** behaviour → side effects on failure; examples; request → body → multipart → formats.
-      tags:
-      - Expenses
       parameters:
       - name: employeeExpenseID
         in: path
@@ -1618,8 +1584,6 @@ paths:
         **See also:** `GET /v1/expense-type/{status}`
 
         > **Not yet documented:** examples.
-      tags:
-      - Expenses
       parameters:
       - name: legalEntityId
         in: query
@@ -1753,8 +1717,6 @@ paths:
         **See also:** `GET /v1/expense-type/all/list`
 
         > **Not yet documented:** request → path params.
-      tags:
-      - Expenses
       parameters:
       - name: status
         in: path
@@ -1884,8 +1846,6 @@ paths:
         **See also:** `GET /v1/currency/{status}`
 
         > **Not yet documented:** purpose → not for.
-      tags:
-      - Expenses
       parameters:
       - name: $page
         in: query
@@ -1975,8 +1935,6 @@ paths:
         **Call first:** `GET /v1/mileage-rate`
 
         **See also:** `GET /v1/mileage-registration/{mileageRegistrationID}`
-      tags:
-      - Expenses
       parameters:
       - name: mileageRateID
         in: path
@@ -2087,8 +2045,6 @@ paths:
         **See also:** `GET /v1/employee-expense`
 
         > **Not yet documented:** errors.
-      tags:
-      - Expenses
       parameters:
       - name: startDate
         in: query
@@ -2239,8 +2195,6 @@ paths:
         **See also:** `POST /v1/project-header/mileage-registration`
 
         > **Not yet documented:** behaviour → side effects on failure; examples.
-      tags:
-      - Expenses
       requestBody:
         required: true
         content:
@@ -2379,8 +2333,6 @@ paths:
         **See also:** `DELETE /v1/mileage-registration/{mileageRegistrationID}`
 
         > **Not yet documented:** examples.
-      tags:
-      - Expenses
       parameters:
       - name: deleteTravelTimeRegistration
         in: query
@@ -2497,8 +2449,6 @@ paths:
         **See also:** `DELETE /v1/time-registration/{id}`
 
         > **Not yet documented:** behaviour → side effects; examples.
-      tags:
-      - Expenses
       parameters:
       - name: mileageRegistrationID
         in: path
@@ -2607,8 +2557,6 @@ paths:
         **See also:** `GET /v1/employee-expense/{employeeExpenseID}`
 
         > **Not yet documented:** request → query params → $expand.
-      tags:
-      - Expenses
       parameters:
       - name: mileageRegistrationID
         in: path
@@ -2720,8 +2668,6 @@ paths:
         **Next:** `POST /v1/employee-expense`, `POST /v1/project-expense`
 
         > **Not yet documented:** request → path params.
-      tags:
-      - Expenses
       parameters:
       - name: status
         in: path
@@ -2846,8 +2792,6 @@ paths:
         - Changes are visible to the next read immediately.
 
         **See also:** `GET /v1/project-product`
-      tags:
-      - Expenses
       parameters:
       - name: $page
         in: query
@@ -2941,8 +2885,6 @@ paths:
         **See also:** `GET /v1/employee-expense`, `POST /v1/project-expense`
 
         > **Not yet documented:** examples; request → query params.
-      tags:
-      - Expenses
       parameters:
       - name: projectID
         in: query
@@ -3085,8 +3027,6 @@ paths:
         **See also:** `POST /v1/employee-expense`
 
         > **Not yet documented:** errors; examples.
-      tags:
-      - Expenses
       requestBody:
         required: true
         content:
@@ -3203,8 +3143,6 @@ paths:
         **Next:** `POST /v1/project-expense`
 
         > **Not yet documented:** examples.
-      tags:
-      - Expenses
       requestBody:
         required: true
         content:
@@ -3290,8 +3228,6 @@ paths:
         **See also:** `GET /v1/employee-expense/{employeeExpenseID}`
 
         > **Not yet documented:** examples.
-      tags:
-      - Expenses
       parameters:
       - name: expenseID
         in: path
@@ -3384,8 +3320,6 @@ paths:
         **See also:** `DELETE /v1/project-expense/{expenseID}/image`, `DELETE /v1/employee-expense/{employeeExpenseID}/file`
 
         > **Not yet documented:** examples.
-      tags:
-      - Expenses
       parameters:
       - name: expenseID
         in: path
@@ -3482,8 +3416,6 @@ paths:
         **See also:** `POST /v1/project-expense/{expenseID}/image`, `DELETE /v1/project-expense/{expenseID}/file`, `POST /v1/employee-expense/{employeeExpenseID}/file`
 
         > **Not yet documented:** examples.
-      tags:
-      - Expenses
       parameters:
       - name: expenseID
         in: path
@@ -3568,8 +3500,6 @@ paths:
         **See also:** `DELETE /v1/project-expense/{expenseID}/file`, `POST /v1/project-expense/{expenseID}/image`
 
         > **Not yet documented:** examples.
-      tags:
-      - Expenses
       parameters:
       - name: expenseID
         in: path
@@ -3663,8 +3593,6 @@ paths:
         **See also:** `POST /v1/project-expense/{expenseID}/file`, `DELETE /v1/project-expense/{expenseID}/image`, `POST /v1/employee-expense/{employeeExpenseID}/image`
 
         > **Not yet documented:** examples; request → body → multipart → formats.
-      tags:
-      - Expenses
       parameters:
       - name: expenseID
         in: path
@@ -3745,8 +3673,6 @@ paths:
         - Changes are visible to the next read immediately.
 
         **See also:** `GET /v1/product`, `GET /v1/expense-type/all/list`, `GET /v1/payment-method/{status}`
-      tags:
-      - Expenses
       parameters:
       - name: $page
         in: query

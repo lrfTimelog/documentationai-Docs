@@ -27,10 +27,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Integrations
-  description: Register the external systems your keys belong to, and record sync conflicts TimeLog cannot resolve on its
-    own.
 paths:
   /v1/external-systems:
     get:
@@ -58,8 +54,6 @@ paths:
         **Next:** `GET /v1/external-systems/{externalSystemID}`, `POST /v1/external-systems`
 
         **See also:** `PUT /v1/time-registration/{timeRegistrationID}/external-keys`, `PUT /v1/project/{projectID}/external-keys`, `PUT /v1/task/{taskID}/external-keys`
-      tags:
-      - Integrations
       parameters:
       - name: $page
         in: query
@@ -149,8 +143,6 @@ paths:
         **See also:** `PUT /v1/external-systems/{externalSystemID}`
 
         > **Not yet documented:** examples (success).
-      tags:
-      - Integrations
       requestBody:
         required: true
         content:
@@ -240,8 +232,6 @@ paths:
         **Next:** `PUT /v1/external-systems/{externalSystemID}`
 
         > **Not yet documented:** examples (success).
-      tags:
-      - Integrations
       parameters:
       - name: externalSystemID
         in: path
@@ -331,8 +321,6 @@ paths:
         **See also:** `POST /v1/external-systems`
 
         > **Not yet documented:** examples (success).
-      tags:
-      - Integrations
       parameters:
       - name: externalSystemID
         in: path
@@ -443,8 +431,6 @@ paths:
         **See also:** `POST /v1/integration-conflicts`
 
         > **Not yet documented:** errors.
-      tags:
-      - Integrations
       parameters:
       - name: conflictStatusType
         in: query
@@ -554,8 +540,6 @@ paths:
         **See also:** `GET /v1/integration-conflicts`
 
         > **Not yet documented:** behaviour → events emitted; examples (success).
-      tags:
-      - Integrations
       requestBody:
         required: true
         content:
@@ -630,8 +614,6 @@ paths:
         **See also:** `POST /v1/integration-conflicts`
 
         > **Not yet documented:** examples (success).
-      tags:
-      - Integrations
       parameters:
       - name: integrationConflictID
         in: path

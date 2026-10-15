@@ -27,10 +27,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Users and organisation
-  description: Read and create users, change a user's name, licence, roles and approval manager, and read legal entities,
-    departments and daily employee norms.
 paths:
   /v1/department:
     get:
@@ -53,8 +49,6 @@ paths:
         **Next:** `POST /v1/user/create`
 
         **See also:** `GET /v1/legal-entity`
-      tags:
-      - Users and organisation
       parameters:
       - name: $page
         in: query
@@ -143,8 +137,6 @@ paths:
         **See also:** `GET /v1/user`, `GET /v1/time-registration/{timeRegistrationID}`
 
         > **Not yet documented:** behaviour → consistency detail; examples (success); request → query params → description.
-      tags:
-      - Users and organisation
       parameters:
       - name: startDate
         in: query
@@ -308,8 +300,6 @@ paths:
         **See also:** `GET /v1/legal-entity/system`, `GET /v1/currency/{status}`
 
         > **Not yet documented:** examples.
-      tags:
-      - Users and organisation
       parameters:
       - name: $page
         in: query
@@ -399,8 +389,6 @@ paths:
         **See also:** `GET /v1/legal-entity`, `GET /v1/legal-entity/{legalEntityId}`
 
         > **Not yet documented:** behaviour → consistency detail.
-      tags:
-      - Users and organisation
       responses:
         '200':
           description: The object, wrapped in the TAF envelope (`Properties`). The system legal entity, with a self link to
@@ -449,8 +437,6 @@ paths:
         **Call first:** `GET /v1/legal-entity`
 
         **See also:** `GET /v1/legal-entity/system`
-      tags:
-      - Users and organisation
       parameters:
       - name: legalEntityId
         in: path
@@ -547,8 +533,6 @@ paths:
         **Next:** `GET /v1/user/{id}`, `PUT /v1/user`
 
         **See also:** `GET /v1/user/me`, `GET /v1/legal-entity`
-      tags:
-      - Users and organisation
       parameters:
       - name: $page
         in: query
@@ -649,8 +633,6 @@ paths:
         **Next:** `GET /v1/user/{id}`
 
         > **Not yet documented:** behaviour → events emitted; examples (success).
-      tags:
-      - Users and organisation
       requestBody:
         required: true
         content:
@@ -746,8 +728,6 @@ paths:
         **Next:** `GET /v1/user/{id}`, `PUT /v1/user`
 
         > **Not yet documented:** behaviour → events emitted; behaviour → side effects; examples.
-      tags:
-      - Users and organisation
       requestBody:
         required: true
         content:
@@ -873,8 +853,6 @@ paths:
         **See also:** `GET /v1/user/{id}`
 
         > **Not yet documented:** purpose → description.
-      tags:
-      - Users and organisation
       responses:
         '200':
           description: The object, wrapped in the TAF envelope (`Properties`). The caller's user. The self link points to
@@ -952,8 +930,6 @@ paths:
         **Next:** `POST /v1/user/create`
 
         > **Not yet documented:** examples (success).
-      tags:
-      - Users and organisation
       requestBody:
         required: true
         content:
@@ -1100,8 +1076,6 @@ paths:
         **Next:** `PUT /v1/user`
 
         **See also:** `GET /v1/user/me`
-      tags:
-      - Users and organisation
       parameters:
       - name: id
         in: path

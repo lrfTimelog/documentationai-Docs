@@ -27,9 +27,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Time registrations
-  description: Register, read, change and delete time and absence registered by employees.
 paths:
   /v2/time-tracker/active:
     get:
@@ -53,8 +50,6 @@ paths:
         **See also:** `GET /v1/time-tracker/active-time-tracker`
 
         > **Not yet documented:** examples (populated); response → variants.
-      tags:
-      - Time registrations
       parameters:
       - name: $expand
         in: query
@@ -150,8 +145,6 @@ paths:
         **See also:** `POST /v1/time-registration/stop-time-tracker/{timeTrackerId}`
 
         > **Not yet documented:** behaviour → consistency; examples (success); response → success.
-      tags:
-      - Time registrations
       parameters:
       - name: timeTrackerId
         in: path

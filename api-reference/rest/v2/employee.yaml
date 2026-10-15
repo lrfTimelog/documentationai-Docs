@@ -25,9 +25,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Employee
-  description: Enums are strings (member names) in v2 responses.
 paths:
   /v2/competence-groups:
     get:
@@ -53,8 +50,6 @@ paths:
         **Next:** `PUT /v2/competence-groups`, `DELETE /v2/competence-groups/{id}`, `POST /v2/competences`
 
         **See also:** `GET /v2/competences/by-group`
-      tags:
-      - Employee
       responses:
         '200':
           description: |-
@@ -136,8 +131,6 @@ paths:
         **See also:** `PUT /v2/competence-groups`
 
         > **Not yet documented:** examples.
-      tags:
-      - Employee
       requestBody:
         required: true
         content:
@@ -208,8 +201,6 @@ paths:
         **See also:** `POST /v2/competence-groups`, `DELETE /v2/competence-groups/{id}`
 
         > **Not yet documented:** behaviour → side effects; examples.
-      tags:
-      - Employee
       requestBody:
         required: true
         content:
@@ -279,8 +270,6 @@ paths:
         **See also:** `DELETE /v2/competences/{id}`, `PUT /v2/competences`
 
         > **Not yet documented:** examples.
-      tags:
-      - Employee
       parameters:
       - name: id
         in: path
@@ -364,8 +353,6 @@ paths:
         **See also:** `GET /v2/competences/by-group`
 
         > **Not yet documented:** request → query params.
-      tags:
-      - Employee
       parameters:
       - name: searchText
         in: query
@@ -498,8 +485,6 @@ paths:
         **See also:** `PUT /v2/competences`
 
         > **Not yet documented:** examples.
-      tags:
-      - Employee
       requestBody:
         required: true
         content:
@@ -571,8 +556,6 @@ paths:
         **See also:** `POST /v2/competences`, `DELETE /v2/competences/{id}`
 
         > **Not yet documented:** examples.
-      tags:
-      - Employee
       requestBody:
         required: true
         content:
@@ -638,8 +621,6 @@ paths:
         **Next:** `POST /v2/competences`
 
         **See also:** `GET /v2/competences`
-      tags:
-      - Employee
       parameters:
       - name: searchText
         in: query
@@ -775,8 +756,6 @@ paths:
         **See also:** `PUT /v2/competences`, `DELETE /v2/employee-competences/bulk`
 
         > **Not yet documented:** examples.
-      tags:
-      - Employee
       parameters:
       - name: id
         in: path
@@ -862,8 +841,6 @@ paths:
         **See also:** `GET /v2/employee-competences/available`, `GET /v2/competences`
 
         > **Not yet documented:** errors; examples; response → default ordering.
-      tags:
-      - Employee
       parameters:
       - name: userId
         in: query
@@ -989,8 +966,6 @@ paths:
         **See also:** `POST /v2/employee-competences/bulk`
 
         > **Not yet documented:** errors; examples.
-      tags:
-      - Employee
       requestBody:
         required: true
         content:
@@ -1066,8 +1041,6 @@ paths:
         **See also:** `POST /v2/employee-competences`
 
         > **Not yet documented:** examples.
-      tags:
-      - Employee
       requestBody:
         required: true
         content:
@@ -1141,8 +1114,6 @@ paths:
         **See also:** `GET /v2/employee-competences`
 
         > **Not yet documented:** examples; request → query params.
-      tags:
-      - Employee
       parameters:
       - name: userId
         in: query
@@ -1272,8 +1243,6 @@ paths:
         **See also:** `DELETE /v2/employee-competences/{id}`
 
         > **Not yet documented:** examples.
-      tags:
-      - Employee
       parameters:
       - name: userId
         in: query
@@ -1382,8 +1351,6 @@ paths:
         **See also:** `POST /v2/employee-competences`
 
         > **Not yet documented:** errors; examples.
-      tags:
-      - Employee
       requestBody:
         required: true
         content:
@@ -1465,8 +1432,6 @@ paths:
         **Call first:** `GET /v2/employee-competences`
 
         **See also:** `DELETE /v2/employee-competences/bulk`
-      tags:
-      - Employee
       parameters:
       - name: id
         in: path

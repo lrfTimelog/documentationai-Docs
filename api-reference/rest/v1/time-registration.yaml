@@ -27,9 +27,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Time registrations
-  description: Register, read, change and delete time and absence registered by employees.
 paths:
   /v1/time-registration:
     post:
@@ -66,8 +63,6 @@ paths:
         **See also:** `PUT /v1/time-registration`
 
         > **Not yet documented:** behaviour → consistency; examples (success).
-      tags:
-      - Time registrations
       requestBody:
         required: true
         content:
@@ -146,8 +141,6 @@ paths:
         **Next:** `GET /v1/time-registration/{timeRegistrationID}`
 
         > **Not yet documented:** examples.
-      tags:
-      - Time registrations
       requestBody:
         required: true
         content:
@@ -211,8 +204,6 @@ paths:
         **See also:** `GET /v1/time-registration-financial-data/get-by-date-range`
 
         > **Not yet documented:** errors; examples (success); response → success (no legal entity currency).
-      tags:
-      - Time registrations
       parameters:
       - name: date
         in: query
@@ -291,8 +282,6 @@ paths:
         **Call first:** `GET /v1/time-registration-financial-data/get-status-by-date-range`
 
         > **Not yet documented:** examples (success); request → query params.
-      tags:
-      - Time registrations
       parameters:
       - name: startDate
         in: query
@@ -420,8 +409,6 @@ paths:
         **Next:** `GET /v1/time-registration-financial-data/get-by-date`
 
         > **Not yet documented:** errors → internal-error; examples (success).
-      tags:
-      - Time registrations
       parameters:
       - name: date
         in: query
@@ -503,8 +490,6 @@ paths:
         **Next:** `GET /v1/time-registration-financial-data/get-by-date-range`
 
         > **Not yet documented:** examples (success); request → query params.
-      tags:
-      - Time registrations
       parameters:
       - name: startDate
         in: query
@@ -654,8 +639,6 @@ paths:
         **See also:** `POST /v1/time-registration`
 
         > **Not yet documented:** behaviour → consistency; examples (success).
-      tags:
-      - Time registrations
       requestBody:
         required: true
         content:
@@ -734,8 +717,6 @@ paths:
         **Next:** `GET /v1/time-registration/{timeRegistrationID}`
 
         > **Not yet documented:** behaviour → consistency; examples (success).
-      tags:
-      - Time registrations
       parameters:
       - name: timeTrackerId
         in: path
@@ -819,8 +800,6 @@ paths:
         **See also:** `POST /v1/time-registration/update-half-or-full-day-absence`
 
         > **Not yet documented:** behaviour → consistency; examples (success).
-      tags:
-      - Time registrations
       requestBody:
         required: true
         content:
@@ -890,8 +869,6 @@ paths:
         **See also:** `POST /v1/time-registration/update-full-day-absence`
 
         > **Not yet documented:** behaviour → consistency; examples (success).
-      tags:
-      - Time registrations
       requestBody:
         required: true
         content:
@@ -968,8 +945,6 @@ paths:
         **See also:** `POST /v1/time-registration/update-half-or-full-day-absence`
 
         > **Not yet documented:** behaviour → consistency; examples (success).
-      tags:
-      - Time registrations
       requestBody:
         required: true
         content:
@@ -1055,8 +1030,6 @@ paths:
         **See also:** `PUT /v1/time-registration`
 
         > **Not yet documented:** behaviour → consistency; examples (success).
-      tags:
-      - Time registrations
       requestBody:
         required: true
         content:
@@ -1134,8 +1107,6 @@ paths:
         **Next:** `POST /v1/time-registration/import`
 
         > **Not yet documented:** behaviour → consistency; examples (success).
-      tags:
-      - Time registrations
       requestBody:
         required: true
         content:
@@ -1205,8 +1176,6 @@ paths:
         - Side effect: External keys of the registration are NOT removed (orphaned).
 
         > **Not yet documented:** examples.
-      tags:
-      - Time registrations
       parameters:
       - name: id
         in: path
@@ -1260,8 +1229,6 @@ paths:
         - Safe to retry.
 
         > **Not yet documented:** examples (success).
-      tags:
-      - Time registrations
       parameters:
       - name: timeRegistrationID
         in: path
@@ -1330,8 +1297,6 @@ paths:
         - Safe to retry.
 
         > **Not yet documented:** examples; transport → variants → selector.
-      tags:
-      - Time registrations
       parameters:
       - name: timeRegistrationID
         in: path
@@ -1431,8 +1396,6 @@ paths:
         - Duplicates: The same ExternalID can be stored on several registrations without error.
 
         > **Not yet documented:** examples.
-      tags:
-      - Time registrations
       parameters:
       - name: timeRegistrationID
         in: path
@@ -1498,8 +1461,6 @@ paths:
         **Next:** `GET /v1/time-tracker/{timeTrackerID}`, `POST /v1/time-registration/stop-time-tracker/{timeTrackerId}`, `DELETE /v1/time-tracker/{timeTrackerID}`
 
         > **Not yet documented:** request → query params.
-      tags:
-      - Time registrations
       parameters:
       - name: $page
         in: query
@@ -1594,8 +1555,6 @@ paths:
         **See also:** `POST /v1/time-tracker/task/start-time-tracker`, `POST /v1/time-tracker/absence/start-time-tracker`
 
         > **Not yet documented:** behaviour → consistency; behaviour → side effects on failure.
-      tags:
-      - Time registrations
       requestBody:
         required: true
         content:
@@ -1670,8 +1629,6 @@ paths:
         **Next:** `POST /v1/time-registration/stop-time-tracker/{timeTrackerId}`
 
         > **Not yet documented:** examples (success).
-      tags:
-      - Time registrations
       requestBody:
         required: true
         content:
@@ -1731,8 +1688,6 @@ paths:
         **Next:** `POST /v1/time-registration/stop-time-tracker/{timeTrackerId}`, `GET /v1/time-tracker/active-time-tracker`
 
         > **Not yet documented:** behaviour (linked project registration); examples (success).
-      tags:
-      - Time registrations
       requestBody:
         required: true
         content:
@@ -1817,8 +1772,6 @@ paths:
         **Next:** `POST /v1/time-registration/stop-time-tracker/{timeTrackerId}`, `PUT /v1/time-tracker`
 
         > **Not yet documented:** examples (populated).
-      tags:
-      - Time registrations
       parameters:
       - name: $expand
         in: query
@@ -1890,8 +1843,6 @@ paths:
         **Next:** `POST /v1/time-registration/stop-time-tracker/{timeTrackerId}`, `GET /v1/time-tracker/active-time-tracker`
 
         > **Not yet documented:** errors; examples (success).
-      tags:
-      - Time registrations
       requestBody:
         required: true
         content:
@@ -1994,8 +1945,6 @@ paths:
         **See also:** `POST /v1/time-registration/stop-time-tracker/{timeTrackerId}`
 
         > **Not yet documented:** examples (success).
-      tags:
-      - Time registrations
       parameters:
       - name: timeTrackerID
         in: path
@@ -2048,8 +1997,6 @@ paths:
         **Call first:** `GET /v1/time-tracker`
 
         > **Not yet documented:** examples (success); request → query params.
-      tags:
-      - Time registrations
       parameters:
       - name: timeTrackerID
         in: path

@@ -25,9 +25,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Navigation (menus, bookmarks, pages, filters)
-  description: Enums are strings (member names) in v2 responses.
 paths:
   /v2/bookmarks:
     get:
@@ -54,8 +51,6 @@ paths:
         **See also:** `POST /v2/bookmarks`
 
         > **Not yet documented:** behaviour → consistency.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       responses:
         '200':
           description: |-
@@ -142,8 +137,6 @@ paths:
         **See also:** `DELETE /v2/bookmarks/{bookmarkId}`
 
         > **Not yet documented:** examples.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: Referer
         in: header
@@ -245,8 +238,6 @@ paths:
         **See also:** `POST /v2/bookmarks`
 
         > **Not yet documented:** examples.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: bookmarkId
         in: path
@@ -335,8 +326,6 @@ paths:
         **See also:** `GET /v2/filters/project-manager/content`
 
         > **Not yet documented:** examples; purpose → description.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -467,8 +456,6 @@ paths:
         **See also:** `GET /v2/filters/project-manager/content`
 
         > **Not yet documented:** examples.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -589,8 +576,6 @@ paths:
         **Call first:** `GET /v2/filters/list/{pageIdentifier}`
 
         > **Not yet documented:** examples.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -722,8 +707,6 @@ paths:
         **Call first:** `GET /v2/filters/list/{pageIdentifier}`, `GET /v2/filters/customer/content`
 
         > **Not yet documented:** examples; request → query params → multiple → max items.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -860,8 +843,6 @@ paths:
         **See also:** `GET /v2/filters/contract-status/content`
 
         > **Not yet documented:** examples.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -978,8 +959,6 @@ paths:
         **See also:** `GET /v2/filters/contract-model/content`
 
         > **Not yet documented:** examples.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -1099,8 +1078,6 @@ paths:
         **See also:** `GET /v2/filters/account-manager/content`, `GET /v2/filters/customer/content`
 
         > **Not yet documented:** examples; purpose → description.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -1228,8 +1205,6 @@ paths:
         **See also:** `GET /v1/customer`
 
         > **Not yet documented:** examples.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -1357,8 +1332,6 @@ paths:
         **See also:** `GET /v2/filters/project/content`
 
         > **Not yet documented:** examples.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -1457,8 +1430,6 @@ paths:
         **See also:** `GET /v2/filters/project/content`
 
         > **Not yet documented:** examples.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -1572,8 +1543,6 @@ paths:
         **Next:** `GET /v2/filters/employee/content`
 
         > **Not yet documented:** examples.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -1703,8 +1672,6 @@ paths:
         **See also:** `GET /v1/user`
 
         > **Not yet documented:** examples; purpose → description; request → query params.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -1915,8 +1882,6 @@ paths:
         **See also:** `GET /v2/filters/project/content`
 
         > **Not yet documented:** examples.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -2030,8 +1995,6 @@ paths:
         **See also:** `GET /v2/filters/project/content`
 
         > **Not yet documented:** examples.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -2145,8 +2108,6 @@ paths:
         **See also:** `GET /v2/filters/project/content`
 
         > **Not yet documented:** examples.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -2248,8 +2209,6 @@ paths:
         **Next:** `GET /v2/filters/project/content`, `GET /v2/filters/customer/content`, `GET /v2/filters/project-manager/content`, `GET /v2/filter-view/{pageIdentifier}`
 
         **See also:** `GET /v2/filter-view/{pageIdentifier}`
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: path
@@ -2360,8 +2319,6 @@ paths:
         **See also:** `GET /v2/filters/account-manager/content`, `GET /v2/filters/project-manager/content`
 
         > **Not yet documented:** examples; purpose → description.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -2487,8 +2444,6 @@ paths:
         **See also:** `GET /v2/filters/project-type/content`
 
         > **Not yet documented:** examples.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -2614,8 +2569,6 @@ paths:
         **See also:** `GET /v2/filters/project/content`
 
         > **Not yet documented:** examples.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -2724,8 +2677,6 @@ paths:
         **Call first:** `GET /v2/filters/list/{pageIdentifier}`
 
         > **Not yet documented:** examples; purpose → description.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -2842,8 +2793,6 @@ paths:
         **See also:** `GET /v2/filters/customer/content`
 
         > **Not yet documented:** examples; purpose → description.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -2969,8 +2918,6 @@ paths:
         **See also:** `GET /v2/filters/project-status/content`
 
         > **Not yet documented:** examples.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -3093,8 +3040,6 @@ paths:
         **See also:** `GET /v2/filters/task-status/content`
 
         > **Not yet documented:** examples.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -3209,8 +3154,6 @@ paths:
         **Next:** `GET /v2/filters/project/content`
 
         > **Not yet documented:** examples.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -3340,8 +3283,6 @@ paths:
         **See also:** `POST /v2/filter-view/{pageIdentifier}`
 
         > **Not yet documented:** behaviour → consistency detail; examples; purpose → description; request → query params.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -3597,8 +3538,6 @@ paths:
         **See also:** `GET /v2/filters/project-status/content`
 
         > **Not yet documented:** examples.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -3698,8 +3637,6 @@ paths:
         **Call first:** `GET /v2/filters/list/{pageIdentifier}`
 
         > **Not yet documented:** examples.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -3823,8 +3760,6 @@ paths:
         **See also:** `GET /v1/task`
 
         > **Not yet documented:** examples; request → query params.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       parameters:
       - name: pageIdentifier
         in: query
@@ -3988,8 +3923,6 @@ paths:
         **See also:** `GET /v2/menus/main`, `GET /v2/menus/create`, `GET /v2/menus/page-settings`, `GET /v2/menus/personal-settings`, `GET /v2/menus/system-administration`, `GET /v2/pages/design-seven`
 
         > **Not yet documented:** behaviour → consistency.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       responses:
         '200':
           description: |-
@@ -4069,8 +4002,6 @@ paths:
         **See also:** `GET /v2/menus/main`, `GET /v2/menus/create`, `GET /v2/menus/page-settings`, `GET /v2/menus/personal-settings`, `GET /v2/menus/system-administration`, `GET /v2/pages/design-seven`
 
         > **Not yet documented:** behaviour → consistency.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       responses:
         '200':
           description: |-
@@ -4150,8 +4081,6 @@ paths:
         **See also:** `GET /v2/menus/main`, `GET /v2/menus/create`, `GET /v2/menus/page-settings`, `GET /v2/menus/personal-settings`, `GET /v2/menus/system-administration`, `GET /v2/pages/design-seven`
 
         > **Not yet documented:** behaviour → consistency.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       responses:
         '200':
           description: |-
@@ -4231,8 +4160,6 @@ paths:
         **See also:** `GET /v2/menus/main`, `GET /v2/menus/create`, `GET /v2/menus/page-settings`, `GET /v2/menus/personal-settings`, `GET /v2/menus/system-administration`, `GET /v2/pages/design-seven`
 
         > **Not yet documented:** behaviour → consistency.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       responses:
         '200':
           description: |-
@@ -4312,8 +4239,6 @@ paths:
         **See also:** `GET /v2/menus/main`, `GET /v2/menus/create`, `GET /v2/menus/page-settings`, `GET /v2/menus/personal-settings`, `GET /v2/menus/system-administration`, `GET /v2/pages/design-seven`
 
         > **Not yet documented:** behaviour → consistency.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       responses:
         '200':
           description: |-
@@ -4390,8 +4315,6 @@ paths:
         **See also:** `GET /v2/menus/main`
 
         > **Not yet documented:** response → success → description.
-      tags:
-      - Navigation (menus, bookmarks, pages, filters)
       responses:
         '200':
           description: |-

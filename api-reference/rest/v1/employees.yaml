@@ -27,10 +27,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Employees
-  description: Track and drive the approval of employees' timesheets — the gate between registered time and payroll — plus
-    working norms, employee types and Resource Planner bookings.
 paths:
   /v1/approval/timesheets/get-status-by-dates:
     get:
@@ -61,8 +57,6 @@ paths:
         **See also:** `GET /v1/approval/timesheets/get-status-by-period`, `GET /v1/employee-projection/get-in-period`
 
         > **Not yet documented:** examples (success); request → query params; response → empty result.
-      tags:
-      - Employees
       parameters:
       - name: employeeUserId
         in: query
@@ -211,8 +205,6 @@ paths:
         **See also:** `GET /v1/approval/timesheets/get-status-by-dates`, `GET /v1/approval/timesheets/get-status-by-week-of-year`
 
         > **Not yet documented:** examples (success).
-      tags:
-      - Employees
       parameters:
       - name: employeeUserId
         in: query
@@ -351,8 +343,6 @@ paths:
         **See also:** `GET /v1/approval/timesheets/get-status-by-period`
 
         > **Not yet documented:** examples (success).
-      tags:
-      - Employees
       parameters:
       - name: employeeUserId
         in: query
@@ -496,8 +486,6 @@ paths:
         **See also:** `GET /v1/approval/timesheets/get-status-by-period`, `GET /v1/approval/timesheets/get-status-range-by-nearby-week-of-year`
 
         > **Not yet documented:** examples (success); request → query params → description.
-      tags:
-      - Employees
       parameters:
       - name: employeeUserId
         in: query
@@ -641,8 +629,6 @@ paths:
         **See also:** `GET /v1/approval/timesheets/get-status-by-week-of-year`
 
         > **Not yet documented:** examples (success); request → query params.
-      tags:
-      - Employees
       parameters:
       - name: employeeUserId
         in: query
@@ -813,8 +799,6 @@ paths:
         **See also:** `POST /v1/approval/timesheets/submit-time-registrations`
 
         > **Not yet documented:** behaviour → side effects; examples (success).
-      tags:
-      - Employees
       requestBody:
         required: true
         content:
@@ -911,8 +895,6 @@ paths:
         **See also:** `POST /v1/approval/timesheets/submit-period`
 
         > **Not yet documented:** behaviour → side effects on failure; examples (success).
-      tags:
-      - Employees
       requestBody:
         required: true
         content:
@@ -1012,8 +994,6 @@ paths:
         **See also:** `POST /v1/approval/timesheets/submit-dates`, `POST /v1/approval/timesheets/submit-time-registrations`
 
         > **Not yet documented:** behaviour → batch semantics; behaviour → side effects; examples (success).
-      tags:
-      - Employees
       requestBody:
         required: true
         content:
@@ -1109,8 +1089,6 @@ paths:
         **See also:** `POST /v1/approval/timesheets/resubmit-rejected-time-registrations`, `POST /v1/approval/timesheets/submit-dates`
 
         > **Not yet documented:** examples (success).
-      tags:
-      - Employees
       requestBody:
         required: true
         content:
@@ -1195,8 +1173,6 @@ paths:
         **Next:** `POST /v1/user/create`
 
         **See also:** `GET /v1/normal-working-time`
-      tags:
-      - Employees
       responses:
         '200':
           description: |-
@@ -1286,8 +1262,6 @@ paths:
         **Next:** `POST /v1/normal-working-time/assign-to-employee`
 
         **See also:** `GET /v1/employee-type`
-      tags:
-      - Employees
       parameters:
       - name: $page
         in: query
@@ -1390,8 +1364,6 @@ paths:
         **See also:** `PUT /v1/user`
 
         > **Not yet documented:** behaviour → side effects; behaviour → side effects on failure; examples (success).
-      tags:
-      - Employees
       requestBody:
         required: true
         content:
@@ -1467,8 +1439,6 @@ paths:
         **See also:** `GET /v1/approval/timesheets/get-status-range-by-nearby-week-of-year`
 
         > **Not yet documented:** behaviour → consistency; examples (success); request → query params → description.
-      tags:
-      - Employees
       parameters:
       - name: startDate
         in: query
@@ -1668,8 +1638,6 @@ paths:
         **See also:** `POST /v1/task/{taskID}/allocation`
 
         > **Not yet documented:** behaviour → duplicate handling; behaviour → idempotent; behaviour → safe to retry; behaviour → side effects; examples (success).
-      tags:
-      - Employees
       requestBody:
         required: true
         content:

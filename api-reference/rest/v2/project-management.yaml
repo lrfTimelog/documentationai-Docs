@@ -27,9 +27,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Projects
-  description: Find the projects a user can register on, and register expenses and mileage on a project.
 paths:
   /v2/adjustments/move-hours:
     get:
@@ -56,8 +53,6 @@ paths:
         **See also:** `GET /v2/adjustments/move-hours/projects`, `GET /v2/projects/{projectId}/time-registrations`
 
         > **Not yet documented:** examples; response → empty result.
-      tags:
-      - Projects
       parameters:
       - name: periodStartsAt
         in: query
@@ -415,8 +410,6 @@ paths:
         **See also:** `PUT /v1/time-registration`
 
         > **Not yet documented:** behaviour → side effects on failure; examples.
-      tags:
-      - Projects
       parameters:
       - name: timeRegistrationIds
         in: query
@@ -504,8 +497,6 @@ paths:
         **Next:** `GET /v2/adjustments/move-hours/projects/{projectId}/tasks`
 
         **See also:** `GET /v2/adjustments/move-hours`
-      tags:
-      - Projects
       responses:
         '200':
           description: |-
@@ -573,8 +564,6 @@ paths:
         **Next:** `PUT /v2/adjustments/move-hours`
 
         **See also:** `GET /v1/task`
-      tags:
-      - Projects
       parameters:
       - name: projectId
         in: path
@@ -689,8 +678,6 @@ paths:
         **See also:** `GET /v1/contract-hourly-rate`, `GET /v2/projects/{projectId}/employee-allocation`
 
         > **Not yet documented:** description; examples.
-      tags:
-      - Projects
       parameters:
       - name: taskId
         in: query
@@ -786,8 +773,6 @@ paths:
         **Next:** `PUT /v2/milestones/{id}/status`
 
         > **Not yet documented:** examples; response → success.
-      tags:
-      - Projects
       parameters:
       - name: dueDate
         in: query
@@ -899,8 +884,6 @@ paths:
         **Call first:** `GET /v2/milestones/incomplete`
 
         > **Not yet documented:** behaviour → side effects; examples.
-      tags:
-      - Projects
       parameters:
       - name: id
         in: path
@@ -986,8 +969,6 @@ paths:
         **See also:** `GET /v1/project/get-all`, `GET /v2/filters/project-status/content`
 
         > **Not yet documented:** request → query params → contractStatusIds; response → empty result.
-      tags:
-      - Projects
       parameters:
       - name: searchText
         in: query
@@ -1449,8 +1430,6 @@ paths:
         **See also:** `GET /v2/projects`
 
         > **Not yet documented:** response → default ordering.
-      tags:
-      - Projects
       responses:
         '200':
           description: |-
@@ -1591,8 +1570,6 @@ paths:
         **Call first:** `GET /v2/projects`
 
         > **Not yet documented:** behaviour → side effects; examples; request → query params → projectsIds.
-      tags:
-      - Projects
       parameters:
       - name: projectsIds
         in: query
@@ -1693,8 +1670,6 @@ paths:
         **Call first:** `GET /v2/projects/actions`, `GET /v2/projects`
 
         > **Not yet documented:** behaviour → events emitted; examples.
-      tags:
-      - Projects
       parameters:
       - name: projectsIds
         in: query
@@ -1813,8 +1788,6 @@ paths:
         **See also:** `PUT /v1/project/{projectID}/status`
 
         > **Not yet documented:** errors; examples.
-      tags:
-      - Projects
       parameters:
       - name: projectsIds
         in: query
@@ -1929,8 +1902,6 @@ paths:
         **See also:** `GET /v1/allocation/{allocationID}`, `GET /v2/projects/{projectId}/employee-unallocated`
 
         > **Not yet documented:** examples.
-      tags:
-      - Projects
       parameters:
       - name: projectId
         in: path
@@ -2033,8 +2004,6 @@ paths:
         **See also:** `GET /v2/projects/{projectId}/employee-allocation`, `GET /v2/contract-hourly-rates/dropdown-content`
 
         > **Not yet documented:** examples.
-      tags:
-      - Projects
       parameters:
       - name: projectId
         in: path
@@ -2146,8 +2115,6 @@ paths:
         **See also:** `GET /v2/projects/{projectId}/employee-unallocated`
 
         > **Not yet documented:** examples.
-      tags:
-      - Projects
       parameters:
       - name: projectId
         in: path
@@ -2271,8 +2238,6 @@ paths:
         **See also:** `GET /v1/time-registration/{timeRegistrationID}`
 
         > **Not yet documented:** response → empty result.
-      tags:
-      - Projects
       parameters:
       - name: projectId
         in: path

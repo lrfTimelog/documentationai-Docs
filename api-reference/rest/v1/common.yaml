@@ -27,10 +27,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Reference data and tenant settings
-  description: Read the lookups other resources reference (countries, currencies, unit types) and the tenant settings a client
-    needs at start-up.
 paths:
   /v1/country/get-all:
     get:
@@ -55,8 +51,6 @@ paths:
         **Next:** `POST /v1/customer/create`, `PUT /v1/customer/update`
 
         **See also:** `GET /v1/currency/{status}`
-      tags:
-      - Reference data and tenant settings
       parameters:
       - name: $page
         in: query
@@ -151,8 +145,6 @@ paths:
         **See also:** `GET /v1/user-setting`, `GET /v1/country/get-all`
 
         > **Not yet documented:** errors; request → path params → description.
-      tags:
-      - Reference data and tenant settings
       parameters:
       - name: status
         in: path
@@ -274,8 +266,6 @@ paths:
         - Changes are visible to the next read immediately.
 
         **See also:** `GET /v1/user-setting`
-      tags:
-      - Reference data and tenant settings
       responses:
         '200':
           description: |-
@@ -376,8 +366,6 @@ paths:
         **See also:** `GET /v1/currency/{status}`
 
         > **Not yet documented:** behaviour → consistency.
-      tags:
-      - Reference data and tenant settings
       responses:
         '200':
           description: The object, wrapped in the TAF envelope (`Properties`). One settings object.

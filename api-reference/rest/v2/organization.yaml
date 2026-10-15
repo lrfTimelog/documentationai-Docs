@@ -27,10 +27,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Users and organisation
-  description: Read and create users, change a user's name, licence, roles and approval manager, and read legal entities,
-    departments and daily employee norms.
 paths:
   /v2/users/me:
     get:
@@ -51,8 +47,6 @@ paths:
         - Changes are visible to the next read immediately.
 
         **See also:** `GET /v1/user/me`, `GET /v2`
-      tags:
-      - Users and organisation
       responses:
         '200':
           description: The object, wrapped in the TAF envelope (`Properties`).

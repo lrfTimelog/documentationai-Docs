@@ -25,9 +25,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Saved filter views
-  description: Enums are strings (member names) in v2 responses.
 paths:
   /v2/filter-view/{id}:
     delete:
@@ -53,8 +50,6 @@ paths:
         **Call first:** `GET /v2/filter-view/{pageIdentifier}`
 
         **See also:** `PUT /v2/filter-view/{pageIdentifier}`
-      tags:
-      - Saved filter views
       parameters:
       - name: id
         in: path
@@ -128,8 +123,6 @@ paths:
         **See also:** `POST /v2/filter-view/{pageIdentifier}`
 
         > **Not yet documented:** examples; request → path params → description.
-      tags:
-      - Saved filter views
       parameters:
       - name: pageIdentifier
         in: path
@@ -249,8 +242,6 @@ paths:
         **See also:** `PUT /v2/filter-view/{pageIdentifier}`
 
         > **Not yet documented:** behaviour → side effects on failure; examples.
-      tags:
-      - Saved filter views
       parameters:
       - name: pageIdentifier
         in: path
@@ -352,8 +343,6 @@ paths:
         **See also:** `POST /v2/filter-view/{pageIdentifier}`, `DELETE /v2/filter-view/{id}`
 
         > **Not yet documented:** behaviour → side effects on failure; examples.
-      tags:
-      - Saved filter views
       parameters:
       - name: pageIdentifier
         in: path

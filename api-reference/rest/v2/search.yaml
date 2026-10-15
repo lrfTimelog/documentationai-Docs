@@ -27,10 +27,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: Global search
-  description: Prefix search across customers, contacts, projects, invoices and employees, plus the caller's saved category
-    preference.
 paths:
   /v2/search:
     get:
@@ -57,8 +53,6 @@ paths:
         **See also:** `GET /v1/project-header/search-for-time-tracking`
 
         > **Not yet documented:** examples (success); request → query params.
-      tags:
-      - Global search
       parameters:
       - name: searchText
         in: query
@@ -182,8 +176,6 @@ paths:
         - Changes are visible to the next read immediately.
 
         **Next:** `PUT /v2/search/categories`, `GET /v2/search`
-      tags:
-      - Global search
       responses:
         '200':
           description: |-
@@ -268,8 +260,6 @@ paths:
         **Call first:** `GET /v2/search/categories`
 
         > **Not yet documented:** examples (success).
-      tags:
-      - Global search
       requestBody:
         required: true
         content:
