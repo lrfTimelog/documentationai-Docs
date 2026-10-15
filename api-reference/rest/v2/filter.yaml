@@ -1,0 +1,3915 @@
+openapi: 3.1.0
+info:
+  title: Saved filter views — REST API v2
+  version: v2
+  description: |-
+    Enums are strings (member names) in v2 responses.
+
+    **Conventions that apply to every operation in this file:**
+    - Property names are PascalCase.
+    - Successful bodies use the TAF envelope: one object in `Properties`, lists in `Entities[].Properties`.
+    - Some operations succeed without content: HTTP 200 with the literal body `null`, or HTTP 204.
+    - `PUT` replaces the whole object: omitted fields are reset.
+    - Treat error `Code` 102 as a business-rule violation, whether the HTTP status is 422 or 500.
+
+    > **Not yet documented:** rate limits.
+servers:
+- url: https://{region-node}.timelog.com/{account}/api
+  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
+    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
+    it.'
+  variables:
+    region-node:
+      default: app3
+    account:
+      default: your-account
+security:
+- bearer: []
+tags:
+- name: Saved filter views
+  description: Enums are strings (member names) in v2 responses.
+paths:
+  /v2/filter-view/{id}:
+    delete:
+      operationId: deleteFilterViewV2
+      summary: Delete a saved filter view
+      description: |-
+        Permanently deletes a saved filter view and all its values by its ID.
+
+        Deletes the view and its values. The route takes only the view's integer ID (no page). Deleting the default view does not promote another view to default. A second delete of the same ID, or any unknown ID, fails with 500.
+
+        **Not for:**
+        - Clearing a view's selections but keeping it — `PUT /v2/filter-view/{pageIdentifier}` with an empty FilterValues list
+
+        **Behaviour:**
+        - Not idempotent.
+        - The first call answers 204; a repeat answers 500 Code 100 (captured).
+        - Safe to retry only under a condition. After a lost response, a 500 Code 100 on retry most likely means the first call succeeded; confirm with GET.
+        - Duplicates: n/a
+        - Side effect: Deletes all values of the view, then the view.
+        - On failure: Not transactional: values are deleted before the view row; if the view delete fails, the view remains without values (src_only).
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v2/filter-view/{pageIdentifier}`
+
+        **See also:** `PUT /v2/filter-view/{pageIdentifier}`
+      tags:
+      - Saved filter views
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: 'The view''s FilterViewId. No route constraint: a non-integer reaches model binding and gives 400 (captured),
+          not 404.'
+      responses:
+        '204':
+          description: |-
+            Success without content: HTTP 204 with an empty body. No body.
+
+            Order: none
+
+            Empty result: none
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: id is not an integer
+            (captured: ''not_an_integer''). — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Unknown ID (captured)
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'id: 99999999'
+                    Url: https://{region-node}.timelog.com/{account}/api/v2/filter-view/99999999
+      x-timelog-key: rest.v2.filter.filterview.delete
+  /v2/filter-view/{pageIdentifier}:
+    get:
+      operationId: getSavedFiltersViewsV2
+      summary: List my saved filter views on a page
+      description: |-
+        Returns the caller's saved filter views for one page, default view first, each with its filter values decoded for display.
+
+        This call returns all of the CALLER's views for the page in the route — the action's name notwithstanding, there is no way to ask for another user's views. Selected IDs are returned with their display names.
+
+        **Use it to:**
+        - Restore a user's saved view when a page opens (the default view first)
+
+        **Not for:**
+        - Reading another user's views — not possible; the owner is always the caller
+        - The filter definitions and dropdown contents of a page — the Navigation / Filters operations
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `PUT /v2/filter-view/{pageIdentifier}`, `DELETE /v2/filter-view/{id}`
+
+        **See also:** `POST /v2/filter-view/{pageIdentifier}`
+
+        > **Not yet documented:** examples; request → path params → description.
+      tags:
+      - Saved filter views
+      parameters:
+      - name: pageIdentifier
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/PageIdentifier'
+          x-timelog-filter:
+            operators:
+            - eq
+        description: |-
+          The page, as a PageIdentifier member name (e.g. DesignSevenMoveHours, DesignSevenSearchProject, NewResourcePlanner) or its integer value. Any integer binds, also one with no member: it returns an empty list (captured with 12345). A non-numeric unknown name → 400.
+
+          Filters on `FilterViewRead.PageId` (eq).
+
+          Allowed values: see `PageIdentifier`.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`).
+
+            Order: IsDefault descending (default view first), then Name ascending. Values inside a view: no defined order.
+
+            Empty result: 200 with only the self link (no Entities) — captured for a page with no views.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/FilterViewRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+              examples:
+                example1:
+                  summary: Page with no saved views (captured at 3774fda)
+                  value:
+                    Links:
+                    - Href: https://{region-node}.timelog.com/{account}/api/v2/filter-view/12345
+                      Rel: self
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier is
+            not a PageIdentifier name or an integer (captured: ''test''). — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Unknown page name (captured)
+                  value:
+                    Code: 200
+                    Details:
+                    - The value 'test' is not valid for PageIdentifier.
+                    Message: Invalid model state error.
+                    Parameters: 'pageIdentifier: null'
+                    Url: https://{region-node}.timelog.com/{account}/api/v2/filter-view/test
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The URL did not match any route (including a route constraint such as {id:int} receiving a non-integer).
+            — When: pageIdentifier empty (/v2/filter-view/) — captured.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.filter.filterview.getbyuseridandpageid
+    post:
+      operationId: createFilterViewV2
+      summary: Save a new filter view
+      description: |-
+        Saves a new named filter view for the caller on the page in the route, optionally as the page's default view.
+
+        Stores the caller's current filter selections and view options under a name. The owner is always the authenticated user; the page is the route's pageIdentifier. Setting IsDefault makes it the view the page opens with and clears the flag on the caller's other views of that page. The response body is JSON null — the new view's ID is not returned; list the page's views to find it.
+
+        **Not for:**
+        - Changing an existing view — `PUT /v2/filter-view/{pageIdentifier}`
+
+        **Behaviour:**
+        - Not idempotent.
+        - Not safe to retry blindly. Each call inserts a new view; names are not unique, so a retry after a lost response creates a duplicate.
+        - Duplicates: Not deduplicated — same name twice gives two views.
+        - Side effect: Inserts the view and its values.
+        - Side effect: IsDefault = true: clears IsDefault on the caller's other views of the same page.
+        - On failure: Not transactional: if the value insert fails, the view row remains without (some of) its values (src_only).
+        - Changes are visible to the next read immediately.
+
+        **Next:** `GET /v2/filter-view/{pageIdentifier}`
+
+        **See also:** `PUT /v2/filter-view/{pageIdentifier}`
+
+        > **Not yet documented:** behaviour → side effects on failure; examples.
+      tags:
+      - Saved filter views
+      parameters:
+      - name: pageIdentifier
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/PageIdentifier'
+        description: |-
+          The page the new view belongs to, as a PageIdentifier member name or integer value (see `GET /v2/filter-view/{pageIdentifier}`). Not checked for having a saved-view UI.
+
+          Allowed values: see `PageIdentifier`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FilterViewCreate'
+      responses:
+        '200':
+          description: |-
+            Success without content: HTTP 200 with the literal JSON body `null`. Body is the JSON literal null.
+
+            Order: none
+
+            Empty result: none
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: Unknown page name,
+            Name empty, or a FilterValues item with empty Name / Value (captured: ''test'' page, empty body). — Fix: Fix every
+            item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Empty body on an unknown page (captured)
+                  value:
+                    Code: 200
+                    Details:
+                    - The value 'test' is not valid for PageIdentifier.
+                    - '''Name'' must not be empty.'
+                    Message: Invalid model state error.
+                    Parameters: 'model: {"Name":null,"IsDefault":false,"FilterValues":null}'
+                    Url: https://{region-node}.timelog.com/{account}/api/v2/filter-view/test
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The URL did not match any route (including a route constraint such as {id:int} receiving a non-integer).
+            — When: pageIdentifier empty (captured).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.filter.filterview.create
+    put:
+      operationId: updateFilterViewV2
+      summary: Overwrite a saved filter view
+      description: |-
+        Replaces a saved filter view's name, default flag and complete set of filter values.
+
+        Full replacement of the view whose FilterViewId is in the body: the name and default flag are overwritten, every stored value is deleted and the sent values are inserted (an empty list clears the view). The view's owner and page never change — the route's pageIdentifier is only used to clear the default flag on the caller's other views of that page. Values hidden by GET (filters hidden on the page) are not sent back by a GET-then-PUT client and are therefore deleted.
+
+        **Use it to:**
+        - Rename a saved view, make it the default, or save the current selections over it
+
+        **Not for:**
+        - Changing one value — there is no partial update; send the complete set
+        - Moving a view to another page — the stored page is not updated
+
+        **Behaviour:**
+        - Idempotent.
+        - Same body twice gives the same stored state (LastModified changes; a FilterViewUpdated event is raised each time).
+        - Safe to retry.
+        - Duplicates: n/a
+        - Side effect: Overwrites Name and IsDefault; sets LastModified / LastModifiedBy to now / the caller's EmployeeID.
+        - Side effect: Deletes every stored value of the view and inserts the sent ones.
+        - Side effect: IsDefault = true: clears IsDefault on the caller's other views of the ROUTE's page.
+        - On failure: Not transactional: the row update and the value delete run before the value insert. If the insert fails (e.g. a Value longer than 255 characters, or an unknown FilterViewId), the view keeps its new name but has LOST its values.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v2/filter-view/{pageIdentifier}`
+
+        **Next:** `GET /v2/filter-view/{pageIdentifier}`
+
+        **See also:** `POST /v2/filter-view/{pageIdentifier}`, `DELETE /v2/filter-view/{id}`
+
+        > **Not yet documented:** behaviour → side effects on failure; examples.
+      tags:
+      - Saved filter views
+      parameters:
+      - name: pageIdentifier
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/PageIdentifier'
+        description: |-
+          A PageIdentifier member name or integer. NOT checked against the view's stored page; used only for the default-flag reset.
+
+          Allowed values: see `PageIdentifier`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FilterViewUpdate'
+      responses:
+        '204':
+          description: |-
+            Success without content: HTTP 204 with an empty body. No body.
+
+            Order: none
+
+            Empty result: none
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: Unknown page name,
+            FilterViewId 0 / missing, Name empty, or a value item with empty Name / Value (captured). — Fix: Fix every item
+            listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Empty body on an unknown page (captured)
+                  value:
+                    Code: 200
+                    Details:
+                    - The value 'test' is not valid for PageIdentifier.
+                    - '''Filter View Id'' must not be empty.'
+                    - '''Name'' must not be empty.'
+                    Message: Invalid model state error.
+                    Parameters: 'model: {"FilterViewId":0,"Name":null,"IsDefault":false,"FilterValues":null}'
+                    Url: https://{region-node}.timelog.com/{account}/api/v2/filter-view/test
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The URL did not match any route (including a route constraint such as {id:int} receiving a non-integer).
+            — When: pageIdentifier empty (captured).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.filter.filterview.update
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: |-
+        OAuth 2.0 bearer token, sent as `Authorization: Bearer <token>`. JWT and reference tokens are both accepted. The token must carry the required scope (default `tlp`).
+
+        The token's `sub` claim is the acting user. A token WITHOUT `sub` (client-credentials) acts as the system service user. If the `sub` user cannot log in (inactive, locked, deleted), the request is rejected with 401 — it is no longer let through without a user.
+
+        > **Not yet documented:** how to obtain a token.
+
+        > **Not yet documented:** token lifetime.
+  schemas:
+    FilterComponentType:
+      type: string
+      enum:
+      - SingleSelect
+      - MultiSelect
+      - SingleSelectTypeSearch
+      - MultiSelectTypeSearch
+      - Checkbox
+      - RadioButton
+      - Textbox
+      - DateRange
+      x-enum-descriptions:
+      - Single-choice control (a view option such as group-by). Stored as one string; returned as that string unchanged.
+      - 'Multi-choice list of entity IDs. Stored comma-separated; returned as a list of {Key: display name, Value: ID} resolved
+        through the page''s dropdown content.'
+      - Searchable single-choice entity picker. Stored and returned like MultiSelect (list of {Key, Value}).
+      - Searchable multi-choice entity picker — the sidebar filters (project manager, project status, employee ...). Stored
+        comma-separated IDs; returned as a list of {Key, Value}.
+      - 'On/off option. Stored as one string; returned as a one-item list [{Key: null, Value: <stored string>}].'
+      - 'Radio choice. Not special-cased by the GET: decoded like MultiSelect (list of {Key, Value}).'
+      - Free text (e.g. search text). Stored as one string; returned as that string.
+      - A named period (e.g. CurrentWeek, OneMonth). Stored as one string; returned as that string.
+      description: |-
+        It decides how a saved value is stored and how GET /v2/filter-view/{pageIdentifier} hands it back: plain string, a one-item list, or a list of resolved {Key, Value} pairs.
+
+        Allowed values:
+
+        | Value | Name | Meaning |
+        |---|---|---|
+        | `0` | SingleSelect | Single-choice control (a view option such as group-by). Stored as one string; returned as that string unchanged. |
+        | `1` | MultiSelect | Multi-choice list of entity IDs. Stored comma-separated; returned as a list of {Key: display name, Value: ID} resolved through the page's dropdown content. |
+        | `2` | SingleSelectTypeSearch | Searchable single-choice entity picker. Stored and returned like MultiSelect (list of {Key, Value}). |
+        | `3` | MultiSelectTypeSearch | Searchable multi-choice entity picker — the sidebar filters (project manager, project status, employee ...). Stored comma-separated IDs; returned as a list of {Key, Value}. |
+        | `4` | Checkbox | On/off option. Stored as one string; returned as a one-item list [{Key: null, Value: <stored string>}]. |
+        | `5` | RadioButton | Radio choice. Not special-cased by the GET: decoded like MultiSelect (list of {Key, Value}). |
+        | `6` | Textbox | Free text (e.g. search text). Stored as one string; returned as that string. |
+        | `7` | DateRange | A named period (e.g. CurrentWeek, OneMonth). Stored as one string; returned as that string. |
+    FilterValueRead:
+      type: object
+      properties:
+        Name:
+          type: string
+          readOnly: true
+          maxLength: 255
+          description: What the value is for. Either the name of a sidebar filter type — subject to the page's filter visibility
+            — or the name of a view-option control chosen by the frontend (e.g. DateRange, a search-text box), which is always
+            returned.
+        Value:
+          type: string
+          readOnly: true
+          description: |-
+            The saved setting. Its JSON shape depends on FilterType: Textbox / DateRange / SingleSelect → the stored string; Checkbox → [{"Key": null, "Value": "<stored string>"}]; every other type → a list of {"Key": display name, "Value": "<id>"}, one per comma-separated ID, with the display name looked up from the page's current dropdown content (falling back to the entity's name for customers, departments, employees, projects, contracts, legal entities, project types and categories, employee and task types).
+
+            - FilterType is Textbox, DateRange or SingleSelect — Value is a JSON string: the stored value unchanged.
+
+            - FilterType is Checkbox — Value is a JSON array with one item: [{"Key": null, "Value": "<stored string>"}].
+
+            - FilterType is MultiSelect, SingleSelectTypeSearch, MultiSelectTypeSearch or RadioButton — Value is a JSON array of {"Key": display name, "Value": "<id>"}, one per comma-separated stored ID.
+
+            - Decoding fails (an ID that no longer resolves, a filter type with no fallback lookup, a non-integer ID) — The exception is logged and the WHOLE value is left out of the response — the view is returned without it, no error.
+
+            > **Not yet documented:** example.
+
+            > **Not yet documented:** multiple.
+        IsInclusive:
+          type: boolean
+          readOnly: true
+          description: |-
+            true = the selected IDs are included; false = they are excluded (an exclusion filter).
+
+            > **Not yet documented:** description.
+        FilterType:
+          $ref: '#/components/schemas/FilterComponentType'
+          enum:
+          - SingleSelect
+          - MultiSelect
+          - SingleSelectTypeSearch
+          - MultiSelectTypeSearch
+          - Checkbox
+          - RadioButton
+          - Textbox
+          - DateRange
+          x-enum-descriptions:
+          - Single-choice control (a view option such as group-by). Stored as one string; returned as that string unchanged.
+          - 'Multi-choice list of entity IDs. Stored comma-separated; returned as a list of {Key: display name, Value: ID}
+            resolved through the page''s dropdown content.'
+          - Searchable single-choice entity picker. Stored and returned like MultiSelect (list of {Key, Value}).
+          - Searchable multi-choice entity picker — the sidebar filters (project manager, project status, employee ...). Stored
+            comma-separated IDs; returned as a list of {Key, Value}.
+          - 'On/off option. Stored as one string; returned as a one-item list [{Key: null, Value: <stored string>}].'
+          - 'Radio choice. Not special-cased by the GET: decoded like MultiSelect (list of {Key, Value}).'
+          - Free text (e.g. search text). Stored as one string; returned as that string.
+          - A named period (e.g. CurrentWeek, OneMonth). Stored as one string; returned as that string.
+          readOnly: true
+          description: |-
+            The kind of control the value belongs to; decides the shape of Value.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | SingleSelect | Single-choice control (a view option such as group-by). Stored as one string; returned as that string unchanged. |
+            | `1` | MultiSelect | Multi-choice list of entity IDs. Stored comma-separated; returned as a list of {Key: display name, Value: ID} resolved through the page's dropdown content. |
+            | `2` | SingleSelectTypeSearch | Searchable single-choice entity picker. Stored and returned like MultiSelect (list of {Key, Value}). |
+            | `3` | MultiSelectTypeSearch | Searchable multi-choice entity picker — the sidebar filters (project manager, project status, employee ...). Stored comma-separated IDs; returned as a list of {Key, Value}. |
+            | `4` | Checkbox | On/off option. Stored as one string; returned as a one-item list [{Key: null, Value: <stored string>}]. |
+            | `5` | RadioButton | Radio choice. Not special-cased by the GET: decoded like MultiSelect (list of {Key, Value}). |
+            | `6` | Textbox | Free text (e.g. search text). Stored as one string; returned as that string. |
+            | `7` | DateRange | A named period (e.g. CurrentWeek, OneMonth). Stored as one string; returned as that string. |
+      description: 'One value saved in a filter view: either a sidebar filter or a view option (Name = the frontend control,
+        Value = its setting). The database row''s own IDs are not exposed — values have no identity of their own and are always
+        replaced as a set.'
+    FilterValueWrite:
+      type: object
+      properties:
+        Name:
+          type: string
+          maxLength: 255
+          minLength: 1
+          description: |-
+            Sidebar filter type name or the name of a view-option control. Read back as FilterValueRead.Name.
+
+            - Name is a sidebar filter type that is hidden on the page — Saved, but GET leaves it out of the view (FilterViewRead.FilterValues).
+
+            > **Not yet documented:** constraints → max length.
+        Value:
+          type: string
+          maxLength: 255
+          minLength: 1
+          description: |-
+            The setting, as ONE string: comma-separated IDs for select filters (split on commas by GET), the plain value for text, date-range and checkbox options.
+
+            > **Not yet documented:** constraints → max length.
+        IsInclusive:
+          type: boolean
+          default: false
+          description: |-
+            true = include the selected IDs; false = exclude them.
+
+            The validator's NotNull on a non-nullable bool never fires: omitted = false.
+        FilterType:
+          $ref: '#/components/schemas/FilterComponentType'
+          enum:
+          - SingleSelect
+          - MultiSelect
+          - SingleSelectTypeSearch
+          - MultiSelectTypeSearch
+          - Checkbox
+          - RadioButton
+          - Textbox
+          - DateRange
+          x-enum-descriptions:
+          - Single-choice control (a view option such as group-by). Stored as one string; returned as that string unchanged.
+          - 'Multi-choice list of entity IDs. Stored comma-separated; returned as a list of {Key: display name, Value: ID}
+            resolved through the page''s dropdown content.'
+          - Searchable single-choice entity picker. Stored and returned like MultiSelect (list of {Key, Value}).
+          - Searchable multi-choice entity picker — the sidebar filters (project manager, project status, employee ...). Stored
+            comma-separated IDs; returned as a list of {Key, Value}.
+          - 'On/off option. Stored as one string; returned as a one-item list [{Key: null, Value: <stored string>}].'
+          - 'Radio choice. Not special-cased by the GET: decoded like MultiSelect (list of {Key, Value}).'
+          - Free text (e.g. search text). Stored as one string; returned as that string.
+          - A named period (e.g. CurrentWeek, OneMonth). Stored as one string; returned as that string.
+          description: |-
+            The kind of control the value belongs to; decides how GET returns Value.
+
+            Default: SingleSelect
+
+            Omitted = 0 (SingleSelect); the NotNull / >= 0 rules cannot fire for an omitted non-nullable enum.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | SingleSelect | Single-choice control (a view option such as group-by). Stored as one string; returned as that string unchanged. |
+            | `1` | MultiSelect | Multi-choice list of entity IDs. Stored comma-separated; returned as a list of {Key: display name, Value: ID} resolved through the page's dropdown content. |
+            | `2` | SingleSelectTypeSearch | Searchable single-choice entity picker. Stored and returned like MultiSelect (list of {Key, Value}). |
+            | `3` | MultiSelectTypeSearch | Searchable multi-choice entity picker — the sidebar filters (project manager, project status, employee ...). Stored comma-separated IDs; returned as a list of {Key, Value}. |
+            | `4` | Checkbox | On/off option. Stored as one string; returned as a one-item list [{Key: null, Value: <stored string>}]. |
+            | `5` | RadioButton | Radio choice. Not special-cased by the GET: decoded like MultiSelect (list of {Key, Value}). |
+            | `6` | Textbox | Free text (e.g. search text). Stored as one string; returned as that string. |
+            | `7` | DateRange | A named period (e.g. CurrentWeek, OneMonth). Stored as one string; returned as that string. |
+      description: 'One value to save in a filter view. Values are always written as a complete set: create inserts them,
+        update deletes every stored value of the view and inserts the ones sent.'
+    FilterViewCreate:
+      type: object
+      properties:
+        Name:
+          type: string
+          maxLength: 255
+          minLength: 1
+          description: |-
+            Display name of the view. Not checked for uniqueness.
+
+            Can be set on create only.
+
+            > **Not yet documented:** constraints → max length.
+        IsDefault:
+          type: boolean
+          default: false
+          description: |-
+            true = make this the caller's default view for the page; the caller's other views on that page lose the flag.
+
+            Can be set on create only.
+        FilterValues:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterValueWrite'
+          description: |-
+            The values to save. May be an empty list.
+
+            Can be set on create only.
+
+            - FilterValues omitted or null — No validator rule; the adapter iterates it and fails with HTTP 500 Code 100.
+
+            > **Not yet documented:** multiple.
+      description: 'A new saved view for the CALLER on the page named in the route. Owner and page are not in the body: the
+        owner is always the authenticated user, the page is the route''s pageIdentifier.'
+    FilterViewRead:
+      type: object
+      properties:
+        FilterViewId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer ID of the saved view; the {id} of DELETE /v2/filter-view/{id} and the FilterViewId of the PUT body.
+
+            Identifier of this object, unique per TimeLog site.
+
+            Sequential IDENTITY values — guessable.
+        Name:
+          type: string
+          readOnly: true
+          maxLength: 255
+          description: |-
+            The name the user gave the view. Predefined views created with a new user carry fixed names: MyActiveProjects, ActiveProjects, AllProjects, MyView.
+
+            Not unique: nothing prevents two views with the same name on one page.
+        PageId:
+          type: string
+          enum:
+          - Home
+          - DetailedTimesheet
+          - WeeklyTimesheet
+          - ProjectExpense
+          - TravelExpenses
+          - RegistrationEvents
+          - ImportEmployeeExpenses
+          - CRMCustomer
+          - CRMContact
+          - CRMEvent
+          - CRMOpportunity
+          - CRMRelation
+          - CRMCustomerNew
+          - CRMContactNew
+          - SearchProject
+          - NewProject
+          - NewQuickProject
+          - ImportFromMSProject
+          - DebtorListInvoices
+          - DebtorListVouchers
+          - SearchInvoice
+          - TransferInvoices
+          - InvoiceNew
+          - VoucherNew
+          - Employees
+          - ResourcePlanner
+          - BookedVsRegistered
+          - ApproveTimeReports
+          - ApproveExpenses
+          - NewEmployee
+          - CVOverview
+          - NewCV
+          - SkillMatrix
+          - Reports
+          - CRMHomeStart
+          - CRMPipeline
+          - CRMReport
+          - CRMJournal
+          - CRMLeadInbox
+          - ProjectSetting
+          - ProjectTaskPlanView
+          - ProjectTaskBudgetView
+          - ProjectResourceView
+          - ProjectGanttView
+          - ProjectResourceGroup
+          - ProjectPaymentPlan
+          - ProjectBudgetOverview
+          - ProjectDeprecationStatusAmount
+          - ProjectDeprecationStatusHour
+          - ProjectInvoiceOverview
+          - ProjectDocuments
+          - ProjectStatus
+          - ReportTableView
+          - ReportBoxView
+          - ExpenseReportSubmitPrint
+          - KeyPerformanceIndex
+          - ProjectPlans
+          - ProjectAssignments
+          - Workload
+          - CustomerSignOff
+          - AbsenceSpecification
+          - AbsenceProductivity
+          - AbsenceReport
+          - FlexBalanceAllEmployees
+          - AbsenceSpecificationAllEmployees
+          - EmployeeOverview
+          - WorkCustomers
+          - WorkSingleCustomer
+          - EmployeeOverview2
+          - HeadCount
+          - AccountingProjectsWorkInProgress
+          - PaymentPlansOverview
+          - CRMEventNew
+          - CRMOpportunityNew
+          - BudgetCompany
+          - BudgetEmployees
+          - ContributionMargin
+          - AccountingMonthly
+          - AccountingCustomers
+          - AccountingProjectsRegistrationTypes
+          - BalanceProjectBudgets
+          - ProjectOverview
+          - AllocatedActualWork
+          - TimeRegistrations
+          - TimeRegistrationsNew
+          - ActiveProjectTasks
+          - BudgetFollowUp
+          - Milestones
+          - GanttChart
+          - ProjectFactor
+          - WorkProjects
+          - WorkProjectTypes
+          - WorkProjectCategories
+          - WorkTaskTypes
+          - ProjectPortfolio
+          - ProjectCategoriesAnalysis
+          - ChangeHourlyRatesOnAllocations
+          - AdjustBillableNonBillable
+          - RedistributionOfTime
+          - MoveAllocations
+          - DepartmentProjectsEmployees
+          - WorkDepartments
+          - ReportApproveTimeReports
+          - StatusForTimeReports
+          - ReportApproveExpenses
+          - ReportBalanceExpenses
+          - TimeRegistrationsDetailed
+          - TimeRegistrationsSummarised
+          - TimelogCRM
+          - WorkIndustries
+          - PivotReport
+          - TimeRegistrationsPerProjectEmployee
+          - ContributionAnalysis
+          - InvoicingPercentage
+          - EmployeeEfficiency
+          - InternalExternalAnalysis
+          - EmployeeKeyFigures
+          - EmployeeTimeCustomersAndProjects
+          - EmployeeTimeProjectTypesAndTaskTypes
+          - EmployeeTimeHourlyRates
+          - LastTimeRegistration
+          - AccuracyInTimeTracking
+          - DataExtractionProjects
+          - DataExtractionTasks
+          - DataExtractionAllocations
+          - DataExtractionInstallments
+          - DataExtractionProjectBaseline
+          - DataExtractionCustomers
+          - DataExtractionInvoices
+          - DataExtractionInvoiceLines
+          - DataExtractionExpenses
+          - DataExtractionTravelExpenses
+          - DataExtractionMileage
+          - DataExtractionAbsenceAndSalaryCodes
+          - ExportProjects
+          - ReportImportOfExpenses
+          - InvoiceLinesExport
+          - ExportToKontekPAXml
+          - ExportToVismaLon
+          - SuperTimesheet
+          - EmployeeOverviewTableView
+          - EmployeeOverviewBoxView
+          - SalaryExtractionForLessorLon
+          - TimeLogTrackerInstall
+          - EditEmployeeCV
+          - Events
+          - CustomersAdvance
+          - ETCReportSubmit
+          - EmployeeCV
+          - IntegrationLog
+          - WorkEmployeeTypes
+          - StatusReports
+          - SystemAdministrationRegistrationTimeRegistrationSetting
+          - SystemAdministrationRegistrationExpenseSetting
+          - SystemAdministrationEmployeeSetting
+          - SystemAdministrationRegistrationAllowanceTypes
+          - SystemAdministrationRegistrationPaymentMethod
+          - SystemAdministrationRegistrationMileageRates
+          - SystemAdministrationRegistrationExpenseTypes
+          - SystemAdministrationApprovalSetting
+          - SystemAdministrationCRMSetting
+          - SystemAdministrationCRMStandardValues
+          - SystemAdministrationCRMNotifications
+          - SystemAdministrationCRMExtranet
+          - SystemAdministrationCRMIndustryCodes
+          - SystemAdministrationCRMGroups
+          - SystemAdministrationCRMStatuses
+          - SystemAdministrationCRMEventTypes
+          - SystemAdministrationCRMRelations
+          - SystemAdministrationCRMBarriers
+          - SystemAdministrationCRMOpportunityStatus
+          - SystemAdministrationCRMOpportunityTypes
+          - SystemAdministrationPMProjectSetting
+          - SystemAdministrationPMStandardValues
+          - SystemAdministrationPMProjectInvoicing
+          - SystemAdministrationPMNotifications
+          - SystemAdministrationPMProjectTypes
+          - SystemAdministrationPMProjectCategories
+          - SystemAdministrationPMTaskTypes
+          - SystemAdministrationPMProjectStages
+          - SystemAdministrationPMProjectTemplates
+          - SystemAdministrationPMETCSetting
+          - SystemAdministrationInvoiceSetting
+          - SystemAdministrationInvoiceStandardValues
+          - SystemAdministrationInvoiceTemplates
+          - SystemAdministrationInvoiceHourlyRates
+          - SystemAdministrationInvoiceCostPrices
+          - SystemAdministrationInvoicePaymentTerms
+          - SystemAdministrationInvoiceAccountingPeriod
+          - SystemAdministrationInvoiceProductNumber
+          - SystemAdministrationInvoiceCurrencySetting
+          - SystemAdministrationInvoiceInvoiceLineExportSetting
+          - SystemAdministrationInvoiceConfigurationModelOfCalculation
+          - SystemAdministrationEmployeePermission
+          - SystemAdministrationEmployeeTypes
+          - SystemAdministrationEmployeeNormHours
+          - SystemAdministrationEmployeeHolidayCalendar
+          - SystemAdministrationEmployeeSkillSetting
+          - SystemAdministrationEmployeeCompetencies
+          - SystemAdministrationReportActivation
+          - SystemAdministrationReportAdvancedSetting
+          - SystemAdministrationReportKPISetting
+          - SystemAdministrationIntegrationAPISetting
+          - SystemAdministrationIntegrationSystemIntegration
+          - SystemAdministrationIntegrationStandardFileExport
+          - SystemAdministrationIntegrationImportOfStandardField
+          - SystemAdministrationGeneralSettingDepartments
+          - SystemAdministrationGeneralSettingNumberSeries
+          - SystemAdministrationGeneralSettingSecurityAccess
+          - EditEmployee
+          - EmployeeOverviewBase
+          - ShowMyCustomers
+          - CRMHomeCompany
+          - CRMHomeEmployee
+          - SystemAdministrationGeneralSettingRootPage
+          - SystemAdministrationGeneralSettingLicenseSetting
+          - SystemAdministrationEmployeeNotification
+          - PrintJournalChronologically
+          - EditCustomer
+          - SystemAdministrationGeneralSettingFrontPage
+          - ProjectPlanProgress
+          - CRMEditEvent
+          - ExternalTransactionLog
+          - SystemAdministrationEmployeeSalaryCodes
+          - CRMRelationNew
+          - CRMRelationEdit
+          - CRMOpportunityEdit
+          - CRMContactEdit
+          - FrontPage
+          - InvoiceEdit
+          - InvoiceBooked
+          - VoucherEdit
+          - VoucherBooked
+          - CreditNoteNew
+          - CreditNoteEdit
+          - CreditNoteBooked
+          - ReminderNew
+          - ReminderEdit
+          - ReminderBooked
+          - CRMReportLastUpdatedCustomer
+          - CRMReportSalesPipeline
+          - CRMReportEventOverview
+          - PersonalProfile
+          - PersonalPreference
+          - ChangePassword
+          - ProjectAddResourceToTasks
+          - ProjectAddMultipleResourcesToTask
+          - ProjectAddOneResource
+          - ProjectUpdateProjectStartAndEndDates
+          - TimeRegistrationDrillDown
+          - NewHourlyRate
+          - ProjectAddMultipleInstallments
+          - ErrorList
+          - ContractOverview
+          - AccessDenied
+          - ProjectFactorDetails
+          - ExportSDLon
+          - SalaryExtractionForHogia
+          - ProjectPendingBookingAction
+          - TimeReportUserDefined
+          - SystemAdministrationReportProjectFactorSetting
+          - ProjectOverviewOld
+          - ProcessSidePanel
+          - CustomLinkSidePanel
+          - CustomHelpSidePanel
+          - SystemAdministrationEmployeeRolesMatrixes
+          - EditProjectExpense
+          - EditTravelExpense
+          - CRMSupplierNew
+          - SystemAdministrationIntegrationReportingAPISetting
+          - SystemAdministrationIntegrationReportingAPILog
+          - TestPageReportMVC
+          - TestPageReportNetWebForm
+          - TestPageReportClassicASP
+          - SystemAdministrationGeneralSettingNotificationSettings
+          - NewInvoiceWithProject
+          - NewInvoiceWithCustomer
+          - NewInvoiceWithCustomerAndProject
+          - NewVoucherWithProject
+          - NewVoucherWithCustomer
+          - NewCreditNoteWithInvoice
+          - NewReminderWithInvoice
+          - ReportProjectSumFigures
+          - SalaryExtractionForAccobat
+          - InvoiceLinesExportForAccobat
+          - ReportWorkInProgress
+          - UnitsReportAtki
+          - CopyProject
+          - ConsultantHoursReport
+          - EmployeeHoursReport
+          - HempelInvoiceSpecificationReport
+          - ImportExpensesDevelco
+          - EmployeeOverviewExport
+          - EUProjectsReport
+          - EmployeeProductivityReport
+          - VoucherSystemStatementReport
+          - EdlundInvoiceSpecificationReport
+          - GlobeteamExportRegisteredTimeReport
+          - GlobeteamExportTasksReport
+          - AddProjectTemplateIntoExisitingProject
+          - ExportNonInvoicedHours
+          - EmployeeOverviewReport
+          - AdjustAllocationWithStandardHourlyRates
+          - OneClickInvoicingLog
+          - ProjectProfitability
+          - DataImporter
+          - InvoiceAccountingPeriod
+          - ProjectTaskPlanHour
+          - DataExtractionProjectContractBaseline
+          - Invoice_InvoiceLog
+          - InvoiceArchive
+          - SystemAdministrationProductList
+          - Error
+          - ExpensesBatch
+          - AdjustProjectPayments
+          - SystemAdministrationInvoiceUnitType
+          - DataExtractionProjectSubContract
+          - SystemAdministrationEmployeeCVStatus
+          - BasicoDataExtractionForNav
+          - TimeTrackingBase
+          - SystemAdministrationPMMilestoneTypes
+          - InvoiceLineExportReport
+          - ExportInvoiceDataReport
+          - AnalysisPivotReport
+          - EU_ProjectsReportEnhanced
+          - SystemAdministrationPlatformPaymentForm
+          - PlatformSignupSteps
+          - SystemAdministrationPlatformLicenceOverview
+          - SystemAdministrationPlatformInvoiceOverview
+          - SystemAdministrationPlatformActionLog
+          - SalarySpecificationReport
+          - SystemAdministrationPlatformAccountSpecifications
+          - SystemAdministrationPlatformAccountSettings
+          - SystemAdministrationPlatformInvoiceInformation
+          - CashFlowReport
+          - Fortnox
+          - ExportToCronaLon
+          - ProjectTemplateSyncChangesToLinkedProjectsReport
+          - PlatformSignup
+          - SalaryManagementOverview
+          - SalaryManagementNewAdjustment
+          - SystemAdministrationEmployeeSalaryGroup
+          - SalaryAccountSpecification
+          - SystemAdministrationEmployeeSalaryAccountType
+          - SystemAdministrationEmployeeAbsenceCodes
+          - SystemAdministrationEmployeeAbsenceCodeType
+          - SystemAdministrationInvoiceProductNumberDimensionMapping
+          - SystemAdministrationEmployeeSalaryAccount
+          - ApproveProjectTimeReports
+          - TransferSalaryFileDownload
+          - TransferEmployeeSalary
+          - SalaryPeriods
+          - SystemAdministrationEmployeeSalaryPeriods
+          - SalaryTransferCheck
+          - SystemAdministrationPlatformCustomerSystemOwner
+          - GDPRDataSearchReport
+          - ProjectPlanAmount
+          - AddSalesShare
+          - DetailedMileageReimbursementReport
+          - ExtranetLogin
+          - ExtranetMain
+          - ExtranetProjectOverview
+          - ExtranetTimeRegistrations
+          - ExtranetInvoices
+          - ExtranetStatusReports
+          - ModalWeeklyTimesheetAddProjectTasks
+          - ModalWeeklyTimesheetNewSubTask
+          - ModalDetailedTimesheetNewSubTask
+          - ModalDebtorListDrillDown
+          - ModalCrmImportCustomers
+          - ModalCrmSendEmail
+          - ModalCrmCreateInstallments
+          - ModalProjectSaveAsTemplate
+          - ModalProjectSendEmail
+          - ModalProjectNewBaseline
+          - ModalProjectCalculator
+          - ModalProjectDrillDown
+          - ModalProjectAddResourceToTask
+          - ModalProjectAddResourcesToTask
+          - ModalProjectAddOneResource
+          - ModalProjectAdjustTimePlan
+          - ModalProjectMoveTask
+          - ModalProjectUpdateProjectDates
+          - ModalProjectMoveAllocation
+          - ModalProjectNewHourlyRate
+          - ModalProjectAddMultipleInstallments
+          - ModalResourcePlannerAddToTask
+          - ModalResourcePlannerSetWorkload
+          - ModalResourcePlannerRemoveBookings
+          - ModalCvAddLanguage
+          - ModalCvAddCompetences
+          - ModalCvAddEducation
+          - ModalCvAddCourse
+          - ModalCvAddProject
+          - ModalCvActivity
+          - ModalReportWorkloadAddTasks
+          - ModalReportRedistributionOfTime
+          - ModalHourlyRateNewPriceList
+          - ModalHourlyRateNewCustomerPriceList
+          - ModalHourlyRateAdjustPriceGroups
+          - ModalAccountingPeriodAddNew
+          - ModalSalaryCopyGroup
+          - ModalRedistributionOfTimeSplitter
+          - ModalCrmImportCustomersStepTwo
+          - ModalCrmImportCustomersStepThree
+          - ModalCrmImportCustomersStepFour
+          - ModalCrmImportCustomersStepFive
+          - ProjectInvoiceSettings
+          - ModalCreateContractModel
+          - ModalProjectAddResourceToMultipleMilestones
+          - ModalProjectCopyTasksAndMilestones
+          - InvoiceExportFileList
+          - SystemAdministrationGeneralSettingLegalEntity
+          - SystemAdministrationBasicPlusFeatureSetting
+          - AdvancedResourcePlanner
+          - ProjectManagerOverview
+          - SalesBudget
+          - GenericBudgetValues
+          - SalesReport
+          - ContributionRatioReport
+          - EmployeeCapacity
+          - ResourceManagementReport
+          - AbsenceCalendar
+          - CorporateHolidayCalendar
+          - MilestonesReport
+          - NewDebtorListInvoice
+          - NewDebtorListVoucher
+          - SalaryAccountBalanceSection
+          - SalaryFlexAccountSpecification
+          - SystemAdministrationGeneralSettingPersonalDataProtection
+          - SalaryAccountSpecificationAll
+          - ModalDeleteProject
+          - NavBarExportReport
+          - NitroSAPExport
+          - EmployeeExpense
+          - EditEmployeeExpense
+          - EmployeeExpenseChangeCurrencyModal
+          - ExpenseVisualizePicturesModal
+          - ModalDeleteExpense
+          - ProjectExpenseChangeCurrencyModal
+          - AgentOverviewReport
+          - TransferEmployeeExpense
+          - ProjectAllExpenses
+          - ImportProjectExpenses
+          - AbsenceAnalysisReport
+          - SystemAdministrationGeneralSettingSystemStartDate
+          - AbsenceAnalysisReportDrillDown
+          - ExpenseOverviewReport
+          - ModalMilestoneChangeOwner
+          - IntercompanyInvoice
+          - IntercompanyProjectProfitabilityReport
+          - CreateProjectFromTemplate
+          - MileageRegistration
+          - EditMileageRegistration
+          - ModalDeleteMileageRegistration
+          - ProjectRecurringProductSale
+          - IndexationRecurringContractsAndProducts
+          - MilestoneInlineEdit
+          - SystemAdministrationRegistrationCars
+          - IndexationOfHourlyRateBase
+          - IndexationOfHourlyRateByPercentage
+          - IndexationOfPriceLists
+          - ImportDataFile
+          - QualityAssuranceReport
+          - SystemAdministrationEmployeeSalaryRule
+          - NewResourcePlanner
+          - SystemAdministrationResourceManagementSetting
+          - ModalImportPublicHoliday
+          - HistoricalIndexedHourlyRates
+          - DataExtractionAbsence
+          - ExpenseDownloadAttachments
+          - SystemAdministrationOneClickInvoicingInvoiceTemplate
+          - IntegrationFortnoxAddNewProcessing
+          - SystemAdministrationPMContractTypes
+          - AssignCustomersToMCPContract
+          - ModalLinkCustomerWithIntegration
+          - ModalLinkContactWithIntegration
+          - DesignSevenFrontPage
+          - DesignSevenReports
+          - SystemAdministrationIntegrationSharePointCallback
+          - SystemAdministrationIntegrationSharePointConnectRedirect
+          - PiccaNavRevenueExport
+          - DesignSevenSearchProject
+          - DesignSevenEditEmployeeCompetence
+          - DesignSevenMoveHours
+          - RevenueForecastingReport
+          - ProjectPortfolioOverview
+          - WidgetOverdueInvoices
+          - WidgetPlannedAbsence
+          - WidgetInvoicedPerMonth
+          - WidgetBudgetRemaining
+          - WidgetProjectEconomyHealth
+          - WidgetAverageHourlyRate
+          - WidgetTimeTrackingDelay
+          - WidgetVacationCalculation
+          - WidgetHourKPI
+          - WidgetHourKPIWithBAR
+          - WidgetHourKPIHoursOnly
+          - WidgetBillablePercentage
+          - WidgetExternalPercentage
+          - WidgetPersonalPlan
+          - SystemAdministrationAccountingPeriodPhoenix
+          - SystemAdministrationIntercompanyExchangeRateSetting
+          - MercuriExportOfMonthlyProjectFiguresReport
+          - MercuriExportOfEmployeeFiguresReport
+          - PhoenixProjectManagement
+          - PhoenixDashboardsOverview
+          - PhoenixDashboardsView
+          - NotSpecified
+          x-enum-descriptions:
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          - ''
+          readOnly: true
+          description: |-
+            The page the view belongs to, as the PageIdentifier member NAME (v2 string enum), e.g. DesignSevenMoveHours.
+
+            Filterable via `pageIdentifier` (eq).
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `1` | Home | Not yet documented |
+            | `2` | DetailedTimesheet | Not yet documented |
+            | `3` | WeeklyTimesheet | Not yet documented |
+            | `4` | ProjectExpense | Not yet documented |
+            | `5` | TravelExpenses | Not yet documented |
+            | `6` | RegistrationEvents | Not yet documented |
+            | `8` | ImportEmployeeExpenses | Not yet documented |
+            | `9` | CRMCustomer | Not yet documented |
+            | `10` | CRMContact | Not yet documented |
+            | `11` | CRMEvent | Not yet documented |
+            | `12` | CRMOpportunity | Not yet documented |
+            | `13` | CRMRelation | Not yet documented |
+            | `14` | CRMCustomerNew | Not yet documented |
+            | `15` | CRMContactNew | Not yet documented |
+            | `16` | SearchProject | Not yet documented |
+            | `17` | NewProject | Not yet documented |
+            | `18` | NewQuickProject | Not yet documented |
+            | `19` | ImportFromMSProject | Not yet documented |
+            | `20` | DebtorListInvoices | Not yet documented |
+            | `21` | DebtorListVouchers | Not yet documented |
+            | `22` | SearchInvoice | Not yet documented |
+            | `23` | TransferInvoices | Not yet documented |
+            | `24` | InvoiceNew | Not yet documented |
+            | `25` | VoucherNew | Not yet documented |
+            | `26` | Employees | Not yet documented |
+            | `27` | ResourcePlanner | Not yet documented |
+            | `28` | BookedVsRegistered | Not yet documented |
+            | `29` | ApproveTimeReports | Not yet documented |
+            | `30` | ApproveExpenses | Not yet documented |
+            | `32` | NewEmployee | Not yet documented |
+            | `33` | CVOverview | Not yet documented |
+            | `34` | NewCV | Not yet documented |
+            | `35` | SkillMatrix | Not yet documented |
+            | `39` | Reports | Not yet documented |
+            | `40` | CRMHomeStart | Not yet documented |
+            | `41` | CRMPipeline | Not yet documented |
+            | `42` | CRMReport | Not yet documented |
+            | `43` | CRMJournal | Not yet documented |
+            | `44` | CRMLeadInbox | Not yet documented |
+            | `45` | ProjectSetting | Not yet documented |
+            | `46` | ProjectTaskPlanView | Not yet documented |
+            | `47` | ProjectTaskBudgetView | Not yet documented |
+            | `48` | ProjectResourceView | Not yet documented |
+            | `49` | ProjectGanttView | Not yet documented |
+            | `50` | ProjectResourceGroup | Not yet documented |
+            | `51` | ProjectPaymentPlan | Not yet documented |
+            | `52` | ProjectBudgetOverview | Not yet documented |
+            | `54` | ProjectDeprecationStatusAmount | Not yet documented |
+            | `55` | ProjectDeprecationStatusHour | Not yet documented |
+            | `56` | ProjectInvoiceOverview | Not yet documented |
+            | `57` | ProjectDocuments | Not yet documented |
+            | `58` | ProjectStatus | Not yet documented |
+            | `59` | ReportTableView | Not yet documented |
+            | `60` | ReportBoxView | Not yet documented |
+            | `61` | ExpenseReportSubmitPrint | Not yet documented |
+            | `63` | KeyPerformanceIndex | Not yet documented |
+            | `64` | ProjectPlans | Not yet documented |
+            | `65` | ProjectAssignments | Not yet documented |
+            | `66` | Workload | Not yet documented |
+            | `67` | CustomerSignOff | Not yet documented |
+            | `69` | AbsenceSpecification | Not yet documented |
+            | `70` | AbsenceProductivity | Not yet documented |
+            | `71` | AbsenceReport | Not yet documented |
+            | `72` | FlexBalanceAllEmployees | Not yet documented |
+            | `73` | AbsenceSpecificationAllEmployees | Not yet documented |
+            | `74` | EmployeeOverview | Not yet documented |
+            | `77` | WorkCustomers | Not yet documented |
+            | `78` | WorkSingleCustomer | Not yet documented |
+            | `79` | EmployeeOverview2 | Not yet documented |
+            | `80` | HeadCount | Not yet documented |
+            | `81` | AccountingProjectsWorkInProgress | Not yet documented |
+            | `82` | PaymentPlansOverview | Not yet documented |
+            | `83` | CRMEventNew | Not yet documented |
+            | `84` | CRMOpportunityNew | Not yet documented |
+            | `85` | BudgetCompany | Not yet documented |
+            | `86` | BudgetEmployees | Not yet documented |
+            | `87` | ContributionMargin | Not yet documented |
+            | `88` | AccountingMonthly | Not yet documented |
+            | `89` | AccountingCustomers | Not yet documented |
+            | `90` | AccountingProjectsRegistrationTypes | Not yet documented |
+            | `91` | BalanceProjectBudgets | Not yet documented |
+            | `92` | ProjectOverview | Not yet documented |
+            | `93` | AllocatedActualWork | Not yet documented |
+            | `94` | TimeRegistrations | Not yet documented |
+            | `95` | TimeRegistrationsNew | Not yet documented |
+            | `96` | ActiveProjectTasks | Not yet documented |
+            | `97` | BudgetFollowUp | Not yet documented |
+            | `98` | Milestones | Not yet documented |
+            | `99` | GanttChart | Not yet documented |
+            | `100` | ProjectFactor | Not yet documented |
+            | `101` | WorkProjects | Not yet documented |
+            | `102` | WorkProjectTypes | Not yet documented |
+            | `103` | WorkProjectCategories | Not yet documented |
+            | `104` | WorkTaskTypes | Not yet documented |
+            | `105` | ProjectPortfolio | Not yet documented |
+            | `106` | ProjectCategoriesAnalysis | Not yet documented |
+            | `107` | ChangeHourlyRatesOnAllocations | Not yet documented |
+            | `108` | AdjustBillableNonBillable | Not yet documented |
+            | `109` | RedistributionOfTime | Not yet documented |
+            | `110` | MoveAllocations | Not yet documented |
+            | `117` | DepartmentProjectsEmployees | Not yet documented |
+            | `118` | WorkDepartments | Not yet documented |
+            | `119` | ReportApproveTimeReports | Not yet documented |
+            | `121` | StatusForTimeReports | Not yet documented |
+            | `122` | ReportApproveExpenses | Not yet documented |
+            | `123` | ReportBalanceExpenses | Not yet documented |
+            | `124` | TimeRegistrationsDetailed | Not yet documented |
+            | `125` | TimeRegistrationsSummarised | Not yet documented |
+            | `126` | TimelogCRM | Not yet documented |
+            | `127` | WorkIndustries | Not yet documented |
+            | `128` | PivotReport | Not yet documented |
+            | `129` | TimeRegistrationsPerProjectEmployee | Not yet documented |
+            | `130` | ContributionAnalysis | Not yet documented |
+            | `131` | InvoicingPercentage | Not yet documented |
+            | `132` | EmployeeEfficiency | Not yet documented |
+            | `133` | InternalExternalAnalysis | Not yet documented |
+            | `134` | EmployeeKeyFigures | Not yet documented |
+            | `135` | EmployeeTimeCustomersAndProjects | Not yet documented |
+            | `136` | EmployeeTimeProjectTypesAndTaskTypes | Not yet documented |
+            | `137` | EmployeeTimeHourlyRates | Not yet documented |
+            | `138` | LastTimeRegistration | Not yet documented |
+            | `139` | AccuracyInTimeTracking | Not yet documented |
+            | `140` | DataExtractionProjects | Not yet documented |
+            | `141` | DataExtractionTasks | Not yet documented |
+            | `142` | DataExtractionAllocations | Not yet documented |
+            | `143` | DataExtractionInstallments | Not yet documented |
+            | `144` | DataExtractionProjectBaseline | Not yet documented |
+            | `145` | DataExtractionCustomers | Not yet documented |
+            | `146` | DataExtractionInvoices | Not yet documented |
+            | `147` | DataExtractionInvoiceLines | Not yet documented |
+            | `148` | DataExtractionExpenses | Not yet documented |
+            | `149` | DataExtractionTravelExpenses | Not yet documented |
+            | `150` | DataExtractionMileage | Not yet documented |
+            | `151` | DataExtractionAbsenceAndSalaryCodes | Not yet documented |
+            | `154` | ExportProjects | Not yet documented |
+            | `155` | ReportImportOfExpenses | Not yet documented |
+            | `156` | InvoiceLinesExport | Not yet documented |
+            | `159` | ExportToKontekPAXml | Not yet documented |
+            | `160` | ExportToVismaLon | Not yet documented |
+            | `161` | SuperTimesheet | Not yet documented |
+            | `162` | EmployeeOverviewTableView | Not yet documented |
+            | `163` | EmployeeOverviewBoxView | Not yet documented |
+            | `164` | SalaryExtractionForLessorLon | Not yet documented |
+            | `165` | TimeLogTrackerInstall | Not yet documented |
+            | `166` | EditEmployeeCV | Not yet documented |
+            | `167` | Events | Not yet documented |
+            | `168` | CustomersAdvance | Not yet documented |
+            | `169` | ETCReportSubmit | Not yet documented |
+            | `170` | EmployeeCV | Not yet documented |
+            | `171` | IntegrationLog | Not yet documented |
+            | `172` | WorkEmployeeTypes | Not yet documented |
+            | `173` | StatusReports | Not yet documented |
+            | `174` | SystemAdministrationRegistrationTimeRegistrationSetting | Not yet documented |
+            | `175` | SystemAdministrationRegistrationExpenseSetting | Not yet documented |
+            | `176` | SystemAdministrationEmployeeSetting | Not yet documented |
+            | `177` | SystemAdministrationRegistrationAllowanceTypes | Not yet documented |
+            | `178` | SystemAdministrationRegistrationPaymentMethod | Not yet documented |
+            | `179` | SystemAdministrationRegistrationMileageRates | Not yet documented |
+            | `181` | SystemAdministrationRegistrationExpenseTypes | Not yet documented |
+            | `182` | SystemAdministrationApprovalSetting | Not yet documented |
+            | `183` | SystemAdministrationCRMSetting | Not yet documented |
+            | `184` | SystemAdministrationCRMStandardValues | Not yet documented |
+            | `185` | SystemAdministrationCRMNotifications | Not yet documented |
+            | `186` | SystemAdministrationCRMExtranet | Not yet documented |
+            | `187` | SystemAdministrationCRMIndustryCodes | Not yet documented |
+            | `188` | SystemAdministrationCRMGroups | Not yet documented |
+            | `189` | SystemAdministrationCRMStatuses | Not yet documented |
+            | `190` | SystemAdministrationCRMEventTypes | Not yet documented |
+            | `191` | SystemAdministrationCRMRelations | Not yet documented |
+            | `192` | SystemAdministrationCRMBarriers | Not yet documented |
+            | `193` | SystemAdministrationCRMOpportunityStatus | Not yet documented |
+            | `194` | SystemAdministrationCRMOpportunityTypes | Not yet documented |
+            | `195` | SystemAdministrationPMProjectSetting | Not yet documented |
+            | `196` | SystemAdministrationPMStandardValues | Not yet documented |
+            | `197` | SystemAdministrationPMProjectInvoicing | Not yet documented |
+            | `198` | SystemAdministrationPMNotifications | Not yet documented |
+            | `199` | SystemAdministrationPMProjectTypes | Not yet documented |
+            | `200` | SystemAdministrationPMProjectCategories | Not yet documented |
+            | `201` | SystemAdministrationPMTaskTypes | Not yet documented |
+            | `202` | SystemAdministrationPMProjectStages | Not yet documented |
+            | `203` | SystemAdministrationPMProjectTemplates | Not yet documented |
+            | `204` | SystemAdministrationPMETCSetting | Not yet documented |
+            | `205` | SystemAdministrationInvoiceSetting | Not yet documented |
+            | `206` | SystemAdministrationInvoiceStandardValues | Not yet documented |
+            | `207` | SystemAdministrationInvoiceTemplates | Not yet documented |
+            | `208` | SystemAdministrationInvoiceHourlyRates | Not yet documented |
+            | `209` | SystemAdministrationInvoiceCostPrices | Not yet documented |
+            | `210` | SystemAdministrationInvoicePaymentTerms | Not yet documented |
+            | `211` | SystemAdministrationInvoiceAccountingPeriod | Not yet documented |
+            | `212` | SystemAdministrationInvoiceProductNumber | Not yet documented |
+            | `213` | SystemAdministrationInvoiceCurrencySetting | Not yet documented |
+            | `214` | SystemAdministrationInvoiceInvoiceLineExportSetting | Not yet documented |
+            | `215` | SystemAdministrationInvoiceConfigurationModelOfCalculation | Not yet documented |
+            | `216` | SystemAdministrationEmployeePermission | Not yet documented |
+            | `217` | SystemAdministrationEmployeeTypes | Not yet documented |
+            | `219` | SystemAdministrationEmployeeNormHours | Not yet documented |
+            | `220` | SystemAdministrationEmployeeHolidayCalendar | Not yet documented |
+            | `221` | SystemAdministrationEmployeeSkillSetting | Not yet documented |
+            | `222` | SystemAdministrationEmployeeCompetencies | Not yet documented |
+            | `223` | SystemAdministrationReportActivation | Not yet documented |
+            | `224` | SystemAdministrationReportAdvancedSetting | Not yet documented |
+            | `225` | SystemAdministrationReportKPISetting | Not yet documented |
+            | `229` | SystemAdministrationIntegrationAPISetting | Not yet documented |
+            | `230` | SystemAdministrationIntegrationSystemIntegration | Not yet documented |
+            | `231` | SystemAdministrationIntegrationStandardFileExport | Not yet documented |
+            | `232` | SystemAdministrationIntegrationImportOfStandardField | Not yet documented |
+            | `233` | SystemAdministrationGeneralSettingDepartments | Not yet documented |
+            | `234` | SystemAdministrationGeneralSettingNumberSeries | Not yet documented |
+            | `235` | SystemAdministrationGeneralSettingSecurityAccess | Not yet documented |
+            | `236` | EditEmployee | Not yet documented |
+            | `237` | EmployeeOverviewBase | Not yet documented |
+            | `239` | ShowMyCustomers | Not yet documented |
+            | `240` | CRMHomeCompany | Not yet documented |
+            | `241` | CRMHomeEmployee | Not yet documented |
+            | `242` | SystemAdministrationGeneralSettingRootPage | Not yet documented |
+            | `243` | SystemAdministrationGeneralSettingLicenseSetting | Not yet documented |
+            | `244` | SystemAdministrationEmployeeNotification | Not yet documented |
+            | `245` | PrintJournalChronologically | Not yet documented |
+            | `246` | EditCustomer | Not yet documented |
+            | `247` | SystemAdministrationGeneralSettingFrontPage | Not yet documented |
+            | `253` | ProjectPlanProgress | Not yet documented |
+            | `254` | CRMEditEvent | Not yet documented |
+            | `255` | ExternalTransactionLog | Not yet documented |
+            | `257` | SystemAdministrationEmployeeSalaryCodes | Not yet documented |
+            | `258` | CRMRelationNew | Not yet documented |
+            | `259` | CRMRelationEdit | Not yet documented |
+            | `260` | CRMOpportunityEdit | Not yet documented |
+            | `261` | CRMContactEdit | Not yet documented |
+            | `262` | FrontPage | Not yet documented |
+            | `263` | InvoiceEdit | Not yet documented |
+            | `264` | InvoiceBooked | Not yet documented |
+            | `265` | VoucherEdit | Not yet documented |
+            | `266` | VoucherBooked | Not yet documented |
+            | `267` | CreditNoteNew | Not yet documented |
+            | `268` | CreditNoteEdit | Not yet documented |
+            | `269` | CreditNoteBooked | Not yet documented |
+            | `270` | ReminderNew | Not yet documented |
+            | `271` | ReminderEdit | Not yet documented |
+            | `272` | ReminderBooked | Not yet documented |
+            | `273` | CRMReportLastUpdatedCustomer | Not yet documented |
+            | `274` | CRMReportSalesPipeline | Not yet documented |
+            | `275` | CRMReportEventOverview | Not yet documented |
+            | `277` | PersonalProfile | Not yet documented |
+            | `278` | PersonalPreference | Not yet documented |
+            | `279` | ChangePassword | Not yet documented |
+            | `280` | ProjectAddResourceToTasks | Not yet documented |
+            | `281` | ProjectAddMultipleResourcesToTask | Not yet documented |
+            | `282` | ProjectAddOneResource | Not yet documented |
+            | `283` | ProjectUpdateProjectStartAndEndDates | Not yet documented |
+            | `284` | TimeRegistrationDrillDown | Not yet documented |
+            | `285` | NewHourlyRate | Not yet documented |
+            | `286` | ProjectAddMultipleInstallments | Not yet documented |
+            | `287` | ErrorList | Not yet documented |
+            | `288` | ContractOverview | Not yet documented |
+            | `289` | AccessDenied | Not yet documented |
+            | `290` | ProjectFactorDetails | Not yet documented |
+            | `291` | ExportSDLon | Not yet documented |
+            | `292` | SalaryExtractionForHogia | Not yet documented |
+            | `295` | ProjectPendingBookingAction | Not yet documented |
+            | `296` | TimeReportUserDefined | Not yet documented |
+            | `297` | SystemAdministrationReportProjectFactorSetting | Not yet documented |
+            | `298` | ProjectOverviewOld | Not yet documented |
+            | `299` | ProcessSidePanel | Not yet documented |
+            | `300` | CustomLinkSidePanel | Not yet documented |
+            | `301` | CustomHelpSidePanel | Not yet documented |
+            | `302` | SystemAdministrationEmployeeRolesMatrixes | Not yet documented |
+            | `304` | EditProjectExpense | Not yet documented |
+            | `306` | EditTravelExpense | Not yet documented |
+            | `308` | CRMSupplierNew | Not yet documented |
+            | `309` | SystemAdministrationIntegrationReportingAPISetting | Not yet documented |
+            | `310` | SystemAdministrationIntegrationReportingAPILog | Not yet documented |
+            | `311` | TestPageReportMVC | Not yet documented |
+            | `312` | TestPageReportNetWebForm | Not yet documented |
+            | `313` | TestPageReportClassicASP | Not yet documented |
+            | `315` | SystemAdministrationGeneralSettingNotificationSettings | Not yet documented |
+            | `316` | NewInvoiceWithProject | Not yet documented |
+            | `317` | NewInvoiceWithCustomer | Not yet documented |
+            | `318` | NewInvoiceWithCustomerAndProject | Not yet documented |
+            | `319` | NewVoucherWithProject | Not yet documented |
+            | `320` | NewVoucherWithCustomer | Not yet documented |
+            | `321` | NewCreditNoteWithInvoice | Not yet documented |
+            | `322` | NewReminderWithInvoice | Not yet documented |
+            | `323` | ReportProjectSumFigures | Not yet documented |
+            | `324` | SalaryExtractionForAccobat | Not yet documented |
+            | `325` | InvoiceLinesExportForAccobat | Not yet documented |
+            | `327` | ReportWorkInProgress | Not yet documented |
+            | `328` | UnitsReportAtki | Not yet documented |
+            | `329` | CopyProject | Not yet documented |
+            | `330` | ConsultantHoursReport | Not yet documented |
+            | `331` | EmployeeHoursReport | Not yet documented |
+            | `332` | HempelInvoiceSpecificationReport | Not yet documented |
+            | `333` | ImportExpensesDevelco | Not yet documented |
+            | `334` | EmployeeOverviewExport | Not yet documented |
+            | `335` | EUProjectsReport | Not yet documented |
+            | `336` | EmployeeProductivityReport | Not yet documented |
+            | `337` | VoucherSystemStatementReport | Not yet documented |
+            | `338` | EdlundInvoiceSpecificationReport | Not yet documented |
+            | `339` | GlobeteamExportRegisteredTimeReport | Not yet documented |
+            | `340` | GlobeteamExportTasksReport | Not yet documented |
+            | `341` | AddProjectTemplateIntoExisitingProject | Not yet documented |
+            | `342` | ExportNonInvoicedHours | Not yet documented |
+            | `343` | EmployeeOverviewReport | Not yet documented |
+            | `344` | AdjustAllocationWithStandardHourlyRates | Not yet documented |
+            | `345` | OneClickInvoicingLog | Not yet documented |
+            | `346` | ProjectProfitability | Not yet documented |
+            | `347` | DataImporter | Not yet documented |
+            | `348` | InvoiceAccountingPeriod | Not yet documented |
+            | `349` | ProjectTaskPlanHour | Not yet documented |
+            | `350` | DataExtractionProjectContractBaseline | Not yet documented |
+            | `351` | Invoice_InvoiceLog | Not yet documented |
+            | `352` | InvoiceArchive | Not yet documented |
+            | `353` | SystemAdministrationProductList | Not yet documented |
+            | `354` | Error | Not yet documented |
+            | `355` | ExpensesBatch | Not yet documented |
+            | `356` | AdjustProjectPayments | Not yet documented |
+            | `357` | SystemAdministrationInvoiceUnitType | Not yet documented |
+            | `358` | DataExtractionProjectSubContract | Not yet documented |
+            | `359` | SystemAdministrationEmployeeCVStatus | Not yet documented |
+            | `360` | BasicoDataExtractionForNav | Not yet documented |
+            | `361` | TimeTrackingBase | Not yet documented |
+            | `362` | SystemAdministrationPMMilestoneTypes | Not yet documented |
+            | `363` | InvoiceLineExportReport | Not yet documented |
+            | `364` | ExportInvoiceDataReport | Not yet documented |
+            | `365` | AnalysisPivotReport | Not yet documented |
+            | `366` | EU_ProjectsReportEnhanced | Not yet documented |
+            | `367` | SystemAdministrationPlatformPaymentForm | Not yet documented |
+            | `368` | PlatformSignupSteps | Not yet documented |
+            | `369` | SystemAdministrationPlatformLicenceOverview | Not yet documented |
+            | `370` | SystemAdministrationPlatformInvoiceOverview | Not yet documented |
+            | `371` | SystemAdministrationPlatformActionLog | Not yet documented |
+            | `373` | SalarySpecificationReport | Not yet documented |
+            | `374` | SystemAdministrationPlatformAccountSpecifications | Not yet documented |
+            | `375` | SystemAdministrationPlatformAccountSettings | Not yet documented |
+            | `376` | SystemAdministrationPlatformInvoiceInformation | Not yet documented |
+            | `377` | CashFlowReport | Not yet documented |
+            | `378` | Fortnox | Not yet documented |
+            | `379` | ExportToCronaLon | Not yet documented |
+            | `380` | ProjectTemplateSyncChangesToLinkedProjectsReport | Not yet documented |
+            | `381` | PlatformSignup | Not yet documented |
+            | `382` | SalaryManagementOverview | Not yet documented |
+            | `383` | SalaryManagementNewAdjustment | Not yet documented |
+            | `384` | SystemAdministrationEmployeeSalaryGroup | Not yet documented |
+            | `385` | SalaryAccountSpecification | Not yet documented |
+            | `386` | SystemAdministrationEmployeeSalaryAccountType | Not yet documented |
+            | `387` | SystemAdministrationEmployeeAbsenceCodes | Not yet documented |
+            | `388` | SystemAdministrationEmployeeAbsenceCodeType | Not yet documented |
+            | `389` | SystemAdministrationInvoiceProductNumberDimensionMapping | Not yet documented |
+            | `390` | SystemAdministrationEmployeeSalaryAccount | Not yet documented |
+            | `391` | ApproveProjectTimeReports | Not yet documented |
+            | `392` | TransferSalaryFileDownload | Not yet documented |
+            | `395` | TransferEmployeeSalary | Not yet documented |
+            | `393` | SalaryPeriods | Not yet documented |
+            | `394` | SystemAdministrationEmployeeSalaryPeriods | Not yet documented |
+            | `396` | SalaryTransferCheck | Not yet documented |
+            | `397` | SystemAdministrationPlatformCustomerSystemOwner | Not yet documented |
+            | `398` | GDPRDataSearchReport | Not yet documented |
+            | `399` | ProjectPlanAmount | Not yet documented |
+            | `400` | AddSalesShare | Not yet documented |
+            | `401` | DetailedMileageReimbursementReport | Not yet documented |
+            | `900` | ExtranetLogin | Not yet documented |
+            | `901` | ExtranetMain | Not yet documented |
+            | `902` | ExtranetProjectOverview | Not yet documented |
+            | `903` | ExtranetTimeRegistrations | Not yet documented |
+            | `904` | ExtranetInvoices | Not yet documented |
+            | `905` | ExtranetStatusReports | Not yet documented |
+            | `1002` | ModalWeeklyTimesheetAddProjectTasks | Not yet documented |
+            | `1003` | ModalWeeklyTimesheetNewSubTask | Not yet documented |
+            | `1004` | ModalDetailedTimesheetNewSubTask | Not yet documented |
+            | `1005` | ModalDebtorListDrillDown | Not yet documented |
+            | `1006` | ModalCrmImportCustomers | Not yet documented |
+            | `1007` | ModalCrmSendEmail | Not yet documented |
+            | `1008` | ModalCrmCreateInstallments | Not yet documented |
+            | `1009` | ModalProjectSaveAsTemplate | Not yet documented |
+            | `1010` | ModalProjectSendEmail | Not yet documented |
+            | `1011` | ModalProjectNewBaseline | Not yet documented |
+            | `1012` | ModalProjectCalculator | Not yet documented |
+            | `1013` | ModalProjectDrillDown | Not yet documented |
+            | `1014` | ModalProjectAddResourceToTask | Not yet documented |
+            | `1015` | ModalProjectAddResourcesToTask | Not yet documented |
+            | `1016` | ModalProjectAddOneResource | Not yet documented |
+            | `1017` | ModalProjectAdjustTimePlan | Not yet documented |
+            | `1018` | ModalProjectMoveTask | Not yet documented |
+            | `1019` | ModalProjectUpdateProjectDates | Not yet documented |
+            | `1020` | ModalProjectMoveAllocation | Not yet documented |
+            | `1021` | ModalProjectNewHourlyRate | Not yet documented |
+            | `1022` | ModalProjectAddMultipleInstallments | Not yet documented |
+            | `1023` | ModalResourcePlannerAddToTask | Not yet documented |
+            | `1024` | ModalResourcePlannerSetWorkload | Not yet documented |
+            | `1025` | ModalResourcePlannerRemoveBookings | Not yet documented |
+            | `1026` | ModalCvAddLanguage | Not yet documented |
+            | `1027` | ModalCvAddCompetences | Not yet documented |
+            | `1028` | ModalCvAddEducation | Not yet documented |
+            | `1029` | ModalCvAddCourse | Not yet documented |
+            | `1030` | ModalCvAddProject | Not yet documented |
+            | `1031` | ModalCvActivity | Not yet documented |
+            | `1032` | ModalReportWorkloadAddTasks | Not yet documented |
+            | `1033` | ModalReportRedistributionOfTime | Not yet documented |
+            | `1034` | ModalHourlyRateNewPriceList | Not yet documented |
+            | `1035` | ModalHourlyRateNewCustomerPriceList | Not yet documented |
+            | `1036` | ModalHourlyRateAdjustPriceGroups | Not yet documented |
+            | `1037` | ModalAccountingPeriodAddNew | Not yet documented |
+            | `1038` | ModalSalaryCopyGroup | Not yet documented |
+            | `1039` | ModalRedistributionOfTimeSplitter | Not yet documented |
+            | `1040` | ModalCrmImportCustomersStepTwo | Not yet documented |
+            | `1041` | ModalCrmImportCustomersStepThree | Not yet documented |
+            | `1042` | ModalCrmImportCustomersStepFour | Not yet documented |
+            | `1043` | ModalCrmImportCustomersStepFive | Not yet documented |
+            | `1044` | ProjectInvoiceSettings | Not yet documented |
+            | `1045` | ModalCreateContractModel | Not yet documented |
+            | `1046` | ModalProjectAddResourceToMultipleMilestones | Not yet documented |
+            | `1047` | ModalProjectCopyTasksAndMilestones | Not yet documented |
+            | `1048` | InvoiceExportFileList | Not yet documented |
+            | `1049` | SystemAdministrationGeneralSettingLegalEntity | Not yet documented |
+            | `1050` | SystemAdministrationBasicPlusFeatureSetting | Not yet documented |
+            | `1051` | AdvancedResourcePlanner | Not yet documented |
+            | `1052` | ProjectManagerOverview | Not yet documented |
+            | `1053` | SalesBudget | Not yet documented |
+            | `1054` | GenericBudgetValues | Not yet documented |
+            | `1055` | SalesReport | Not yet documented |
+            | `1056` | ContributionRatioReport | Not yet documented |
+            | `1057` | EmployeeCapacity | Not yet documented |
+            | `1058` | ResourceManagementReport | Not yet documented |
+            | `1059` | AbsenceCalendar | Not yet documented |
+            | `1060` | CorporateHolidayCalendar | Not yet documented |
+            | `1070` | MilestonesReport | Not yet documented |
+            | `1071` | NewDebtorListInvoice | Not yet documented |
+            | `1072` | NewDebtorListVoucher | Not yet documented |
+            | `1073` | SalaryAccountBalanceSection | Not yet documented |
+            | `1074` | SalaryFlexAccountSpecification | Not yet documented |
+            | `1075` | SystemAdministrationGeneralSettingPersonalDataProtection | Not yet documented |
+            | `1076` | SalaryAccountSpecificationAll | Not yet documented |
+            | `1077` | ModalDeleteProject | Not yet documented |
+            | `1078` | NavBarExportReport | Not yet documented |
+            | `1079` | NitroSAPExport | Not yet documented |
+            | `1080` | EmployeeExpense | Not yet documented |
+            | `1081` | EditEmployeeExpense | Not yet documented |
+            | `1082` | EmployeeExpenseChangeCurrencyModal | Not yet documented |
+            | `1083` | ExpenseVisualizePicturesModal | Not yet documented |
+            | `1084` | ModalDeleteExpense | Not yet documented |
+            | `1085` | ProjectExpenseChangeCurrencyModal | Not yet documented |
+            | `1086` | AgentOverviewReport | Not yet documented |
+            | `1087` | TransferEmployeeExpense | Not yet documented |
+            | `1088` | ProjectAllExpenses | Not yet documented |
+            | `1089` | ImportProjectExpenses | Not yet documented |
+            | `1090` | AbsenceAnalysisReport | Not yet documented |
+            | `1091` | SystemAdministrationGeneralSettingSystemStartDate | Not yet documented |
+            | `1092` | AbsenceAnalysisReportDrillDown | Not yet documented |
+            | `1093` | ExpenseOverviewReport | Not yet documented |
+            | `1094` | ModalMilestoneChangeOwner | Not yet documented |
+            | `1095` | IntercompanyInvoice | Not yet documented |
+            | `1096` | IntercompanyProjectProfitabilityReport | Not yet documented |
+            | `1097` | CreateProjectFromTemplate | Not yet documented |
+            | `1098` | MileageRegistration | Not yet documented |
+            | `1099` | EditMileageRegistration | Not yet documented |
+            | `1100` | ModalDeleteMileageRegistration | Not yet documented |
+            | `1101` | ProjectRecurringProductSale | Not yet documented |
+            | `1102` | IndexationRecurringContractsAndProducts | Not yet documented |
+            | `1103` | MilestoneInlineEdit | Not yet documented |
+            | `1120` | SystemAdministrationRegistrationCars | Not yet documented |
+            | `1121` | IndexationOfHourlyRateBase | Not yet documented |
+            | `1122` | IndexationOfHourlyRateByPercentage | Not yet documented |
+            | `1123` | IndexationOfPriceLists | Not yet documented |
+            | `1124` | ImportDataFile | Not yet documented |
+            | `1126` | QualityAssuranceReport | Not yet documented |
+            | `1127` | SystemAdministrationEmployeeSalaryRule | Not yet documented |
+            | `1128` | NewResourcePlanner | Not yet documented |
+            | `1129` | SystemAdministrationResourceManagementSetting | Not yet documented |
+            | `1130` | ModalImportPublicHoliday | Not yet documented |
+            | `1131` | HistoricalIndexedHourlyRates | Not yet documented |
+            | `1132` | DataExtractionAbsence | Not yet documented |
+            | `1133` | ExpenseDownloadAttachments | Not yet documented |
+            | `1134` | SystemAdministrationOneClickInvoicingInvoiceTemplate | Not yet documented |
+            | `1135` | IntegrationFortnoxAddNewProcessing | Not yet documented |
+            | `1136` | SystemAdministrationPMContractTypes | Not yet documented |
+            | `1137` | AssignCustomersToMCPContract | Not yet documented |
+            | `1138` | ModalLinkCustomerWithIntegration | Not yet documented |
+            | `1139` | ModalLinkContactWithIntegration | Not yet documented |
+            | `1140` | DesignSevenFrontPage | Not yet documented |
+            | `1141` | DesignSevenReports | Not yet documented |
+            | `1142` | SystemAdministrationIntegrationSharePointCallback | Not yet documented |
+            | `1143` | SystemAdministrationIntegrationSharePointConnectRedirect | Not yet documented |
+            | `1144` | PiccaNavRevenueExport | Not yet documented |
+            | `1145` | DesignSevenSearchProject | Not yet documented |
+            | `1146` | DesignSevenEditEmployeeCompetence | Not yet documented |
+            | `1147` | DesignSevenMoveHours | Not yet documented |
+            | `1148` | RevenueForecastingReport | Not yet documented |
+            | `1149` | ProjectPortfolioOverview | Not yet documented |
+            | `1150` | WidgetOverdueInvoices | Not yet documented |
+            | `1151` | WidgetPlannedAbsence | Not yet documented |
+            | `1152` | WidgetInvoicedPerMonth | Not yet documented |
+            | `1153` | WidgetBudgetRemaining | Not yet documented |
+            | `1154` | WidgetProjectEconomyHealth | Not yet documented |
+            | `1155` | WidgetAverageHourlyRate | Not yet documented |
+            | `1156` | WidgetTimeTrackingDelay | Not yet documented |
+            | `1157` | WidgetVacationCalculation | Not yet documented |
+            | `1158` | WidgetHourKPI | Not yet documented |
+            | `1159` | WidgetHourKPIWithBAR | Not yet documented |
+            | `1160` | WidgetHourKPIHoursOnly | Not yet documented |
+            | `1161` | WidgetBillablePercentage | Not yet documented |
+            | `1162` | WidgetExternalPercentage | Not yet documented |
+            | `1163` | WidgetPersonalPlan | Not yet documented |
+            | `1164` | SystemAdministrationAccountingPeriodPhoenix | Not yet documented |
+            | `2000` | SystemAdministrationIntercompanyExchangeRateSetting | Not yet documented |
+            | `2001` | MercuriExportOfMonthlyProjectFiguresReport | Not yet documented |
+            | `2002` | MercuriExportOfEmployeeFiguresReport | Not yet documented |
+            | `10001` | PhoenixProjectManagement | Not yet documented |
+            | `10002` | PhoenixDashboardsOverview | Not yet documented |
+            | `10003` | PhoenixDashboardsView | Not yet documented |
+            | `0` | NotSpecified | Not yet documented |
+        UserId:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            UserID (not EmployeeID) of the view's owner. Always the caller on GET, which only returns the caller's own views.
+
+            Refers to `UserRead.UserID`.
+        IsDefault:
+          type: boolean
+          readOnly: true
+          description: true = the view the page opens with for this user. Writes keep at most one default per (user, page);
+            predefined views mark MyActiveProjects / MyView as default.
+        Created:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            When the view was created.
+
+            Time zone: server local time (DateTime.Now on the TimeLog web server), no offset in the value
+
+            > **Not yet documented:** constraints → timezone.
+        CreatedBy:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            EmployeeID (not UserID) of whoever created the view — the caller for API creates; the system user's employee for predefined views made without a session user.
+
+            Refers to `EmployeeRead.EmployeeID`.
+        LastModified:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            When the view was last written (create or update).
+
+            Time zone: server local time (DateTime.Now on the TimeLog web server), no offset in the value
+
+            > **Not yet documented:** constraints → timezone.
+        LastModifiedBy:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            EmployeeID of whoever last wrote the view (stored in an NCHAR(10) column, returned as an integer).
+
+            Refers to `EmployeeRead.EmployeeID`.
+        FilterValues:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterValueRead'
+          readOnly: true
+          description: |-
+            The values the view restores.
+
+            > **Not yet documented:** multiple → order significant.
+
+            > **Not yet documented:** multiple.
+      description: Per user and per page; at most one default per (user, page) is maintained on write.
+    FilterViewUpdate:
+      type: object
+      properties:
+        FilterViewId:
+          type: integer
+          format: int32
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            The view to overwrite (FilterViewRead.FilterViewId).
+
+            Identifier of this object, unique per TimeLog site.
+
+            - No view has this ID — The UPDATE matches no row; with an empty FilterValues list the call still answers 204.
+        Name:
+          type: string
+          maxLength: 255
+          minLength: 1
+          description: New display name.
+        IsDefault:
+          type: boolean
+          default: false
+          description: |-
+            New default flag. Omitted = false (the view stops being the default).
+
+            - IsDefault = true — Clears IsDefault on the CALLER's other views of the ROUTE's page — not on the view owner's / the view's own page when those differ.
+        FilterValues:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterValueWrite'
+          description: |-
+            The complete new value set. Every stored value of the view is deleted first, then these are inserted; an empty list clears the view.
+
+            - FilterValues omitted or null — No validator rule; the adapter iterates it and fails with HTTP 500 Code 100.
+
+            - Values were read with GET and sent back — GET hides values of filters hidden on the page; a GET-then-PUT round trip therefore deletes those stored values.
+
+            > **Not yet documented:** multiple.
+      description: The complete new state of an existing saved view, addressed by FilterViewId in the body. Every field is
+        written; there is no partial update.
+    MessageError:
+      type: object
+      description: Body of 401 and some framework errors — not the ResponseError shape.
+      properties:
+        Message:
+          type: string
+    PageIdentifier:
+      type: string
+      enum:
+      - Home
+      - DetailedTimesheet
+      - WeeklyTimesheet
+      - ProjectExpense
+      - TravelExpenses
+      - RegistrationEvents
+      - ImportEmployeeExpenses
+      - CRMCustomer
+      - CRMContact
+      - CRMEvent
+      - CRMOpportunity
+      - CRMRelation
+      - CRMCustomerNew
+      - CRMContactNew
+      - SearchProject
+      - NewProject
+      - NewQuickProject
+      - ImportFromMSProject
+      - DebtorListInvoices
+      - DebtorListVouchers
+      - SearchInvoice
+      - TransferInvoices
+      - InvoiceNew
+      - VoucherNew
+      - Employees
+      - ResourcePlanner
+      - BookedVsRegistered
+      - ApproveTimeReports
+      - ApproveExpenses
+      - NewEmployee
+      - CVOverview
+      - NewCV
+      - SkillMatrix
+      - Reports
+      - CRMHomeStart
+      - CRMPipeline
+      - CRMReport
+      - CRMJournal
+      - CRMLeadInbox
+      - ProjectSetting
+      - ProjectTaskPlanView
+      - ProjectTaskBudgetView
+      - ProjectResourceView
+      - ProjectGanttView
+      - ProjectResourceGroup
+      - ProjectPaymentPlan
+      - ProjectBudgetOverview
+      - ProjectDeprecationStatusAmount
+      - ProjectDeprecationStatusHour
+      - ProjectInvoiceOverview
+      - ProjectDocuments
+      - ProjectStatus
+      - ReportTableView
+      - ReportBoxView
+      - ExpenseReportSubmitPrint
+      - KeyPerformanceIndex
+      - ProjectPlans
+      - ProjectAssignments
+      - Workload
+      - CustomerSignOff
+      - AbsenceSpecification
+      - AbsenceProductivity
+      - AbsenceReport
+      - FlexBalanceAllEmployees
+      - AbsenceSpecificationAllEmployees
+      - EmployeeOverview
+      - WorkCustomers
+      - WorkSingleCustomer
+      - EmployeeOverview2
+      - HeadCount
+      - AccountingProjectsWorkInProgress
+      - PaymentPlansOverview
+      - CRMEventNew
+      - CRMOpportunityNew
+      - BudgetCompany
+      - BudgetEmployees
+      - ContributionMargin
+      - AccountingMonthly
+      - AccountingCustomers
+      - AccountingProjectsRegistrationTypes
+      - BalanceProjectBudgets
+      - ProjectOverview
+      - AllocatedActualWork
+      - TimeRegistrations
+      - TimeRegistrationsNew
+      - ActiveProjectTasks
+      - BudgetFollowUp
+      - Milestones
+      - GanttChart
+      - ProjectFactor
+      - WorkProjects
+      - WorkProjectTypes
+      - WorkProjectCategories
+      - WorkTaskTypes
+      - ProjectPortfolio
+      - ProjectCategoriesAnalysis
+      - ChangeHourlyRatesOnAllocations
+      - AdjustBillableNonBillable
+      - RedistributionOfTime
+      - MoveAllocations
+      - DepartmentProjectsEmployees
+      - WorkDepartments
+      - ReportApproveTimeReports
+      - StatusForTimeReports
+      - ReportApproveExpenses
+      - ReportBalanceExpenses
+      - TimeRegistrationsDetailed
+      - TimeRegistrationsSummarised
+      - TimelogCRM
+      - WorkIndustries
+      - PivotReport
+      - TimeRegistrationsPerProjectEmployee
+      - ContributionAnalysis
+      - InvoicingPercentage
+      - EmployeeEfficiency
+      - InternalExternalAnalysis
+      - EmployeeKeyFigures
+      - EmployeeTimeCustomersAndProjects
+      - EmployeeTimeProjectTypesAndTaskTypes
+      - EmployeeTimeHourlyRates
+      - LastTimeRegistration
+      - AccuracyInTimeTracking
+      - DataExtractionProjects
+      - DataExtractionTasks
+      - DataExtractionAllocations
+      - DataExtractionInstallments
+      - DataExtractionProjectBaseline
+      - DataExtractionCustomers
+      - DataExtractionInvoices
+      - DataExtractionInvoiceLines
+      - DataExtractionExpenses
+      - DataExtractionTravelExpenses
+      - DataExtractionMileage
+      - DataExtractionAbsenceAndSalaryCodes
+      - ExportProjects
+      - ReportImportOfExpenses
+      - InvoiceLinesExport
+      - ExportToKontekPAXml
+      - ExportToVismaLon
+      - SuperTimesheet
+      - EmployeeOverviewTableView
+      - EmployeeOverviewBoxView
+      - SalaryExtractionForLessorLon
+      - TimeLogTrackerInstall
+      - EditEmployeeCV
+      - Events
+      - CustomersAdvance
+      - ETCReportSubmit
+      - EmployeeCV
+      - IntegrationLog
+      - WorkEmployeeTypes
+      - StatusReports
+      - SystemAdministrationRegistrationTimeRegistrationSetting
+      - SystemAdministrationRegistrationExpenseSetting
+      - SystemAdministrationEmployeeSetting
+      - SystemAdministrationRegistrationAllowanceTypes
+      - SystemAdministrationRegistrationPaymentMethod
+      - SystemAdministrationRegistrationMileageRates
+      - SystemAdministrationRegistrationExpenseTypes
+      - SystemAdministrationApprovalSetting
+      - SystemAdministrationCRMSetting
+      - SystemAdministrationCRMStandardValues
+      - SystemAdministrationCRMNotifications
+      - SystemAdministrationCRMExtranet
+      - SystemAdministrationCRMIndustryCodes
+      - SystemAdministrationCRMGroups
+      - SystemAdministrationCRMStatuses
+      - SystemAdministrationCRMEventTypes
+      - SystemAdministrationCRMRelations
+      - SystemAdministrationCRMBarriers
+      - SystemAdministrationCRMOpportunityStatus
+      - SystemAdministrationCRMOpportunityTypes
+      - SystemAdministrationPMProjectSetting
+      - SystemAdministrationPMStandardValues
+      - SystemAdministrationPMProjectInvoicing
+      - SystemAdministrationPMNotifications
+      - SystemAdministrationPMProjectTypes
+      - SystemAdministrationPMProjectCategories
+      - SystemAdministrationPMTaskTypes
+      - SystemAdministrationPMProjectStages
+      - SystemAdministrationPMProjectTemplates
+      - SystemAdministrationPMETCSetting
+      - SystemAdministrationInvoiceSetting
+      - SystemAdministrationInvoiceStandardValues
+      - SystemAdministrationInvoiceTemplates
+      - SystemAdministrationInvoiceHourlyRates
+      - SystemAdministrationInvoiceCostPrices
+      - SystemAdministrationInvoicePaymentTerms
+      - SystemAdministrationInvoiceAccountingPeriod
+      - SystemAdministrationInvoiceProductNumber
+      - SystemAdministrationInvoiceCurrencySetting
+      - SystemAdministrationInvoiceInvoiceLineExportSetting
+      - SystemAdministrationInvoiceConfigurationModelOfCalculation
+      - SystemAdministrationEmployeePermission
+      - SystemAdministrationEmployeeTypes
+      - SystemAdministrationEmployeeNormHours
+      - SystemAdministrationEmployeeHolidayCalendar
+      - SystemAdministrationEmployeeSkillSetting
+      - SystemAdministrationEmployeeCompetencies
+      - SystemAdministrationReportActivation
+      - SystemAdministrationReportAdvancedSetting
+      - SystemAdministrationReportKPISetting
+      - SystemAdministrationIntegrationAPISetting
+      - SystemAdministrationIntegrationSystemIntegration
+      - SystemAdministrationIntegrationStandardFileExport
+      - SystemAdministrationIntegrationImportOfStandardField
+      - SystemAdministrationGeneralSettingDepartments
+      - SystemAdministrationGeneralSettingNumberSeries
+      - SystemAdministrationGeneralSettingSecurityAccess
+      - EditEmployee
+      - EmployeeOverviewBase
+      - ShowMyCustomers
+      - CRMHomeCompany
+      - CRMHomeEmployee
+      - SystemAdministrationGeneralSettingRootPage
+      - SystemAdministrationGeneralSettingLicenseSetting
+      - SystemAdministrationEmployeeNotification
+      - PrintJournalChronologically
+      - EditCustomer
+      - SystemAdministrationGeneralSettingFrontPage
+      - ProjectPlanProgress
+      - CRMEditEvent
+      - ExternalTransactionLog
+      - SystemAdministrationEmployeeSalaryCodes
+      - CRMRelationNew
+      - CRMRelationEdit
+      - CRMOpportunityEdit
+      - CRMContactEdit
+      - FrontPage
+      - InvoiceEdit
+      - InvoiceBooked
+      - VoucherEdit
+      - VoucherBooked
+      - CreditNoteNew
+      - CreditNoteEdit
+      - CreditNoteBooked
+      - ReminderNew
+      - ReminderEdit
+      - ReminderBooked
+      - CRMReportLastUpdatedCustomer
+      - CRMReportSalesPipeline
+      - CRMReportEventOverview
+      - PersonalProfile
+      - PersonalPreference
+      - ChangePassword
+      - ProjectAddResourceToTasks
+      - ProjectAddMultipleResourcesToTask
+      - ProjectAddOneResource
+      - ProjectUpdateProjectStartAndEndDates
+      - TimeRegistrationDrillDown
+      - NewHourlyRate
+      - ProjectAddMultipleInstallments
+      - ErrorList
+      - ContractOverview
+      - AccessDenied
+      - ProjectFactorDetails
+      - ExportSDLon
+      - SalaryExtractionForHogia
+      - ProjectPendingBookingAction
+      - TimeReportUserDefined
+      - SystemAdministrationReportProjectFactorSetting
+      - ProjectOverviewOld
+      - ProcessSidePanel
+      - CustomLinkSidePanel
+      - CustomHelpSidePanel
+      - SystemAdministrationEmployeeRolesMatrixes
+      - EditProjectExpense
+      - EditTravelExpense
+      - CRMSupplierNew
+      - SystemAdministrationIntegrationReportingAPISetting
+      - SystemAdministrationIntegrationReportingAPILog
+      - TestPageReportMVC
+      - TestPageReportNetWebForm
+      - TestPageReportClassicASP
+      - SystemAdministrationGeneralSettingNotificationSettings
+      - NewInvoiceWithProject
+      - NewInvoiceWithCustomer
+      - NewInvoiceWithCustomerAndProject
+      - NewVoucherWithProject
+      - NewVoucherWithCustomer
+      - NewCreditNoteWithInvoice
+      - NewReminderWithInvoice
+      - ReportProjectSumFigures
+      - SalaryExtractionForAccobat
+      - InvoiceLinesExportForAccobat
+      - ReportWorkInProgress
+      - UnitsReportAtki
+      - CopyProject
+      - ConsultantHoursReport
+      - EmployeeHoursReport
+      - HempelInvoiceSpecificationReport
+      - ImportExpensesDevelco
+      - EmployeeOverviewExport
+      - EUProjectsReport
+      - EmployeeProductivityReport
+      - VoucherSystemStatementReport
+      - EdlundInvoiceSpecificationReport
+      - GlobeteamExportRegisteredTimeReport
+      - GlobeteamExportTasksReport
+      - AddProjectTemplateIntoExisitingProject
+      - ExportNonInvoicedHours
+      - EmployeeOverviewReport
+      - AdjustAllocationWithStandardHourlyRates
+      - OneClickInvoicingLog
+      - ProjectProfitability
+      - DataImporter
+      - InvoiceAccountingPeriod
+      - ProjectTaskPlanHour
+      - DataExtractionProjectContractBaseline
+      - Invoice_InvoiceLog
+      - InvoiceArchive
+      - SystemAdministrationProductList
+      - Error
+      - ExpensesBatch
+      - AdjustProjectPayments
+      - SystemAdministrationInvoiceUnitType
+      - DataExtractionProjectSubContract
+      - SystemAdministrationEmployeeCVStatus
+      - BasicoDataExtractionForNav
+      - TimeTrackingBase
+      - SystemAdministrationPMMilestoneTypes
+      - InvoiceLineExportReport
+      - ExportInvoiceDataReport
+      - AnalysisPivotReport
+      - EU_ProjectsReportEnhanced
+      - SystemAdministrationPlatformPaymentForm
+      - PlatformSignupSteps
+      - SystemAdministrationPlatformLicenceOverview
+      - SystemAdministrationPlatformInvoiceOverview
+      - SystemAdministrationPlatformActionLog
+      - SalarySpecificationReport
+      - SystemAdministrationPlatformAccountSpecifications
+      - SystemAdministrationPlatformAccountSettings
+      - SystemAdministrationPlatformInvoiceInformation
+      - CashFlowReport
+      - Fortnox
+      - ExportToCronaLon
+      - ProjectTemplateSyncChangesToLinkedProjectsReport
+      - PlatformSignup
+      - SalaryManagementOverview
+      - SalaryManagementNewAdjustment
+      - SystemAdministrationEmployeeSalaryGroup
+      - SalaryAccountSpecification
+      - SystemAdministrationEmployeeSalaryAccountType
+      - SystemAdministrationEmployeeAbsenceCodes
+      - SystemAdministrationEmployeeAbsenceCodeType
+      - SystemAdministrationInvoiceProductNumberDimensionMapping
+      - SystemAdministrationEmployeeSalaryAccount
+      - ApproveProjectTimeReports
+      - TransferSalaryFileDownload
+      - TransferEmployeeSalary
+      - SalaryPeriods
+      - SystemAdministrationEmployeeSalaryPeriods
+      - SalaryTransferCheck
+      - SystemAdministrationPlatformCustomerSystemOwner
+      - GDPRDataSearchReport
+      - ProjectPlanAmount
+      - AddSalesShare
+      - DetailedMileageReimbursementReport
+      - ExtranetLogin
+      - ExtranetMain
+      - ExtranetProjectOverview
+      - ExtranetTimeRegistrations
+      - ExtranetInvoices
+      - ExtranetStatusReports
+      - ModalWeeklyTimesheetAddProjectTasks
+      - ModalWeeklyTimesheetNewSubTask
+      - ModalDetailedTimesheetNewSubTask
+      - ModalDebtorListDrillDown
+      - ModalCrmImportCustomers
+      - ModalCrmSendEmail
+      - ModalCrmCreateInstallments
+      - ModalProjectSaveAsTemplate
+      - ModalProjectSendEmail
+      - ModalProjectNewBaseline
+      - ModalProjectCalculator
+      - ModalProjectDrillDown
+      - ModalProjectAddResourceToTask
+      - ModalProjectAddResourcesToTask
+      - ModalProjectAddOneResource
+      - ModalProjectAdjustTimePlan
+      - ModalProjectMoveTask
+      - ModalProjectUpdateProjectDates
+      - ModalProjectMoveAllocation
+      - ModalProjectNewHourlyRate
+      - ModalProjectAddMultipleInstallments
+      - ModalResourcePlannerAddToTask
+      - ModalResourcePlannerSetWorkload
+      - ModalResourcePlannerRemoveBookings
+      - ModalCvAddLanguage
+      - ModalCvAddCompetences
+      - ModalCvAddEducation
+      - ModalCvAddCourse
+      - ModalCvAddProject
+      - ModalCvActivity
+      - ModalReportWorkloadAddTasks
+      - ModalReportRedistributionOfTime
+      - ModalHourlyRateNewPriceList
+      - ModalHourlyRateNewCustomerPriceList
+      - ModalHourlyRateAdjustPriceGroups
+      - ModalAccountingPeriodAddNew
+      - ModalSalaryCopyGroup
+      - ModalRedistributionOfTimeSplitter
+      - ModalCrmImportCustomersStepTwo
+      - ModalCrmImportCustomersStepThree
+      - ModalCrmImportCustomersStepFour
+      - ModalCrmImportCustomersStepFive
+      - ProjectInvoiceSettings
+      - ModalCreateContractModel
+      - ModalProjectAddResourceToMultipleMilestones
+      - ModalProjectCopyTasksAndMilestones
+      - InvoiceExportFileList
+      - SystemAdministrationGeneralSettingLegalEntity
+      - SystemAdministrationBasicPlusFeatureSetting
+      - AdvancedResourcePlanner
+      - ProjectManagerOverview
+      - SalesBudget
+      - GenericBudgetValues
+      - SalesReport
+      - ContributionRatioReport
+      - EmployeeCapacity
+      - ResourceManagementReport
+      - AbsenceCalendar
+      - CorporateHolidayCalendar
+      - MilestonesReport
+      - NewDebtorListInvoice
+      - NewDebtorListVoucher
+      - SalaryAccountBalanceSection
+      - SalaryFlexAccountSpecification
+      - SystemAdministrationGeneralSettingPersonalDataProtection
+      - SalaryAccountSpecificationAll
+      - ModalDeleteProject
+      - NavBarExportReport
+      - NitroSAPExport
+      - EmployeeExpense
+      - EditEmployeeExpense
+      - EmployeeExpenseChangeCurrencyModal
+      - ExpenseVisualizePicturesModal
+      - ModalDeleteExpense
+      - ProjectExpenseChangeCurrencyModal
+      - AgentOverviewReport
+      - TransferEmployeeExpense
+      - ProjectAllExpenses
+      - ImportProjectExpenses
+      - AbsenceAnalysisReport
+      - SystemAdministrationGeneralSettingSystemStartDate
+      - AbsenceAnalysisReportDrillDown
+      - ExpenseOverviewReport
+      - ModalMilestoneChangeOwner
+      - IntercompanyInvoice
+      - IntercompanyProjectProfitabilityReport
+      - CreateProjectFromTemplate
+      - MileageRegistration
+      - EditMileageRegistration
+      - ModalDeleteMileageRegistration
+      - ProjectRecurringProductSale
+      - IndexationRecurringContractsAndProducts
+      - MilestoneInlineEdit
+      - SystemAdministrationRegistrationCars
+      - IndexationOfHourlyRateBase
+      - IndexationOfHourlyRateByPercentage
+      - IndexationOfPriceLists
+      - ImportDataFile
+      - QualityAssuranceReport
+      - SystemAdministrationEmployeeSalaryRule
+      - NewResourcePlanner
+      - SystemAdministrationResourceManagementSetting
+      - ModalImportPublicHoliday
+      - HistoricalIndexedHourlyRates
+      - DataExtractionAbsence
+      - ExpenseDownloadAttachments
+      - SystemAdministrationOneClickInvoicingInvoiceTemplate
+      - IntegrationFortnoxAddNewProcessing
+      - SystemAdministrationPMContractTypes
+      - AssignCustomersToMCPContract
+      - ModalLinkCustomerWithIntegration
+      - ModalLinkContactWithIntegration
+      - DesignSevenFrontPage
+      - DesignSevenReports
+      - SystemAdministrationIntegrationSharePointCallback
+      - SystemAdministrationIntegrationSharePointConnectRedirect
+      - PiccaNavRevenueExport
+      - DesignSevenSearchProject
+      - DesignSevenEditEmployeeCompetence
+      - DesignSevenMoveHours
+      - RevenueForecastingReport
+      - ProjectPortfolioOverview
+      - WidgetOverdueInvoices
+      - WidgetPlannedAbsence
+      - WidgetInvoicedPerMonth
+      - WidgetBudgetRemaining
+      - WidgetProjectEconomyHealth
+      - WidgetAverageHourlyRate
+      - WidgetTimeTrackingDelay
+      - WidgetVacationCalculation
+      - WidgetHourKPI
+      - WidgetHourKPIWithBAR
+      - WidgetHourKPIHoursOnly
+      - WidgetBillablePercentage
+      - WidgetExternalPercentage
+      - WidgetPersonalPlan
+      - SystemAdministrationAccountingPeriodPhoenix
+      - SystemAdministrationIntercompanyExchangeRateSetting
+      - MercuriExportOfMonthlyProjectFiguresReport
+      - MercuriExportOfEmployeeFiguresReport
+      - PhoenixProjectManagement
+      - PhoenixDashboardsOverview
+      - PhoenixDashboardsView
+      - NotSpecified
+      x-enum-descriptions:
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      - ''
+      description: |-
+        Identifies a page (screen, modal or report) of the TimeLog web application.
+
+        Allowed values:
+
+        | Value | Name | Meaning |
+        |---|---|---|
+        | `1` | Home | Not yet documented |
+        | `2` | DetailedTimesheet | Not yet documented |
+        | `3` | WeeklyTimesheet | Not yet documented |
+        | `4` | ProjectExpense | Not yet documented |
+        | `5` | TravelExpenses | Not yet documented |
+        | `6` | RegistrationEvents | Not yet documented |
+        | `8` | ImportEmployeeExpenses | Not yet documented |
+        | `9` | CRMCustomer | Not yet documented |
+        | `10` | CRMContact | Not yet documented |
+        | `11` | CRMEvent | Not yet documented |
+        | `12` | CRMOpportunity | Not yet documented |
+        | `13` | CRMRelation | Not yet documented |
+        | `14` | CRMCustomerNew | Not yet documented |
+        | `15` | CRMContactNew | Not yet documented |
+        | `16` | SearchProject | Not yet documented |
+        | `17` | NewProject | Not yet documented |
+        | `18` | NewQuickProject | Not yet documented |
+        | `19` | ImportFromMSProject | Not yet documented |
+        | `20` | DebtorListInvoices | Not yet documented |
+        | `21` | DebtorListVouchers | Not yet documented |
+        | `22` | SearchInvoice | Not yet documented |
+        | `23` | TransferInvoices | Not yet documented |
+        | `24` | InvoiceNew | Not yet documented |
+        | `25` | VoucherNew | Not yet documented |
+        | `26` | Employees | Not yet documented |
+        | `27` | ResourcePlanner | Not yet documented |
+        | `28` | BookedVsRegistered | Not yet documented |
+        | `29` | ApproveTimeReports | Not yet documented |
+        | `30` | ApproveExpenses | Not yet documented |
+        | `32` | NewEmployee | Not yet documented |
+        | `33` | CVOverview | Not yet documented |
+        | `34` | NewCV | Not yet documented |
+        | `35` | SkillMatrix | Not yet documented |
+        | `39` | Reports | Not yet documented |
+        | `40` | CRMHomeStart | Not yet documented |
+        | `41` | CRMPipeline | Not yet documented |
+        | `42` | CRMReport | Not yet documented |
+        | `43` | CRMJournal | Not yet documented |
+        | `44` | CRMLeadInbox | Not yet documented |
+        | `45` | ProjectSetting | Not yet documented |
+        | `46` | ProjectTaskPlanView | Not yet documented |
+        | `47` | ProjectTaskBudgetView | Not yet documented |
+        | `48` | ProjectResourceView | Not yet documented |
+        | `49` | ProjectGanttView | Not yet documented |
+        | `50` | ProjectResourceGroup | Not yet documented |
+        | `51` | ProjectPaymentPlan | Not yet documented |
+        | `52` | ProjectBudgetOverview | Not yet documented |
+        | `54` | ProjectDeprecationStatusAmount | Not yet documented |
+        | `55` | ProjectDeprecationStatusHour | Not yet documented |
+        | `56` | ProjectInvoiceOverview | Not yet documented |
+        | `57` | ProjectDocuments | Not yet documented |
+        | `58` | ProjectStatus | Not yet documented |
+        | `59` | ReportTableView | Not yet documented |
+        | `60` | ReportBoxView | Not yet documented |
+        | `61` | ExpenseReportSubmitPrint | Not yet documented |
+        | `63` | KeyPerformanceIndex | Not yet documented |
+        | `64` | ProjectPlans | Not yet documented |
+        | `65` | ProjectAssignments | Not yet documented |
+        | `66` | Workload | Not yet documented |
+        | `67` | CustomerSignOff | Not yet documented |
+        | `69` | AbsenceSpecification | Not yet documented |
+        | `70` | AbsenceProductivity | Not yet documented |
+        | `71` | AbsenceReport | Not yet documented |
+        | `72` | FlexBalanceAllEmployees | Not yet documented |
+        | `73` | AbsenceSpecificationAllEmployees | Not yet documented |
+        | `74` | EmployeeOverview | Not yet documented |
+        | `77` | WorkCustomers | Not yet documented |
+        | `78` | WorkSingleCustomer | Not yet documented |
+        | `79` | EmployeeOverview2 | Not yet documented |
+        | `80` | HeadCount | Not yet documented |
+        | `81` | AccountingProjectsWorkInProgress | Not yet documented |
+        | `82` | PaymentPlansOverview | Not yet documented |
+        | `83` | CRMEventNew | Not yet documented |
+        | `84` | CRMOpportunityNew | Not yet documented |
+        | `85` | BudgetCompany | Not yet documented |
+        | `86` | BudgetEmployees | Not yet documented |
+        | `87` | ContributionMargin | Not yet documented |
+        | `88` | AccountingMonthly | Not yet documented |
+        | `89` | AccountingCustomers | Not yet documented |
+        | `90` | AccountingProjectsRegistrationTypes | Not yet documented |
+        | `91` | BalanceProjectBudgets | Not yet documented |
+        | `92` | ProjectOverview | Not yet documented |
+        | `93` | AllocatedActualWork | Not yet documented |
+        | `94` | TimeRegistrations | Not yet documented |
+        | `95` | TimeRegistrationsNew | Not yet documented |
+        | `96` | ActiveProjectTasks | Not yet documented |
+        | `97` | BudgetFollowUp | Not yet documented |
+        | `98` | Milestones | Not yet documented |
+        | `99` | GanttChart | Not yet documented |
+        | `100` | ProjectFactor | Not yet documented |
+        | `101` | WorkProjects | Not yet documented |
+        | `102` | WorkProjectTypes | Not yet documented |
+        | `103` | WorkProjectCategories | Not yet documented |
+        | `104` | WorkTaskTypes | Not yet documented |
+        | `105` | ProjectPortfolio | Not yet documented |
+        | `106` | ProjectCategoriesAnalysis | Not yet documented |
+        | `107` | ChangeHourlyRatesOnAllocations | Not yet documented |
+        | `108` | AdjustBillableNonBillable | Not yet documented |
+        | `109` | RedistributionOfTime | Not yet documented |
+        | `110` | MoveAllocations | Not yet documented |
+        | `117` | DepartmentProjectsEmployees | Not yet documented |
+        | `118` | WorkDepartments | Not yet documented |
+        | `119` | ReportApproveTimeReports | Not yet documented |
+        | `121` | StatusForTimeReports | Not yet documented |
+        | `122` | ReportApproveExpenses | Not yet documented |
+        | `123` | ReportBalanceExpenses | Not yet documented |
+        | `124` | TimeRegistrationsDetailed | Not yet documented |
+        | `125` | TimeRegistrationsSummarised | Not yet documented |
+        | `126` | TimelogCRM | Not yet documented |
+        | `127` | WorkIndustries | Not yet documented |
+        | `128` | PivotReport | Not yet documented |
+        | `129` | TimeRegistrationsPerProjectEmployee | Not yet documented |
+        | `130` | ContributionAnalysis | Not yet documented |
+        | `131` | InvoicingPercentage | Not yet documented |
+        | `132` | EmployeeEfficiency | Not yet documented |
+        | `133` | InternalExternalAnalysis | Not yet documented |
+        | `134` | EmployeeKeyFigures | Not yet documented |
+        | `135` | EmployeeTimeCustomersAndProjects | Not yet documented |
+        | `136` | EmployeeTimeProjectTypesAndTaskTypes | Not yet documented |
+        | `137` | EmployeeTimeHourlyRates | Not yet documented |
+        | `138` | LastTimeRegistration | Not yet documented |
+        | `139` | AccuracyInTimeTracking | Not yet documented |
+        | `140` | DataExtractionProjects | Not yet documented |
+        | `141` | DataExtractionTasks | Not yet documented |
+        | `142` | DataExtractionAllocations | Not yet documented |
+        | `143` | DataExtractionInstallments | Not yet documented |
+        | `144` | DataExtractionProjectBaseline | Not yet documented |
+        | `145` | DataExtractionCustomers | Not yet documented |
+        | `146` | DataExtractionInvoices | Not yet documented |
+        | `147` | DataExtractionInvoiceLines | Not yet documented |
+        | `148` | DataExtractionExpenses | Not yet documented |
+        | `149` | DataExtractionTravelExpenses | Not yet documented |
+        | `150` | DataExtractionMileage | Not yet documented |
+        | `151` | DataExtractionAbsenceAndSalaryCodes | Not yet documented |
+        | `154` | ExportProjects | Not yet documented |
+        | `155` | ReportImportOfExpenses | Not yet documented |
+        | `156` | InvoiceLinesExport | Not yet documented |
+        | `159` | ExportToKontekPAXml | Not yet documented |
+        | `160` | ExportToVismaLon | Not yet documented |
+        | `161` | SuperTimesheet | Not yet documented |
+        | `162` | EmployeeOverviewTableView | Not yet documented |
+        | `163` | EmployeeOverviewBoxView | Not yet documented |
+        | `164` | SalaryExtractionForLessorLon | Not yet documented |
+        | `165` | TimeLogTrackerInstall | Not yet documented |
+        | `166` | EditEmployeeCV | Not yet documented |
+        | `167` | Events | Not yet documented |
+        | `168` | CustomersAdvance | Not yet documented |
+        | `169` | ETCReportSubmit | Not yet documented |
+        | `170` | EmployeeCV | Not yet documented |
+        | `171` | IntegrationLog | Not yet documented |
+        | `172` | WorkEmployeeTypes | Not yet documented |
+        | `173` | StatusReports | Not yet documented |
+        | `174` | SystemAdministrationRegistrationTimeRegistrationSetting | Not yet documented |
+        | `175` | SystemAdministrationRegistrationExpenseSetting | Not yet documented |
+        | `176` | SystemAdministrationEmployeeSetting | Not yet documented |
+        | `177` | SystemAdministrationRegistrationAllowanceTypes | Not yet documented |
+        | `178` | SystemAdministrationRegistrationPaymentMethod | Not yet documented |
+        | `179` | SystemAdministrationRegistrationMileageRates | Not yet documented |
+        | `181` | SystemAdministrationRegistrationExpenseTypes | Not yet documented |
+        | `182` | SystemAdministrationApprovalSetting | Not yet documented |
+        | `183` | SystemAdministrationCRMSetting | Not yet documented |
+        | `184` | SystemAdministrationCRMStandardValues | Not yet documented |
+        | `185` | SystemAdministrationCRMNotifications | Not yet documented |
+        | `186` | SystemAdministrationCRMExtranet | Not yet documented |
+        | `187` | SystemAdministrationCRMIndustryCodes | Not yet documented |
+        | `188` | SystemAdministrationCRMGroups | Not yet documented |
+        | `189` | SystemAdministrationCRMStatuses | Not yet documented |
+        | `190` | SystemAdministrationCRMEventTypes | Not yet documented |
+        | `191` | SystemAdministrationCRMRelations | Not yet documented |
+        | `192` | SystemAdministrationCRMBarriers | Not yet documented |
+        | `193` | SystemAdministrationCRMOpportunityStatus | Not yet documented |
+        | `194` | SystemAdministrationCRMOpportunityTypes | Not yet documented |
+        | `195` | SystemAdministrationPMProjectSetting | Not yet documented |
+        | `196` | SystemAdministrationPMStandardValues | Not yet documented |
+        | `197` | SystemAdministrationPMProjectInvoicing | Not yet documented |
+        | `198` | SystemAdministrationPMNotifications | Not yet documented |
+        | `199` | SystemAdministrationPMProjectTypes | Not yet documented |
+        | `200` | SystemAdministrationPMProjectCategories | Not yet documented |
+        | `201` | SystemAdministrationPMTaskTypes | Not yet documented |
+        | `202` | SystemAdministrationPMProjectStages | Not yet documented |
+        | `203` | SystemAdministrationPMProjectTemplates | Not yet documented |
+        | `204` | SystemAdministrationPMETCSetting | Not yet documented |
+        | `205` | SystemAdministrationInvoiceSetting | Not yet documented |
+        | `206` | SystemAdministrationInvoiceStandardValues | Not yet documented |
+        | `207` | SystemAdministrationInvoiceTemplates | Not yet documented |
+        | `208` | SystemAdministrationInvoiceHourlyRates | Not yet documented |
+        | `209` | SystemAdministrationInvoiceCostPrices | Not yet documented |
+        | `210` | SystemAdministrationInvoicePaymentTerms | Not yet documented |
+        | `211` | SystemAdministrationInvoiceAccountingPeriod | Not yet documented |
+        | `212` | SystemAdministrationInvoiceProductNumber | Not yet documented |
+        | `213` | SystemAdministrationInvoiceCurrencySetting | Not yet documented |
+        | `214` | SystemAdministrationInvoiceInvoiceLineExportSetting | Not yet documented |
+        | `215` | SystemAdministrationInvoiceConfigurationModelOfCalculation | Not yet documented |
+        | `216` | SystemAdministrationEmployeePermission | Not yet documented |
+        | `217` | SystemAdministrationEmployeeTypes | Not yet documented |
+        | `219` | SystemAdministrationEmployeeNormHours | Not yet documented |
+        | `220` | SystemAdministrationEmployeeHolidayCalendar | Not yet documented |
+        | `221` | SystemAdministrationEmployeeSkillSetting | Not yet documented |
+        | `222` | SystemAdministrationEmployeeCompetencies | Not yet documented |
+        | `223` | SystemAdministrationReportActivation | Not yet documented |
+        | `224` | SystemAdministrationReportAdvancedSetting | Not yet documented |
+        | `225` | SystemAdministrationReportKPISetting | Not yet documented |
+        | `229` | SystemAdministrationIntegrationAPISetting | Not yet documented |
+        | `230` | SystemAdministrationIntegrationSystemIntegration | Not yet documented |
+        | `231` | SystemAdministrationIntegrationStandardFileExport | Not yet documented |
+        | `232` | SystemAdministrationIntegrationImportOfStandardField | Not yet documented |
+        | `233` | SystemAdministrationGeneralSettingDepartments | Not yet documented |
+        | `234` | SystemAdministrationGeneralSettingNumberSeries | Not yet documented |
+        | `235` | SystemAdministrationGeneralSettingSecurityAccess | Not yet documented |
+        | `236` | EditEmployee | Not yet documented |
+        | `237` | EmployeeOverviewBase | Not yet documented |
+        | `239` | ShowMyCustomers | Not yet documented |
+        | `240` | CRMHomeCompany | Not yet documented |
+        | `241` | CRMHomeEmployee | Not yet documented |
+        | `242` | SystemAdministrationGeneralSettingRootPage | Not yet documented |
+        | `243` | SystemAdministrationGeneralSettingLicenseSetting | Not yet documented |
+        | `244` | SystemAdministrationEmployeeNotification | Not yet documented |
+        | `245` | PrintJournalChronologically | Not yet documented |
+        | `246` | EditCustomer | Not yet documented |
+        | `247` | SystemAdministrationGeneralSettingFrontPage | Not yet documented |
+        | `253` | ProjectPlanProgress | Not yet documented |
+        | `254` | CRMEditEvent | Not yet documented |
+        | `255` | ExternalTransactionLog | Not yet documented |
+        | `257` | SystemAdministrationEmployeeSalaryCodes | Not yet documented |
+        | `258` | CRMRelationNew | Not yet documented |
+        | `259` | CRMRelationEdit | Not yet documented |
+        | `260` | CRMOpportunityEdit | Not yet documented |
+        | `261` | CRMContactEdit | Not yet documented |
+        | `262` | FrontPage | Not yet documented |
+        | `263` | InvoiceEdit | Not yet documented |
+        | `264` | InvoiceBooked | Not yet documented |
+        | `265` | VoucherEdit | Not yet documented |
+        | `266` | VoucherBooked | Not yet documented |
+        | `267` | CreditNoteNew | Not yet documented |
+        | `268` | CreditNoteEdit | Not yet documented |
+        | `269` | CreditNoteBooked | Not yet documented |
+        | `270` | ReminderNew | Not yet documented |
+        | `271` | ReminderEdit | Not yet documented |
+        | `272` | ReminderBooked | Not yet documented |
+        | `273` | CRMReportLastUpdatedCustomer | Not yet documented |
+        | `274` | CRMReportSalesPipeline | Not yet documented |
+        | `275` | CRMReportEventOverview | Not yet documented |
+        | `277` | PersonalProfile | Not yet documented |
+        | `278` | PersonalPreference | Not yet documented |
+        | `279` | ChangePassword | Not yet documented |
+        | `280` | ProjectAddResourceToTasks | Not yet documented |
+        | `281` | ProjectAddMultipleResourcesToTask | Not yet documented |
+        | `282` | ProjectAddOneResource | Not yet documented |
+        | `283` | ProjectUpdateProjectStartAndEndDates | Not yet documented |
+        | `284` | TimeRegistrationDrillDown | Not yet documented |
+        | `285` | NewHourlyRate | Not yet documented |
+        | `286` | ProjectAddMultipleInstallments | Not yet documented |
+        | `287` | ErrorList | Not yet documented |
+        | `288` | ContractOverview | Not yet documented |
+        | `289` | AccessDenied | Not yet documented |
+        | `290` | ProjectFactorDetails | Not yet documented |
+        | `291` | ExportSDLon | Not yet documented |
+        | `292` | SalaryExtractionForHogia | Not yet documented |
+        | `295` | ProjectPendingBookingAction | Not yet documented |
+        | `296` | TimeReportUserDefined | Not yet documented |
+        | `297` | SystemAdministrationReportProjectFactorSetting | Not yet documented |
+        | `298` | ProjectOverviewOld | Not yet documented |
+        | `299` | ProcessSidePanel | Not yet documented |
+        | `300` | CustomLinkSidePanel | Not yet documented |
+        | `301` | CustomHelpSidePanel | Not yet documented |
+        | `302` | SystemAdministrationEmployeeRolesMatrixes | Not yet documented |
+        | `304` | EditProjectExpense | Not yet documented |
+        | `306` | EditTravelExpense | Not yet documented |
+        | `308` | CRMSupplierNew | Not yet documented |
+        | `309` | SystemAdministrationIntegrationReportingAPISetting | Not yet documented |
+        | `310` | SystemAdministrationIntegrationReportingAPILog | Not yet documented |
+        | `311` | TestPageReportMVC | Not yet documented |
+        | `312` | TestPageReportNetWebForm | Not yet documented |
+        | `313` | TestPageReportClassicASP | Not yet documented |
+        | `315` | SystemAdministrationGeneralSettingNotificationSettings | Not yet documented |
+        | `316` | NewInvoiceWithProject | Not yet documented |
+        | `317` | NewInvoiceWithCustomer | Not yet documented |
+        | `318` | NewInvoiceWithCustomerAndProject | Not yet documented |
+        | `319` | NewVoucherWithProject | Not yet documented |
+        | `320` | NewVoucherWithCustomer | Not yet documented |
+        | `321` | NewCreditNoteWithInvoice | Not yet documented |
+        | `322` | NewReminderWithInvoice | Not yet documented |
+        | `323` | ReportProjectSumFigures | Not yet documented |
+        | `324` | SalaryExtractionForAccobat | Not yet documented |
+        | `325` | InvoiceLinesExportForAccobat | Not yet documented |
+        | `327` | ReportWorkInProgress | Not yet documented |
+        | `328` | UnitsReportAtki | Not yet documented |
+        | `329` | CopyProject | Not yet documented |
+        | `330` | ConsultantHoursReport | Not yet documented |
+        | `331` | EmployeeHoursReport | Not yet documented |
+        | `332` | HempelInvoiceSpecificationReport | Not yet documented |
+        | `333` | ImportExpensesDevelco | Not yet documented |
+        | `334` | EmployeeOverviewExport | Not yet documented |
+        | `335` | EUProjectsReport | Not yet documented |
+        | `336` | EmployeeProductivityReport | Not yet documented |
+        | `337` | VoucherSystemStatementReport | Not yet documented |
+        | `338` | EdlundInvoiceSpecificationReport | Not yet documented |
+        | `339` | GlobeteamExportRegisteredTimeReport | Not yet documented |
+        | `340` | GlobeteamExportTasksReport | Not yet documented |
+        | `341` | AddProjectTemplateIntoExisitingProject | Not yet documented |
+        | `342` | ExportNonInvoicedHours | Not yet documented |
+        | `343` | EmployeeOverviewReport | Not yet documented |
+        | `344` | AdjustAllocationWithStandardHourlyRates | Not yet documented |
+        | `345` | OneClickInvoicingLog | Not yet documented |
+        | `346` | ProjectProfitability | Not yet documented |
+        | `347` | DataImporter | Not yet documented |
+        | `348` | InvoiceAccountingPeriod | Not yet documented |
+        | `349` | ProjectTaskPlanHour | Not yet documented |
+        | `350` | DataExtractionProjectContractBaseline | Not yet documented |
+        | `351` | Invoice_InvoiceLog | Not yet documented |
+        | `352` | InvoiceArchive | Not yet documented |
+        | `353` | SystemAdministrationProductList | Not yet documented |
+        | `354` | Error | Not yet documented |
+        | `355` | ExpensesBatch | Not yet documented |
+        | `356` | AdjustProjectPayments | Not yet documented |
+        | `357` | SystemAdministrationInvoiceUnitType | Not yet documented |
+        | `358` | DataExtractionProjectSubContract | Not yet documented |
+        | `359` | SystemAdministrationEmployeeCVStatus | Not yet documented |
+        | `360` | BasicoDataExtractionForNav | Not yet documented |
+        | `361` | TimeTrackingBase | Not yet documented |
+        | `362` | SystemAdministrationPMMilestoneTypes | Not yet documented |
+        | `363` | InvoiceLineExportReport | Not yet documented |
+        | `364` | ExportInvoiceDataReport | Not yet documented |
+        | `365` | AnalysisPivotReport | Not yet documented |
+        | `366` | EU_ProjectsReportEnhanced | Not yet documented |
+        | `367` | SystemAdministrationPlatformPaymentForm | Not yet documented |
+        | `368` | PlatformSignupSteps | Not yet documented |
+        | `369` | SystemAdministrationPlatformLicenceOverview | Not yet documented |
+        | `370` | SystemAdministrationPlatformInvoiceOverview | Not yet documented |
+        | `371` | SystemAdministrationPlatformActionLog | Not yet documented |
+        | `373` | SalarySpecificationReport | Not yet documented |
+        | `374` | SystemAdministrationPlatformAccountSpecifications | Not yet documented |
+        | `375` | SystemAdministrationPlatformAccountSettings | Not yet documented |
+        | `376` | SystemAdministrationPlatformInvoiceInformation | Not yet documented |
+        | `377` | CashFlowReport | Not yet documented |
+        | `378` | Fortnox | Not yet documented |
+        | `379` | ExportToCronaLon | Not yet documented |
+        | `380` | ProjectTemplateSyncChangesToLinkedProjectsReport | Not yet documented |
+        | `381` | PlatformSignup | Not yet documented |
+        | `382` | SalaryManagementOverview | Not yet documented |
+        | `383` | SalaryManagementNewAdjustment | Not yet documented |
+        | `384` | SystemAdministrationEmployeeSalaryGroup | Not yet documented |
+        | `385` | SalaryAccountSpecification | Not yet documented |
+        | `386` | SystemAdministrationEmployeeSalaryAccountType | Not yet documented |
+        | `387` | SystemAdministrationEmployeeAbsenceCodes | Not yet documented |
+        | `388` | SystemAdministrationEmployeeAbsenceCodeType | Not yet documented |
+        | `389` | SystemAdministrationInvoiceProductNumberDimensionMapping | Not yet documented |
+        | `390` | SystemAdministrationEmployeeSalaryAccount | Not yet documented |
+        | `391` | ApproveProjectTimeReports | Not yet documented |
+        | `392` | TransferSalaryFileDownload | Not yet documented |
+        | `395` | TransferEmployeeSalary | Not yet documented |
+        | `393` | SalaryPeriods | Not yet documented |
+        | `394` | SystemAdministrationEmployeeSalaryPeriods | Not yet documented |
+        | `396` | SalaryTransferCheck | Not yet documented |
+        | `397` | SystemAdministrationPlatformCustomerSystemOwner | Not yet documented |
+        | `398` | GDPRDataSearchReport | Not yet documented |
+        | `399` | ProjectPlanAmount | Not yet documented |
+        | `400` | AddSalesShare | Not yet documented |
+        | `401` | DetailedMileageReimbursementReport | Not yet documented |
+        | `900` | ExtranetLogin | Not yet documented |
+        | `901` | ExtranetMain | Not yet documented |
+        | `902` | ExtranetProjectOverview | Not yet documented |
+        | `903` | ExtranetTimeRegistrations | Not yet documented |
+        | `904` | ExtranetInvoices | Not yet documented |
+        | `905` | ExtranetStatusReports | Not yet documented |
+        | `1002` | ModalWeeklyTimesheetAddProjectTasks | Not yet documented |
+        | `1003` | ModalWeeklyTimesheetNewSubTask | Not yet documented |
+        | `1004` | ModalDetailedTimesheetNewSubTask | Not yet documented |
+        | `1005` | ModalDebtorListDrillDown | Not yet documented |
+        | `1006` | ModalCrmImportCustomers | Not yet documented |
+        | `1007` | ModalCrmSendEmail | Not yet documented |
+        | `1008` | ModalCrmCreateInstallments | Not yet documented |
+        | `1009` | ModalProjectSaveAsTemplate | Not yet documented |
+        | `1010` | ModalProjectSendEmail | Not yet documented |
+        | `1011` | ModalProjectNewBaseline | Not yet documented |
+        | `1012` | ModalProjectCalculator | Not yet documented |
+        | `1013` | ModalProjectDrillDown | Not yet documented |
+        | `1014` | ModalProjectAddResourceToTask | Not yet documented |
+        | `1015` | ModalProjectAddResourcesToTask | Not yet documented |
+        | `1016` | ModalProjectAddOneResource | Not yet documented |
+        | `1017` | ModalProjectAdjustTimePlan | Not yet documented |
+        | `1018` | ModalProjectMoveTask | Not yet documented |
+        | `1019` | ModalProjectUpdateProjectDates | Not yet documented |
+        | `1020` | ModalProjectMoveAllocation | Not yet documented |
+        | `1021` | ModalProjectNewHourlyRate | Not yet documented |
+        | `1022` | ModalProjectAddMultipleInstallments | Not yet documented |
+        | `1023` | ModalResourcePlannerAddToTask | Not yet documented |
+        | `1024` | ModalResourcePlannerSetWorkload | Not yet documented |
+        | `1025` | ModalResourcePlannerRemoveBookings | Not yet documented |
+        | `1026` | ModalCvAddLanguage | Not yet documented |
+        | `1027` | ModalCvAddCompetences | Not yet documented |
+        | `1028` | ModalCvAddEducation | Not yet documented |
+        | `1029` | ModalCvAddCourse | Not yet documented |
+        | `1030` | ModalCvAddProject | Not yet documented |
+        | `1031` | ModalCvActivity | Not yet documented |
+        | `1032` | ModalReportWorkloadAddTasks | Not yet documented |
+        | `1033` | ModalReportRedistributionOfTime | Not yet documented |
+        | `1034` | ModalHourlyRateNewPriceList | Not yet documented |
+        | `1035` | ModalHourlyRateNewCustomerPriceList | Not yet documented |
+        | `1036` | ModalHourlyRateAdjustPriceGroups | Not yet documented |
+        | `1037` | ModalAccountingPeriodAddNew | Not yet documented |
+        | `1038` | ModalSalaryCopyGroup | Not yet documented |
+        | `1039` | ModalRedistributionOfTimeSplitter | Not yet documented |
+        | `1040` | ModalCrmImportCustomersStepTwo | Not yet documented |
+        | `1041` | ModalCrmImportCustomersStepThree | Not yet documented |
+        | `1042` | ModalCrmImportCustomersStepFour | Not yet documented |
+        | `1043` | ModalCrmImportCustomersStepFive | Not yet documented |
+        | `1044` | ProjectInvoiceSettings | Not yet documented |
+        | `1045` | ModalCreateContractModel | Not yet documented |
+        | `1046` | ModalProjectAddResourceToMultipleMilestones | Not yet documented |
+        | `1047` | ModalProjectCopyTasksAndMilestones | Not yet documented |
+        | `1048` | InvoiceExportFileList | Not yet documented |
+        | `1049` | SystemAdministrationGeneralSettingLegalEntity | Not yet documented |
+        | `1050` | SystemAdministrationBasicPlusFeatureSetting | Not yet documented |
+        | `1051` | AdvancedResourcePlanner | Not yet documented |
+        | `1052` | ProjectManagerOverview | Not yet documented |
+        | `1053` | SalesBudget | Not yet documented |
+        | `1054` | GenericBudgetValues | Not yet documented |
+        | `1055` | SalesReport | Not yet documented |
+        | `1056` | ContributionRatioReport | Not yet documented |
+        | `1057` | EmployeeCapacity | Not yet documented |
+        | `1058` | ResourceManagementReport | Not yet documented |
+        | `1059` | AbsenceCalendar | Not yet documented |
+        | `1060` | CorporateHolidayCalendar | Not yet documented |
+        | `1070` | MilestonesReport | Not yet documented |
+        | `1071` | NewDebtorListInvoice | Not yet documented |
+        | `1072` | NewDebtorListVoucher | Not yet documented |
+        | `1073` | SalaryAccountBalanceSection | Not yet documented |
+        | `1074` | SalaryFlexAccountSpecification | Not yet documented |
+        | `1075` | SystemAdministrationGeneralSettingPersonalDataProtection | Not yet documented |
+        | `1076` | SalaryAccountSpecificationAll | Not yet documented |
+        | `1077` | ModalDeleteProject | Not yet documented |
+        | `1078` | NavBarExportReport | Not yet documented |
+        | `1079` | NitroSAPExport | Not yet documented |
+        | `1080` | EmployeeExpense | Not yet documented |
+        | `1081` | EditEmployeeExpense | Not yet documented |
+        | `1082` | EmployeeExpenseChangeCurrencyModal | Not yet documented |
+        | `1083` | ExpenseVisualizePicturesModal | Not yet documented |
+        | `1084` | ModalDeleteExpense | Not yet documented |
+        | `1085` | ProjectExpenseChangeCurrencyModal | Not yet documented |
+        | `1086` | AgentOverviewReport | Not yet documented |
+        | `1087` | TransferEmployeeExpense | Not yet documented |
+        | `1088` | ProjectAllExpenses | Not yet documented |
+        | `1089` | ImportProjectExpenses | Not yet documented |
+        | `1090` | AbsenceAnalysisReport | Not yet documented |
+        | `1091` | SystemAdministrationGeneralSettingSystemStartDate | Not yet documented |
+        | `1092` | AbsenceAnalysisReportDrillDown | Not yet documented |
+        | `1093` | ExpenseOverviewReport | Not yet documented |
+        | `1094` | ModalMilestoneChangeOwner | Not yet documented |
+        | `1095` | IntercompanyInvoice | Not yet documented |
+        | `1096` | IntercompanyProjectProfitabilityReport | Not yet documented |
+        | `1097` | CreateProjectFromTemplate | Not yet documented |
+        | `1098` | MileageRegistration | Not yet documented |
+        | `1099` | EditMileageRegistration | Not yet documented |
+        | `1100` | ModalDeleteMileageRegistration | Not yet documented |
+        | `1101` | ProjectRecurringProductSale | Not yet documented |
+        | `1102` | IndexationRecurringContractsAndProducts | Not yet documented |
+        | `1103` | MilestoneInlineEdit | Not yet documented |
+        | `1120` | SystemAdministrationRegistrationCars | Not yet documented |
+        | `1121` | IndexationOfHourlyRateBase | Not yet documented |
+        | `1122` | IndexationOfHourlyRateByPercentage | Not yet documented |
+        | `1123` | IndexationOfPriceLists | Not yet documented |
+        | `1124` | ImportDataFile | Not yet documented |
+        | `1126` | QualityAssuranceReport | Not yet documented |
+        | `1127` | SystemAdministrationEmployeeSalaryRule | Not yet documented |
+        | `1128` | NewResourcePlanner | Not yet documented |
+        | `1129` | SystemAdministrationResourceManagementSetting | Not yet documented |
+        | `1130` | ModalImportPublicHoliday | Not yet documented |
+        | `1131` | HistoricalIndexedHourlyRates | Not yet documented |
+        | `1132` | DataExtractionAbsence | Not yet documented |
+        | `1133` | ExpenseDownloadAttachments | Not yet documented |
+        | `1134` | SystemAdministrationOneClickInvoicingInvoiceTemplate | Not yet documented |
+        | `1135` | IntegrationFortnoxAddNewProcessing | Not yet documented |
+        | `1136` | SystemAdministrationPMContractTypes | Not yet documented |
+        | `1137` | AssignCustomersToMCPContract | Not yet documented |
+        | `1138` | ModalLinkCustomerWithIntegration | Not yet documented |
+        | `1139` | ModalLinkContactWithIntegration | Not yet documented |
+        | `1140` | DesignSevenFrontPage | Not yet documented |
+        | `1141` | DesignSevenReports | Not yet documented |
+        | `1142` | SystemAdministrationIntegrationSharePointCallback | Not yet documented |
+        | `1143` | SystemAdministrationIntegrationSharePointConnectRedirect | Not yet documented |
+        | `1144` | PiccaNavRevenueExport | Not yet documented |
+        | `1145` | DesignSevenSearchProject | Not yet documented |
+        | `1146` | DesignSevenEditEmployeeCompetence | Not yet documented |
+        | `1147` | DesignSevenMoveHours | Not yet documented |
+        | `1148` | RevenueForecastingReport | Not yet documented |
+        | `1149` | ProjectPortfolioOverview | Not yet documented |
+        | `1150` | WidgetOverdueInvoices | Not yet documented |
+        | `1151` | WidgetPlannedAbsence | Not yet documented |
+        | `1152` | WidgetInvoicedPerMonth | Not yet documented |
+        | `1153` | WidgetBudgetRemaining | Not yet documented |
+        | `1154` | WidgetProjectEconomyHealth | Not yet documented |
+        | `1155` | WidgetAverageHourlyRate | Not yet documented |
+        | `1156` | WidgetTimeTrackingDelay | Not yet documented |
+        | `1157` | WidgetVacationCalculation | Not yet documented |
+        | `1158` | WidgetHourKPI | Not yet documented |
+        | `1159` | WidgetHourKPIWithBAR | Not yet documented |
+        | `1160` | WidgetHourKPIHoursOnly | Not yet documented |
+        | `1161` | WidgetBillablePercentage | Not yet documented |
+        | `1162` | WidgetExternalPercentage | Not yet documented |
+        | `1163` | WidgetPersonalPlan | Not yet documented |
+        | `1164` | SystemAdministrationAccountingPeriodPhoenix | Not yet documented |
+        | `2000` | SystemAdministrationIntercompanyExchangeRateSetting | Not yet documented |
+        | `2001` | MercuriExportOfMonthlyProjectFiguresReport | Not yet documented |
+        | `2002` | MercuriExportOfEmployeeFiguresReport | Not yet documented |
+        | `10001` | PhoenixProjectManagement | Not yet documented |
+        | `10002` | PhoenixDashboardsOverview | Not yet documented |
+        | `10003` | PhoenixDashboardsView | Not yet documented |
+        | `0` | NotSpecified | Not yet documented |
+    ResponseError:
+      type: object
+      description: Error body for validation (400), privilege (403), business-rule (422/500) and other server errors. `Details`
+        lists strings for validation errors, or `{ErrorCode, Message}` objects for business-rule violations. `Parameters`
+        echoes the request arguments, including the full payload.
+      properties:
+        Code:
+          type: integer
+          description: 'TimeLog error class (not the HTTP status): 100 unexpected, 102 business rule, 103 privilege, 200 validation.'
+        Message:
+          type: string
+        Details:
+          type: array
+          items: {}
+        Parameters:
+          type:
+          - string
+          - object
+          - 'null'
+        Url:
+          type: string
+    TafAction:
+      type: object
+      description: A hypermedia action the caller may take on the object. Present only where the operation registers actions.
+    TafLink:
+      type: object
+      properties:
+        Href:
+          type: string
+        Rel:
+          type: string
+    TafListPaging:
+      type: object
+      description: 'Paging values. They are returned as STRINGS, for example `"TotalRecord": "12"`.'
+      properties:
+        TotalRecord:
+          type: string
+        TotalPage:
+          type: string
+        PageNumber:
+          type: string
+x-timelog-service: Filter

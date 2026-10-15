@@ -1,0 +1,362 @@
+openapi: 3.1.0
+info:
+  title: API root — REST API v2
+  version: v2
+  description: |-
+    The REST v1 entry point — build version, server time zone and a hypermedia link to every v1 controller.
+
+    Enums are strings (member names) in v2 responses.
+
+    **Conventions that apply to every operation in this file:**
+    - Property names are PascalCase.
+    - Successful bodies use the TAF envelope: one object in `Properties`, lists in `Entities[].Properties`.
+    - Some operations succeed without content: HTTP 200 with the literal body `null`, or HTTP 204.
+    - `PUT` replaces the whole object: omitted fields are reset.
+    - Treat error `Code` 102 as a business-rule violation, whether the HTTP status is 422 or 500.
+
+    > **Not yet documented:** rate limits.
+servers:
+- url: https://{region-node}.timelog.com/{account}/api
+  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
+    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
+    it.'
+  variables:
+    region-node:
+      default: app3
+    account:
+      default: your-account
+security:
+- bearer: []
+tags:
+- name: API root
+  description: The REST v1 entry point — build version, server time zone and a hypermedia link to every v1 controller.
+paths:
+  /v2:
+    get:
+      operationId: getApiRootV2
+      summary: Get the REST v2 root document
+      description: |-
+        Returns the TimeLog build, site facts (product, edition, company, locale, status, frontend URL) and a link to every REST v2 controller.
+
+        The entry point of REST v2 in the TAF style.
+
+        **Use it to:**
+        - Credential and connectivity check for a v2 client (200 = the token works on this tenant)
+        - Read product type, edition and site status to switch front-end features
+
+        **Not for:**
+        - A machine-readable contract — use the OpenAPI document.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `GET /v2/users/me`
+
+        **See also:** `GET /v1`
+
+        > **Not yet documented:** response → success.
+      tags:
+      - API root
+      responses:
+        '200':
+          description: The object, wrapped in the TAF envelope (`Properties`). Properties = IndexReadV2 (enums as names, CustomerPortalUrl
+            omitted when null); Links = self + one link per listed v2 controller with Actions.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/IndexReadV2'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v2.root.index.get
+  /v2/feed:
+    get:
+      operationId: getRssFeedV2
+      summary: Get the TimeLog news feed
+      description: |-
+        Returns TimeLog's news RSS feed for the caller's language, as raw XML.
+
+        Picks a feed URL from the tenant settings by the caller's profile language — Danish → RSSFeedUrl_DK, Swedish → RSSFeedUrl_SE, English and every other language → RSSFeedUrl_EN (defaults: http://help.timelog.com/<dk|en|se>/feed/) — downloads it server-side, parses it as XML and returns the document unchanged with Content-Type application/xml. The parsed document is kept in the application cache under "<url>-Xml", so later calls for the same URL do not download again. The body is NOT the TAF JSON envelope.
+
+        **Use it to:**
+        - Show TimeLog product news on the front page.
+
+        **Not for:**
+        - Anything tenant-specific — the feed is TimeLog's public help-site feed unless the settings were changed.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Side effect: Outbound HTTP(S) request from the TimeLog web server to the configured feed URL on a cache miss.
+
+        **See also:** `GET /v2`
+
+        > **Not yet documented:** behaviour → consistency; examples (success).
+      tags:
+      - API root
+      responses:
+        '200':
+          description: The body is returned without the TAF envelope. The remote RSS document re-serialized by XmlDocument
+            (OuterXml), UTF-8, application/xml.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RssFeedXml'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Example
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: ''
+                    Url: https://{region-node}.timelog.com/{account}/api/v2/feed
+      x-timelog-key: rest.v2.root.feed.getrssfeed
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: |-
+        OAuth 2.0 bearer token, sent as `Authorization: Bearer <token>`. JWT and reference tokens are both accepted. The token must carry the required scope (default `tlp`).
+
+        The token's `sub` claim is the acting user. A token WITHOUT `sub` (client-credentials) acts as the system service user. If the `sub` user cannot log in (inactive, locked, deleted), the request is rejected with 401 — it is no longer let through without a user.
+
+        > **Not yet documented:** how to obtain a token.
+
+        > **Not yet documented:** token lifetime.
+  schemas:
+    IndexReadV2:
+      type: object
+      properties:
+        Version:
+          type: string
+          readOnly: true
+          description: Application version of the TimeLog installation (AppSetting MyVersion) — the build, not the API version.
+            Same as IndexRead.Version.
+        ChangeSet:
+          type: string
+          readOnly: true
+          description: Trimmed content of DLL\Version.txt above the web root; when the file cannot be read, the exception
+            MESSAGE; "Directory not found" when the web root has no parent.
+        ServerTimeZoneId:
+          type: string
+          readOnly: true
+          description: Windows time-zone ID of the web server (TimeZoneInfo.Local.Id), e.g. "W. Europe Standard Time".
+        ProductType:
+          type: string
+          enum:
+          - TLP
+          - Absence
+          - Time
+          - Projects
+          - Invoicing
+          - TimeLogPSA
+          - Trial
+          - Firebird
+          x-enum-descriptions:
+          - The product covering all existing (classic) TimeLog editions. Integer 1.
+          - Small non-official product salary managers push to their customers for collecting salary time. Integer 2.
+          - Free, very basic time-registration product. Integer 3.
+          - Project management of internal projects, no invoicing. Integer 4.
+          - For consultants and others invoicing project time. Integer 5.
+          - The PSA product (marketed as "PSA"). Integer 6.
+          - Trial product with all PSA features. Integer 7.
+          - Product with all Firebird features. Integer 8.
+          readOnly: true
+          description: |-
+            The tenant's product (setting PlatformProductType), as the enum NAME.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `TLP` | TLP | The product covering all existing (classic) TimeLog editions. Integer 1. |
+            | `Absence` | Absence | Small non-official product salary managers push to their customers for collecting salary time. Integer 2. |
+            | `Time` | Time | Free, very basic time-registration product. Integer 3. |
+            | `Projects` | Projects | Project management of internal projects, no invoicing. Integer 4. |
+            | `Invoicing` | Invoicing | For consultants and others invoicing project time. Integer 5. |
+            | `TimeLogPSA` | TimeLogPSA | The PSA product (marketed as "PSA"). Integer 6. |
+            | `Trial` | Trial | Trial product with all PSA features. Integer 7. |
+            | `Firebird` | Firebird | Product with all Firebird features. Integer 8. |
+        ShortName:
+          type: string
+          readOnly: true
+          description: Request host + the first path segment of the request URL (e.g.
+        Edition:
+          type: string
+          enum:
+          - Enterprise
+          - Team
+          - Business
+          x-enum-descriptions:
+          - AppSetting EnterpriseEdition is on.
+          - TeamEdition is on and EnterpriseEdition is off.
+          - Neither flag is on (the default).
+          readOnly: true
+          description: |-
+            Platform edition derived from the installation's AppSettings.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `Enterprise` | Enterprise | AppSetting EnterpriseEdition is on. |
+            | `Team` | Team | TeamEdition is on and EnterpriseEdition is off. |
+            | `Business` | Business | Neither flag is on (the default). |
+        CustomerPortalUrl:
+          type:
+          - string
+          - 'null'
+          format: uri
+          readOnly: true
+          description: Link to the TimeLog customer portal; the property is OMITTED (not null) when not applicable. Present
+            only when feature CustomerPortal is on and either the site is Demo / ChangingContract (portal address), or Production
+            and the caller has the platform-account-settings page (portal address) or the licence-settings page (portal address
+            + "/licensemanagement").
+        CompanyName:
+          type: string
+          readOnly: true
+          description: Name of the tenant's own company — the internal customer record.
+        SiteLcid:
+          type: integer
+          format: int32
+          readOnly: true
+          description: Windows locale ID used to format numbers and dates on the site (AppSetting PageLCID), e.g. 1030 (Danish).
+        SiteStatus:
+          type: string
+          enum:
+          - Production
+          - Demo
+          - Pilot
+          - Sandbox
+          - Internal
+          - Installed
+          - ChangingContract
+          - Learning
+          - Unknown
+          x-enum-descriptions:
+          - Live customer site. With CustomerPortal on, the portal link is shown only to users with the account / licence
+            settings pages.
+          - Demo site; with CustomerPortal on, every caller gets the portal link.
+          - Status named Pilot (integer 3); no branch in this code path.
+          - Status named Sandbox (integer 4); no branch in this code path.
+          - ''
+          - Status named Installed (integer 6); no branch in this code path.
+          - Site changing contract; treated like Demo for the portal link.
+          - Status named Learning (integer 8); no branch in this code path.
+          - Status not known (integer 999).
+          readOnly: true
+          description: |-
+            The site's production status (setting ProductionStatus), as the enum NAME. The source has no comments on the members; meanings beyond the names are not established except where code branches on them.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `Production` | Production | Live customer site. With CustomerPortal on, the portal link is shown only to users with the account / licence settings pages. |
+            | `Demo` | Demo | Demo site; with CustomerPortal on, every caller gets the portal link. |
+            | `Pilot` | Pilot | Status named Pilot (integer 3); no branch in this code path. |
+            | `Sandbox` | Sandbox | Status named Sandbox (integer 4); no branch in this code path. |
+            | `Installed` | Installed | Status named Installed (integer 6); no branch in this code path. |
+            | `ChangingContract` | ChangingContract | Site changing contract; treated like Demo for the portal link. |
+            | `Learning` | Learning | Status named Learning (integer 8); no branch in this code path. |
+            | `Unknown` | Unknown | Status not known (integer 999). |
+        FrontendAddressUrl:
+          type: string
+          format: uri
+          readOnly: true
+      description: 'The Properties of the REST v2 root document: which TimeLog build answered, and facts about the tenant
+        site that a front end needs at start-up (product type, edition, company name, locale, production status, frontend
+        address and, for some users, the customer-portal link).'
+    MessageError:
+      type: object
+      description: Body of 401 and some framework errors — not the ResponseError shape.
+      properties:
+        Message:
+          type: string
+    ResponseError:
+      type: object
+      description: Error body for validation (400), privilege (403), business-rule (422/500) and other server errors. `Details`
+        lists strings for validation errors, or `{ErrorCode, Message}` objects for business-rule violations. `Parameters`
+        echoes the request arguments, including the full payload.
+      properties:
+        Code:
+          type: integer
+          description: 'TimeLog error class (not the HTTP status): 100 unexpected, 102 business rule, 103 privilege, 200 validation.'
+        Message:
+          type: string
+        Details:
+          type: array
+          items: {}
+        Parameters:
+          type:
+          - string
+          - object
+          - 'null'
+        Url:
+          type: string
+    RssFeedXml:
+      type: string
+      description: 'An XML document, NOT JSON and NOT the TAF envelope: whatever the feed URL configured for the caller''s
+        language returned, re-serialized by XmlDocument (by default TimeLog''s help-site RSS feed, http://help.timelog.com/<lang>/feed/).
+        Its structure is that of the remote feed; TimeLog does not validate or filter it. Content-Type application/xml; charset=utf-8.'
+    TafAction:
+      type: object
+      description: A hypermedia action the caller may take on the object. Present only where the operation registers actions.
+    TafLink:
+      type: object
+      properties:
+        Href:
+          type: string
+        Rel:
+          type: string
+    TafListPaging:
+      type: object
+      description: 'Paging values. They are returned as STRINGS, for example `"TotalRecord": "12"`.'
+      properties:
+        TotalRecord:
+          type: string
+        TotalPage:
+          type: string
+        PageNumber:
+          type: string
+x-timelog-service: Root
