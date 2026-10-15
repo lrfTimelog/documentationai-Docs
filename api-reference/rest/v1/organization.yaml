@@ -16,13 +16,14 @@ info:
 
     > **Not yet documented:** rate limits.
 servers:
-- url: https://{region-node}.timelog.com/{account}/api
-  description: 'Your TimeLog site. Copy both values from the address bar when you are signed in to TimeLog: `region-node`
-    is the first part of the host name (for example `app3` in `app3.timelog.com`), `account` is the first path segment after
-    it.'
+- url: https://app{server-number}.timelog.com/{account}/api
+  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
+    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
+    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.'
   variables:
-    region-node:
-      default: app3
+    server-number:
+      default: '3'
     account:
       default: your-account
 security:
@@ -265,7 +266,7 @@ paths:
                 example1:
                   summary: Required dates omitted
                   value:
-                    Message: No HTTP resource was found that matches the request URI 'https://{region-node}.timelog.com/{account}/api/v1/employee-projection/get-in-period'.
+                    Message: No HTTP resource was found that matches the request URI 'https://app{server-number}.timelog.com/{account}/api/v1/employee-projection/get-in-period'.
                     MessageDetail: No action was found on the controller 'EmployeeProjection' that matches the request.
         '500':
           description: '- **Code 100** — Unhandled server error.'
@@ -482,7 +483,7 @@ paths:
                       CountryISO: null
                       IsSystemLegalEntity: false
                     Links:
-                    - Href: https://{region-node}.timelog.com/{account}/api/v1/legal-entity/99999999
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v1/legal-entity/99999999
                       Rel: self
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: legalEntityId is
@@ -500,7 +501,7 @@ paths:
                     - The value 'not_an_integer' is not valid for Int32.
                     Message: Invalid model state error.
                     Parameters: 'legalEntityId: null'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/legal-entity/not_an_integer
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/legal-entity/not_an_integer
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
           content:
@@ -690,7 +691,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'user: {"ID":"00000000-0000-0000-0000-000000000000","FirstName":null,"LastName":null,"ApprovalManagerInitials":null,"ApprovalManagerStartDate":null,"UserLicenseType":null,"UserRoleIDs":null}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/user
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/user
       x-timelog-key: rest.v1.organization.user.update
   /v1/user/create:
     post:
@@ -889,7 +890,7 @@ paths:
                       LegalEntityID: 1
                       Email: <redacted>
                     Links:
-                    - Href: https://{region-node}.timelog.com/{account}/api/v1/user/me
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v1/user/me
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
@@ -973,7 +974,7 @@ paths:
                     - '''Normal Working Time ID'' must not be empty.'
                     Message: Invalid model state error.
                     Parameters: 'user: {...}'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/user/validate-new-user
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/user/validate-new-user
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
           content:
@@ -1049,7 +1050,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'user: null'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/user/validate-new-user
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/user/validate-new-user
       x-timelog-key: rest.v1.organization.user.validatenew
   /v1/user/{id}:
     get:
@@ -1122,7 +1123,7 @@ paths:
                       LegalEntityID: 1
                       Email: <redacted>
                     Links:
-                    - Href: https://{region-node}.timelog.com/{account}/api/v1/user/1
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v1/user/1
                       Rel: self
         '401':
           description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
@@ -1151,7 +1152,7 @@ paths:
                     Details: []
                     Message: Unknown error occur in system, please contact system administrator.
                     Parameters: 'id: 99999999'
-                    Url: https://{region-node}.timelog.com/{account}/api/v1/user/99999999
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/user/99999999
       x-timelog-key: rest.v1.organization.user.get
 components:
   securitySchemes:
