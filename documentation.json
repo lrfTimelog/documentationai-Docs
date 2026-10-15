@@ -73,8 +73,8 @@
         "icon": "braces",
         "dropdowns": [
           {
-            "dropdown": "API v2",
-            "icon": "code",
+            "dropdown": "Guides",
+            "icon": "book-open",
             "groups": [
               {
                 "group": "Get started",
@@ -148,7 +148,13 @@
                     "icon": "circle-alert"
                   }
                 ]
-              },
+              }
+            ]
+          },
+          {
+            "dropdown": "API v2",
+            "icon": "code",
+            "groups": [
               {
                 "group": "Endpoints",
                 "icon": "list",
@@ -238,79 +244,6 @@
             "dropdown": "API v1",
             "icon": "code",
             "groups": [
-              {
-                "group": "Get started",
-                "icon": "rocket",
-                "pages": [
-                  {
-                    "title": "Overview",
-                    "path": "rest/overview",
-                    "icon": "compass"
-                  },
-                  {
-                    "title": "Your first time registration",
-                    "path": "rest/quickstart",
-                    "icon": "clock"
-                  }
-                ]
-              },
-              {
-                "group": "Authentication",
-                "icon": "key-round",
-                "pages": [
-                  {
-                    "title": "Authentication",
-                    "path": "rest/authentication",
-                    "icon": "lock"
-                  },
-                  {
-                    "title": "Permissions and data scope",
-                    "path": "rest/permissions",
-                    "icon": "shield-check"
-                  }
-                ]
-              },
-              {
-                "group": "Conventions",
-                "icon": "ruler",
-                "pages": [
-                  {
-                    "title": "Base URL and versioning",
-                    "path": "rest/conventions/versioning",
-                    "icon": "git-branch"
-                  },
-                  {
-                    "title": "Response envelope",
-                    "path": "rest/conventions/response-envelope",
-                    "icon": "package"
-                  },
-                  {
-                    "title": "Pagination",
-                    "path": "rest/conventions/pagination",
-                    "icon": "list-ordered"
-                  },
-                  {
-                    "title": "Data types",
-                    "path": "rest/conventions/data-types",
-                    "icon": "binary"
-                  },
-                  {
-                    "title": "Writing data",
-                    "path": "rest/conventions/writing-data",
-                    "icon": "pencil"
-                  },
-                  {
-                    "title": "Errors",
-                    "path": "rest/errors",
-                    "icon": "triangle-alert"
-                  },
-                  {
-                    "title": "Rate limits and known limitations",
-                    "path": "rest/limitations",
-                    "icon": "circle-alert"
-                  }
-                ]
-              },
               {
                 "group": "Endpoints",
                 "icon": "list",
