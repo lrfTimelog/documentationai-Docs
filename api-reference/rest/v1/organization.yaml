@@ -1,0 +1,2083 @@
+openapi: 3.1.0
+info:
+  title: Users and organisation — REST API v1
+  version: v1
+  description: |-
+    Read and create users, change a user's name, licence, roles and approval manager, and read legal entities, departments and daily employee norms.
+
+    Enums are integers in v1.
+
+    **Conventions that apply to every operation in this file:**
+    - Property names are PascalCase.
+    - Successful bodies use the TAF envelope: one object in `Properties`, lists in `Entities[].Properties`.
+    - Some operations succeed without content: HTTP 200 with the literal body `null`, or HTTP 204.
+    - `PUT` replaces the whole object: omitted fields are reset.
+    - Treat error `Code` 102 as a business-rule violation, whether the HTTP status is 422 or 500.
+
+    > **Not yet documented:** rate limits.
+servers:
+- url: https://app{server-number}.timelog.com/{account}/api
+  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
+    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
+    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.'
+  variables:
+    server-number:
+      default: '3'
+    account:
+      default: your-account
+security:
+- bearer: []
+paths:
+  /v1/department:
+    get:
+      operationId: listDepartments
+      summary: List departments
+      description: |-
+        Lists every department of the tenant, active or not, ordered by name.
+
+        Returns the whole department tree as a flat list; rebuild the hierarchy from ParentID (0 = top level). Inactive departments are included. There is no get-by-ID, filter or sort parameter, and the legal entity of a department is not returned.
+
+        **Use it to:**
+        - Choose the DepartmentID for a new user
+        - Sync the organisation tree to an HR or BI system
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `POST /v1/user/create`
+
+        **See also:** `GET /v1/legal-entity`
+      parameters:
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size. No maximum enforced in the API layer.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). One page of departments. Entities carry no links.
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: Name ascending; no tie-breaker
+
+            Empty result: 200 with no Entities
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/DepartmentRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.organization.department.list
+  /v1/employee-projection/get-in-period:
+    get:
+      operationId: getEmployeeProjectionsInPeriod
+      summary: List employee projections in a period
+      description: |-
+        Lists the per-day norm rows of the caller — or of every employee — between two dates.
+
+        Returns one row per employee per day in [startDate, endDate] with the normal working time of the day and its status flags. By default only the caller's own rows are returned; with includeAllEmployees=true the rows of every employee. There is no parameter to pick one other employee. $expand=user adds the User object to each row.
+
+        **Use it to:**
+        - Compare registered hours with the norm per day (flex / under-registration checks)
+        - Export expected working hours per employee to payroll or BI
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Consistency: eventual
+        - Rows are pre-computed by TimeLog (projection generation); a change of normal working time or holidays shows up only after the projections are regenerated.
+
+        **See also:** `GET /v1/user`, `GET /v1/time-registration/{timeRegistrationID}`
+
+        > **Not yet documented:** behaviour → consistency detail; examples (success); request → query params → description.
+      parameters:
+      - name: startDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+          x-timelog-filter:
+            operators:
+            - gte
+        description: |-
+          First day of the period (inclusive: Date >= startDate). Omitted -> 404 action-not-matched.
+
+          Filters on `EmployeeProjectionRead.Date` (gte).
+      - name: endDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+          x-timelog-filter:
+            operators:
+            - lte
+        description: |-
+          Last day of the period (inclusive: Date <= endDate). Omitted -> 404 action-not-matched.
+
+          Filters on `EmployeeProjectionRead.Date` (lte).
+      - name: includeAllEmployees
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+        description: false = only the caller's rows; true = every employee's rows.
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size. No maximum enforced in the API layer.
+      - name: $expand
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - user
+          x-enum-descriptions:
+          - Add the User object (name, initials, e-mail …) to every row. Any other value makes the call fail with 500.
+        description: |-
+          Expansion. Only `user` is supported.
+
+          Allowed values:
+
+          | Value | Name | Meaning |
+          |---|---|---|
+          | `user` | user | Add the User object (name, initials, e-mail …) to every row. Any other value makes the call fail with 500. |
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). One page of projection rows. Entities carry no links. User is present only with $expand=user.
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: ProjectionID descending (for one employee usually newest date first; not guaranteed)
+
+            Empty result: 200 with no Entities (e.g. the system user under client credentials without includeAllEmployees)
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/EmployeeProjectionRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: startDate / endDate
+            / includeAllEmployees not parseable (Web API model binding) — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The route matched a controller, but no action accepts the supplied query parameters — typically
+            a required (non-nullable) simple parameter such as a DateTime was omitted. It is a missing-parameter error that
+            looks like a 404. — When: startDate or endDate omitted (capture)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Required dates omitted
+                  value:
+                    Message: No HTTP resource was found that matches the request URI 'https://app{server-number}.timelog.com/{account}/api/v1/employee-projection/get-in-period'.
+                    MessageDetail: No action was found on the controller 'EmployeeProjection' that matches the request.
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.organization.employeeprojection.getinperiod
+  /v1/legal-entity:
+    get:
+      operationId: listLegalEntities
+      summary: List legal entities
+      description: |-
+        Lists every legal entity (company) of the tenant, active or not, ordered by ID.
+
+        Returns all legal entities with their currency and default country. A tenant without the multi-company feature has exactly one (IsSystemLegalEntity true). No filter or sort parameter.
+
+        **Use it to:**
+        - Choose the LegalEntityID for a new user
+        - Map TimeLog companies to the entities of an ERP / payroll system
+
+        **Not for:**
+        - Only the default company → `GET /v1/legal-entity/system`
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `GET /v1/legal-entity/{legalEntityId}`, `POST /v1/user/create`
+
+        **See also:** `GET /v1/legal-entity/system`, `GET /v1/currency/{status}`
+
+        > **Not yet documented:** examples.
+      parameters:
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size. No maximum enforced in the API layer.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). One page of legal entities. Entities carry no links (the controller maps none).
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: LegalEntityID ascending
+
+            Empty result: 200 with no Entities (not expected: every tenant has a system legal entity)
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/LegalEntityRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.organization.legalentity.list
+  /v1/legal-entity/system:
+    get:
+      operationId: getSystemLegalEntity
+      summary: Get the system legal entity
+      description: |-
+        Returns the tenant's system (default) legal entity.
+
+        Returns the legal entity flagged IsSystemLegalEntity — the tenant's main company. When the multi-company feature (MultiLegalEntities) is off this is the only legal entity users can be created in.
+
+        **Use it to:**
+        - Get the LegalEntityID for user create on a single-company tenant
+        - Read the tenant's base currency and country
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `POST /v1/user/create`
+
+        **See also:** `GET /v1/legal-entity`, `GET /v1/legal-entity/{legalEntityId}`
+
+        > **Not yet documented:** behaviour → consistency detail.
+      responses:
+        '200':
+          description: The object, wrapped in the TAF envelope (`Properties`). The system legal entity, with a self link to
+            /v1/legal-entity/system.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/LegalEntityRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+      x-timelog-key: rest.v1.organization.legalentity.getsystem
+  /v1/legal-entity/{legalEntityId}:
+    get:
+      operationId: getLegalEntity
+      summary: Get a legal entity
+      description: |-
+        Returns one legal entity by its integer LegalEntityID.
+
+        Returns the legal entity with its currency and default country. An unknown ID does NOT fail: it returns 200 with an empty object. Treat LegalEntityID 0 in the response as "not found".
+
+        **Use it to:**
+        - Resolve User.LegalEntityID to the company name and currency
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/legal-entity`
+
+        **See also:** `GET /v1/legal-entity/system`
+      parameters:
+      - name: legalEntityId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: LegalEntityID. The route has no {int} constraint; a non-integer gets 400.
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). The legal entity, with a self link. For an unknown ID: an empty object.
+
+            Empty result: Unknown ID -> 200 with LegalEntityID 0, ID 00000000-0000-0000-0000-000000000000, Name/CurrencyISO/CountryISO null
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/LegalEntityRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+              examples:
+                example1:
+                  summary: Unknown ID (200 with an empty object)
+                  value:
+                    Properties:
+                      LegalEntityID: 0
+                      Name: null
+                      IsActive: false
+                      ID: 00000000-0000-0000-0000-000000000000
+                      CurrencyID: 0
+                      CurrencyISO: null
+                      CountryISO: null
+                      IsSystemLegalEntity: false
+                    Links:
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v1/legal-entity/99999999
+                      Rel: self
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: legalEntityId is
+            not an integer (''The value ''x'' is not valid for Int32.'') — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Non-integer ID
+                  value:
+                    Code: 200
+                    Details:
+                    - The value 'not_an_integer' is not valid for Int32.
+                    Message: Invalid model state error.
+                    Parameters: 'legalEntityId: null'
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/legal-entity/not_an_integer
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+      x-timelog-key: rest.v1.organization.legalentity.get
+  /v1/user:
+    get:
+      operationId: listUsers
+      summary: List users
+      description: |-
+        Lists every user of the tenant, ordered by first name, one page at a time.
+
+        Returns all rows of the user table, active and inactive, including TimeLog's technical users (SYSTEM, ECNuser — UserType ApiUser) and anonymized former employees. There is no filter, search or sort parameter: filter on IsActive and UserType on your side. The model carries only identifiers, name, initials, e-mail, active flag, user type and legal entity.
+
+        **Use it to:**
+        - Initial sync of users into an HR, payroll or BI system
+        - Map initials or e-mail to the UserID needed by time registrations
+
+        **Not for:**
+        - The caller's own user → `GET /v1/user/me`
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+        - Reads the user tables directly (no read model or cache).
+
+        **Next:** `GET /v1/user/{id}`, `PUT /v1/user`
+
+        **See also:** `GET /v1/user/me`, `GET /v1/legal-entity`
+      parameters:
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size. No maximum enforced in the API layer.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). One page of users. Each entity has a self link to GET /v1/user/{UserID}.
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: FirstName ascending; no tie-breaker
+
+            Empty result: 200 with no Entities (not reachable in practice: the technical users always exist)
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/UserRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.organization.user.list
+    put:
+      operationId: updateUser
+      summary: Update a user
+      description: |-
+        Changes a user's name, licence type, extra roles and approval manager, addressed by the user's GUID.
+
+        Updates first and last name, the licence type (with the role changes it implies), adds roles, and sets a new approval manager from a given day. FirstName and LastName are ALWAYS written: omit them and the stored names are cleared, so always send both. Nothing else about the user can be changed through REST v1. The call returns 200 with body `null` even when the save reported a problem and nothing was changed: read the user back to confirm.
+
+        **Use it to:**
+        - Keep names in sync from an HR system
+        - Move an employee to a new approval manager from a given date
+        - Change a user's licence type (Standard / Limited / TimeExpense)
+
+        **Not for:**
+        - E-mail, department, legal entity, dates, rates — not changeable in REST v1
+
+        **Rules across fields:**
+        - R1: ApprovalManagerInitials and ApprovalManagerStartDate are sent together or not at all.
+        - R2: UserRoleIDs may be non-empty only when UserLicenseType is sent as 2 (Standard) in the same body.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Side effect: Saves the user and profile; deletes and re-inserts ALL of the user's roles and modules
+        - Side effect: On a licence change: removes system roles and modules (to Limited/TimeExpense) or the licence-specific roles (to Standard)
+        - Side effect: Refreshes the platform licence status and the allocation-search denormalisation
+        - On failure: The user save and the approval-manager change are separate steps: a failure in the second leaves the first committed
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/user/{id}`, `GET /v1/user`
+
+        **Next:** `GET /v1/user/{id}`
+
+        > **Not yet documented:** behaviour → events emitted; examples (success).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate.update'
+      responses:
+        '200':
+          description: 'Success without content: HTTP 200 with the literal JSON body `null`. Literal JSON `null`. Returned
+            also when the save reported violations and nothing was stored.'
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: R1, R2, licence type
+            not allowed, approval manager not a valid approver (see UserUpdate) — Fix: Fix every item listed in Details and
+            resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 100** — Unhandled server error.
+
+            - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: Any business rule on the whole stored user — e.g. it now violates a rule that did not exist when it was created (EmployeeNo required, …); role checks; a role that cannot be removed on a licence change
+
+            - **Code 20012** — The caller (not the system user) lacks an employee privilege covering the target user — 'all employees', 'employees in my department and sub-departments' (target in the caller's department tree, when Departments is on) or 'all employees in my legal entity' (same legal entity, when MultiLegalEntities is on) — combined with the Create OR Edit action. {1} lists the missing privileges joined by " or ". — Fix: Use a user with an employee privilege that covers the target's department / legal entity, or a client-credentials token.
+
+            - **Code 20022** — Another active user has the same user name or the same initials. — When: The stored user name / initials collide with another active user — Fix: Choose another user name and initials.
+
+            - **Code 37037** — A UserRoleIDs entry is not an existing role.
+
+            - **Code 37930** — A UserRoleIDs entry is another employee's personal role.
+
+            - **Code 37929** — A UserRoleIDs entry is a locked system role.
+
+            - **Code 37926** — A UserRoleIDs entry is an inactive role.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Empty body
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'user: {"ID":"00000000-0000-0000-0000-000000000000","FirstName":null,"LastName":null,"ApprovalManagerInitials":null,"ApprovalManagerStartDate":null,"UserLicenseType":null,"UserRoleIDs":null}'
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/user
+      x-timelog-key: rest.v1.organization.user.update
+  /v1/user/create:
+    post:
+      operationId: createUser
+      summary: Create a user
+      description: |-
+        Creates an active user (employee) with its HR settings and returns it.
+
+        Creates the login and the employee profile in one call: name, initials, e-mail, legal entity, department, approval manager, rates, calendar, working time, salary group, licence type and extra roles. The new user is active immediately; time zone, language and front page come from tenant defaults. Run `POST /v1/user/validate-new-user` first to get every rule violation without side effects. The response is the User representation, which does not echo most of what was sent.
+
+        **Use it to:**
+        - Provision new hires from an HR or identity system
+
+        **Not for:**
+        - Changing an existing user → `PUT /v1/user` (name, licence, roles, approval manager only)
+
+        **Rules across fields:**
+        - R1: UserRoleIDs must be null or empty unless UserLicenseType is Standard (2).
+        - R2: StandardHourlyRateID and CostPriceID must belong to LegalEntityID.
+        - R3: Neither UserName nor Initials may be used by another user, active or inactive.
+
+        **Behaviour:**
+        - Not idempotent.
+        - Safe to retry only under a condition. A retry after a timeout fails with 20022 if the first call succeeded — check user.list for the initials before retrying.
+        - Duplicates: UserName and Initials must be unused (application check, 20022/20024); nothing else is deduplicated.
+        - Side effect: Inserts the user, its profile, its personal (employee-specific) role and the licence's system role or the requested roles, default page settings and predefined filter views
+        - Side effect: Sets an initial login credential for the user
+        - Side effect: Creates the cost-price drill-down rows and refreshes the platform licence status
+        - Side effect: Updates the allocation-search denormalisation (a failure here is logged and ignored)
+        - On failure: When the insert fails after the user row is written, the call returns 500 Code 100 and the partial user may remain
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/legal-entity`, `GET /v1/department`, `POST /v1/user/validate-new-user`
+
+        **Next:** `GET /v1/user/{id}`, `PUT /v1/user`
+
+        > **Not yet documented:** behaviour → events emitted; behaviour → side effects; examples.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate.create'
+      responses:
+        '200':
+          description: The object, wrapped in the TAF envelope (`Properties`). The new user (GET /v1/user/{UserID} representation,
+            self link included).
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/UserRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: Model validation
+            (see UserCreate) — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: Any business rule (Details[] lists every violated rule at once); role checks
+
+            - **Code 20012** — The caller (not the system user) lacks an employee privilege covering the target user — 'all employees', 'employees in my department and sub-departments' (target in the caller's department tree, when Departments is on) or 'all employees in my legal entity' (same legal entity, when MultiLegalEntities is on) — combined with the Create OR Edit action. {1} lists the missing privileges joined by " or ". — Fix: Use a user with an employee privilege that covers the target's department / legal entity, or a client-credentials token.
+
+            - **Code 20022** — Another active user has the same user name or the same initials. — Fix: Choose another user name and initials.
+
+            - **Code 20024** — An inactive user has the same user name or initials. REST v1 create never reuses it. — Fix: Choose another user name and initials, or reactivate the existing user in TimeLog.
+
+            - **Code 37029** — MultiLegalEntities is on and LegalEntityID does not exist.
+
+            - **Code 37921** — MultiLegalEntities is off and LegalEntityID is not the system legal entity. — Fix: Use the ID from GET /v1/legal-entity/system.
+
+            - **Code 37039** — DepartmentID does not exist (inactive departments are accepted).
+
+            - **Code 37038** — ApprovalManagerID is not 0 and not an existing user ID.
+
+            - **Code 37028** — EmployeeTypeID is not 0 and does not exist.
+
+            - **Code 37030** — StandardHourlyRateID does not exist.
+
+            - **Code 37031** — StandardHourlyRateID belongs to another legal entity.
+
+            - **Code 37032** — CostPriceID does not exist.
+
+            - **Code 37051** — CostPriceID belongs to another legal entity.
+
+            - **Code 37033** — PublicHolidayCalendarID does not exist.
+
+            - **Code 37034** — AllowanceLegislationID does not exist.
+
+            - **Code 37035** — NormalWorkingTimeID does not exist.
+
+            - **Code 37923** — The tenant's edition allows only the default normal working time.
+
+            - **Code 37036** — SalaryGroups is on and SalaryGroupID does not exist (also when 0 / omitted).
+
+            - **Code 37925** — SalaryGroups is on and the salary group is inactive.
+
+            - **Code 37924** — SalaryGroups is off and SalaryGroupID is not the system salary group.
+
+            - **Code 31114** — Email failed the business-rule format check (after passing the model check).
+
+            - **Code 31027** — Feature ShowEmployeeID is on and EmployeeNo is blank.
+
+            - **Code 31029** — EmploymentDate has an invalid year.
+
+            - **Code 37037** — A UserRoleIDs entry is not an existing role.
+
+            - **Code 37930** — A UserRoleIDs entry is another employee's personal role.
+
+            - **Code 37929** — A UserRoleIDs entry is a locked system role.
+
+            - **Code 37926** — A UserRoleIDs entry is an inactive role.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.organization.user.create
+  /v1/user/me:
+    get:
+      operationId: getCurrentUser
+      summary: Get the current user
+      description: |-
+        Returns the user the access token acts as.
+
+        Returns the User representation of the calling user — the `sub` of the token. With a client-credentials token (no `sub`) the call acts as TimeLog's system service user, so it returns that technical user (UserType ApiUser), not a person.
+
+        **Use it to:**
+        - Find the UserID to put on the caller's own time registrations
+        - Show who is signed in, in an integration UI
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `POST /v1/time-registration`
+
+        **See also:** `GET /v1/user/{id}`
+
+        > **Not yet documented:** purpose → description.
+      responses:
+        '200':
+          description: The object, wrapped in the TAF envelope (`Properties`). The caller's user. The self link points to
+            /v1/user/me.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/UserRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+              examples:
+                example1:
+                  summary: Signed-in user (e-mail redacted)
+                  value:
+                    Properties:
+                      UserID: 1
+                      ID: 1b9afd4f-5ea9-4447-94bf-2bfd7ce96a25
+                      FirstName: FirstName_Admin1
+                      LastName: LastName
+                      Initials: test
+                      IsActive: true
+                      UserType: Employee
+                      LegalEntityID: 1
+                      Email: <redacted>
+                    Links:
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v1/user/me
+                      Rel: self
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+              examples:
+                example1:
+                  summary: No token
+                  value:
+                    Message: Authorization has been denied for this request.
+      x-timelog-key: rest.v1.organization.user.getcurrent
+  /v1/user/validate-new-user:
+    post:
+      operationId: validateNewUser
+      summary: Validate a new user
+      description: |-
+        Runs every create validation on a user body without saving anything.
+
+        Runs model validation, the role checks and all business rules of `POST /v1/user/create` — including the caller's employee privilege and the user-name/initials uniqueness check — then returns 200 with the body `null`. Unlike the customer dry run, a 200 here means create will pass validation; create can still fail on a database error.
+
+        **Use it to:**
+        - Validate an HR record before submitting it, to show TimeLog's errors early
+        - Check that the integration's account has the privilege to create users in a department / legal entity
+
+        **Rules across fields:**
+        - R1: UserRoleIDs must be null or empty unless UserLicenseType is Standard (2).
+        - R2: StandardHourlyRateID and CostPriceID must belong to LegalEntityID.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/legal-entity`, `GET /v1/department`
+
+        **Next:** `POST /v1/user/create`
+
+        > **Not yet documented:** examples (success).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate.create'
+      responses:
+        '200':
+          description: 'Success without content: HTTP 200 with the literal JSON body `null`. Literal JSON `null` — the body
+            is valid.'
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: Model validation
+            (see UserCreate) — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Empty body
+                  value:
+                    Code: 200
+                    Details:
+                    - '''User Name'' must not be empty.'
+                    - '''First Name'' must not be empty.'
+                    - '''Last Name'' must not be empty.'
+                    - '''Initials'' must not be empty.'
+                    - '''Email'' must not be empty.'
+                    - The specified condition was not met for 'Email'.
+                    - '''Employment Date'' must not be empty.'
+                    - '''Legal Entity ID'' must not be empty.'
+                    - '''Department ID'' must not be empty.'
+                    - '''Standard Hourly Rate ID'' must not be empty.'
+                    - '''Cost Price ID'' must not be empty.'
+                    - '''Public Holiday Calendar ID'' must not be empty.'
+                    - '''Allowance Legislation ID'' must not be empty.'
+                    - '''Normal Working Time ID'' must not be empty.'
+                    Message: Invalid model state error.
+                    Parameters: 'user: {...}'
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/user/validate-new-user
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: Any business rule (Details[] lists every violated rule at once); role checks
+
+            - **Code 20012** — The caller (not the system user) lacks an employee privilege covering the target user — 'all employees', 'employees in my department and sub-departments' (target in the caller's department tree, when Departments is on) or 'all employees in my legal entity' (same legal entity, when MultiLegalEntities is on) — combined with the Create OR Edit action. {1} lists the missing privileges joined by " or ". — Fix: Use a user with an employee privilege that covers the target's department / legal entity, or a client-credentials token.
+
+            - **Code 20022** — Another active user has the same user name or the same initials. — Fix: Choose another user name and initials.
+
+            - **Code 20024** — An inactive user has the same user name or initials. REST v1 create never reuses it. — Fix: Choose another user name and initials, or reactivate the existing user in TimeLog.
+
+            - **Code 37029** — MultiLegalEntities is on and LegalEntityID does not exist.
+
+            - **Code 37921** — MultiLegalEntities is off and LegalEntityID is not the system legal entity. — Fix: Use the ID from GET /v1/legal-entity/system.
+
+            - **Code 37039** — DepartmentID does not exist (inactive departments are accepted).
+
+            - **Code 37038** — ApprovalManagerID is not 0 and not an existing user ID.
+
+            - **Code 37028** — EmployeeTypeID is not 0 and does not exist.
+
+            - **Code 37030** — StandardHourlyRateID does not exist.
+
+            - **Code 37031** — StandardHourlyRateID belongs to another legal entity.
+
+            - **Code 37032** — CostPriceID does not exist.
+
+            - **Code 37051** — CostPriceID belongs to another legal entity.
+
+            - **Code 37033** — PublicHolidayCalendarID does not exist.
+
+            - **Code 37034** — AllowanceLegislationID does not exist.
+
+            - **Code 37035** — NormalWorkingTimeID does not exist.
+
+            - **Code 37923** — The tenant's edition allows only the default normal working time.
+
+            - **Code 37036** — SalaryGroups is on and SalaryGroupID does not exist (also when 0 / omitted).
+
+            - **Code 37925** — SalaryGroups is on and the salary group is inactive.
+
+            - **Code 37924** — SalaryGroups is off and SalaryGroupID is not the system salary group.
+
+            - **Code 31114** — Email failed the business-rule format check (after passing the model check).
+
+            - **Code 31027** — Feature ShowEmployeeID is on and EmployeeNo is blank.
+
+            - **Code 31029** — EmploymentDate has an invalid year.
+
+            - **Code 37037** — A UserRoleIDs entry is not an existing role.
+
+            - **Code 37930** — A UserRoleIDs entry is another employee's personal role.
+
+            - **Code 37929** — A UserRoleIDs entry is a locked system role.
+
+            - **Code 37926** — A UserRoleIDs entry is an inactive role.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Null body
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'user: null'
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/user/validate-new-user
+      x-timelog-key: rest.v1.organization.user.validatenew
+  /v1/user/{id}:
+    get:
+      operationId: getUser
+      summary: Get a user
+      description: |-
+        Returns one user by its integer UserID.
+
+        Returns the User representation of any user of the tenant, active or not. An unknown ID returns 500 'Unknown error', not 404.
+
+        **Use it to:**
+        - Resolve the UserID on a time registration or customer owner to a name and e-mail
+
+        **Not for:**
+        - The caller's own user → `GET /v1/user/me`
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/user`
+
+        **Next:** `PUT /v1/user`
+
+        **See also:** `GET /v1/user/me`
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: UserID.
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). The user, with a self link.
+
+            Empty result: Unknown ID -> HTTP 500 Code 100
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/UserRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+              examples:
+                example1:
+                  summary: Existing user (e-mail redacted)
+                  value:
+                    Properties:
+                      UserID: 1
+                      ID: 1b9afd4f-5ea9-4447-94bf-2bfd7ce96a25
+                      FirstName: FirstName_Admin1
+                      LastName: LastName
+                      Initials: test
+                      IsActive: true
+                      UserType: Employee
+                      LegalEntityID: 1
+                      Email: <redacted>
+                    Links:
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v1/user/1
+                      Rel: self
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The URL did not match any route (including a route constraint such as {id:int} receiving a non-integer).
+            — When: id is not an integer ({id:int} route constraint)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Unknown ID
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'id: 99999999'
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/user/99999999
+      x-timelog-key: rest.v1.organization.user.get
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: |-
+        OAuth 2.0 bearer token, sent as `Authorization: Bearer <token>`. JWT and reference tokens are both accepted. The token must carry the required scope (default `tlp`).
+
+        The token's `sub` claim is the acting user. A token WITHOUT `sub` (client-credentials) acts as the system service user. If the `sub` user cannot log in (inactive, locked, deleted), the request is rejected with 401 — it is no longer let through without a user.
+
+        > **Not yet documented:** how to obtain a token.
+
+        > **Not yet documented:** token lifetime.
+  schemas:
+    DepartmentRead:
+      type: object
+      properties:
+        DepartmentID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier. Used as DepartmentID on users and time registrations.
+
+            Identifier of this object, unique per TimeLog site.
+        Name:
+          type: string
+          readOnly: true
+          maxLength: 255
+          description: Department name. The list is ordered by it.
+        IsActive:
+          type: boolean
+          readOnly: true
+          description: Whether the department is active. Inactive departments are listed, and user create accepts them.
+        'No':
+          type: string
+          readOnly: true
+          maxLength: 50
+          description: |-
+            Department number; "" when not set.
+
+            > **Not yet documented:** identity.
+        ID:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: guid
+          description: |-
+            The department's GUID. No REST v1 operation takes it as input.
+
+            Alternate key, unique per TimeLog site.
+        ParentID:
+          type: integer
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            DepartmentID of the parent department; 0 for a top-level department.
+
+            Refers to `DepartmentRead.DepartmentID`. Look up valid values with `GET /v1/department`.
+
+            Valid values come from `GET /v1/department`.
+        ManagerEmployeeID:
+          type: integer
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            EMPLOYEE ID of the department manager; 0 when none.
+
+            Refers to `EmployeeRead.EmployeeID`.
+
+            > **Not yet documented:** values → lookup op.
+      description: A department is a node of the tenant's organisation tree. Every user belongs to one department; departments
+        drive "my department and sub-departments" privileges and department-based reporting. The tree is expressed by ParentID.
+        The table also stores a legal entity per department, but this model does not return it.
+    EmployeeProjectionRead:
+      type: object
+      properties:
+        ProjectionID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier of the row. Not accepted as input by any REST v1 operation. The list is ordered by it, descending.
+
+            Identifier of this object, unique per TimeLog site.
+
+            > **Not yet documented:** identity → stable.
+        UserID:
+          type: integer
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            UserID of the employee the day belongs to.
+
+            Refers to `UserRead.UserID`. Look up valid values with `GET /v1/user/{id}`.
+
+            There is no parameter to choose the employee: the caller's own rows, or every employee's rows with includeAllEmployees=true.
+
+            Valid values come from `GET /v1/user`.
+        User:
+          $ref: '#/components/schemas/UserRead'
+          readOnly: true
+          description: |-
+            The employee as a User object. Present only when the request has $expand=user; otherwise absent (null).
+
+            Contains personal data.
+        Date:
+          type: string
+          format: date-time
+          readOnly: true
+          description: |-
+            The calendar day this row describes.
+
+            Time zone: not yet documented.
+
+            Filterable via `startDate / endDate (query, inclusive range)` (between).
+
+            > **Not yet documented:** constraints → timezone.
+        NormalWorkingTimeDayOrder:
+          type: integer
+          readOnly: true
+          description: Which day entry of the employee's normal working time was used for this date (the Order of the normal-working-time
+            day; relevant for multi-week schedules).
+        NormalWorkingHours:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Normal (expected) working time of the day, in hours. Public holidays reduce it.
+
+            Unit: hours
+        NormalWorkingMinutes:
+          type: integer
+          readOnly: true
+          description: |-
+            Normal working time of the day as whole minutes, copied from the normal-working-time day.
+
+            Unit: minutes
+
+            > **Not yet documented:** description.
+        IsClosed:
+          type: boolean
+          readOnly: true
+          description: |-
+            Set together with IsApproved and HasRejectedTime by one batch update; a new projection starts as not closed.
+
+            > **Not yet documented:** description.
+        IsInClosedAccountingPeriod:
+          type: boolean
+          readOnly: true
+          description: True when the date falls inside a closed accounting period of the tenant.
+        HasRejectedTime:
+          type: boolean
+          readOnly: true
+          description: '> **Not yet documented:** description.'
+        IsApproved:
+          type: boolean
+          readOnly: true
+          description: '> **Not yet documented:** description.'
+        ID:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: false
+            id_format: guid
+          description: |-
+            The row's GUID. Not accepted as input by any REST v1 operation.
+
+            Alternate key, unique per TimeLog site.
+
+            > **Not yet documented:** identity → stable.
+      description: |-
+        An employee projection is TimeLog's pre-computed row for ONE employee on ONE calendar day: the normal (expected) working time of that day after the employee's normal working time and public holidays are applied, plus status flags for the day. TimeLog generates these rows ahead of time and uses them for norm, flex and time-sheet status. They are read-only through the API.
+
+        > **Not yet documented:** example.
+    LegalEntityRead:
+      type: object
+      properties:
+        LegalEntityID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: false
+            id_format: int
+          description: |-
+            Integer identifier. Used by GET /v1/legal-entity/{legalEntityId} and as LegalEntityID on users.
+
+            Identifier of this object, unique per TimeLog site.
+
+            Filterable via `legalEntityId (path, GET /v1/legal-entity/{legalEntityId})` (eq).
+        Name:
+          type: string
+          readOnly: true
+          maxLength: 255
+          description: Name of the company.
+        IsActive:
+          type: boolean
+          readOnly: true
+          description: |-
+            Whether the legal entity is active.
+
+            > **Not yet documented:** description.
+        ID:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: guid
+          description: |-
+            The legal entity's GUID. No REST v1 operation takes it as input.
+
+            Alternate key, unique per TimeLog site.
+        CurrencyID:
+          type: integer
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Currency of the legal entity.
+
+            Refers to `CurrencyRead.CurrencyID`. Look up valid values with `GET /v1/currency/{status}`.
+
+            Valid values come from `GET /v1/currency/{status}`.
+        CurrencyISO:
+          type: string
+          readOnly: true
+          description: ISO code of the legal entity's currency, e.g. EUR.
+        CountryISO:
+          type: string
+          readOnly: true
+          description: ISO code of the legal entity's default country, e.g. GB. The country ID itself is not returned.
+        IsSystemLegalEntity:
+          type: boolean
+          readOnly: true
+          description: True for the tenant's system (default) legal entity — the one GET /v1/legal-entity/system returns and
+            the only one users can be created in when MultiLegalEntities is off.
+      description: |-
+        A legal entity is a company inside one TimeLog tenant (multi-company set-up, feature MultiLegalEntities). Every user, and therefore every employee, belongs to exactly one legal entity; hourly rates and cost prices are defined per legal entity, and the legal entity's currency is the currency its users' amounts are reported in. Every tenant has exactly one system (default) legal entity, also when MultiLegalEntities is off.
+
+        > **Not yet documented:** description.
+    MessageError:
+      type: object
+      description: Body of 401 and some framework errors — not the ResponseError shape.
+      properties:
+        Message:
+          type: string
+    ResponseError:
+      type: object
+      description: Error body for validation (400), privilege (403), business-rule (422/500) and other server errors. `Details`
+        lists strings for validation errors, or `{ErrorCode, Message}` objects for business-rule violations. `Parameters`
+        echoes the request arguments, including the full payload.
+      properties:
+        Code:
+          type: integer
+          description: 'TimeLog error class (not the HTTP status): 100 unexpected, 102 business rule, 103 privilege, 200 validation.'
+        Message:
+          type: string
+        Details:
+          type: array
+          items: {}
+        Parameters:
+          type:
+          - string
+          - object
+          - 'null'
+        Url:
+          type: string
+    TafAction:
+      type: object
+      description: A hypermedia action the caller may take on the object. Present only where the operation registers actions.
+    TafLink:
+      type: object
+      properties:
+        Href:
+          type: string
+        Rel:
+          type: string
+    TafListPaging:
+      type: object
+      description: 'Paging values. They are returned as STRINGS, for example `"TotalRecord": "12"`.'
+      properties:
+        TotalRecord:
+          type: string
+        TotalPage:
+          type: string
+        PageNumber:
+          type: string
+    UserCreate.create:
+      type: object
+      properties:
+        UserName:
+          type: string
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: false
+            id_format: string
+          maxLength: 50
+          description: |-
+            Login name of the new user. Not returned by any REST v1 read.
+
+            Can be set on create only.
+
+            Alternate key, unique per TimeLog site.
+
+            Contains personal data.
+
+            - Same user name or initials as an active user — 20022 (business rule, HTTP 500).
+
+            - Same user name or initials as an inactive user — 20024 (business rule, HTTP 500). Create never reuses an inactive user's name.
+
+            > **Not yet documented:** identity → stable.
+        FirstName:
+          type: string
+          maxLength: 50
+          description: |-
+            First name.
+
+            Can be set on create only.
+
+            Contains personal data.
+        LastName:
+          type: string
+          maxLength: 50
+          description: |-
+            Last name.
+
+            Can be set on create only.
+
+            Contains personal data.
+        Initials:
+          type: string
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: false
+            id_format: string
+          maxLength: 50
+          description: |-
+            Short handle of the user (see User.Initials). Must not be used by another user (active: 20022, inactive: 20024).
+
+            Can be set on create only.
+
+            Alternate key, unique per TimeLog site.
+
+            Contains personal data.
+        Email:
+          type: string
+          format: email
+          maxLength: 255
+          description: |-
+            E-mail address.
+
+            Can be set on create only.
+
+            Contains personal data.
+
+            - Empty or not an e-mail address — 400 Code 200 ('Email' must not be empty / The specified condition was not met for 'Email').
+
+            - Passes the model check but fails the business-rule format check — 31114 (business rule, HTTP 500).
+        Title:
+          type: string
+          maxLength: 50
+          description: |-
+            Job title.
+
+            Can be set on create only.
+
+            Contains personal data.
+        EmployeeNo:
+          type: string
+          x-timelog-condition: Required when the tenant feature ShowEmployeeID is on (31027, business rule, HTTP 500); optional
+            otherwise.
+          x-timelog-identity:
+            role: external_key
+            unique_scope: tenant
+            uniqueness_enforced: false
+          maxLength: 200
+          description: |-
+            Employee number.
+
+            **Conditional.** Required when the tenant feature ShowEmployeeID is on (31027, business rule, HTTP 500); optional otherwise.
+
+            Can be set on create only.
+
+            Key from your own system, unique per TimeLog site. Uniqueness is not enforced.
+
+            Contains personal data.
+        EmploymentDate:
+          type: string
+          format: date-time
+          description: |-
+            First day of employment.
+
+            Can be set on create only.
+
+            Time zone: not yet documented.
+
+            Contains personal data.
+
+            - Year not valid — 31029 (business rule, HTTP 500).
+
+            > **Not yet documented:** constraints → timezone.
+        LegalEntityID:
+          type: integer
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Legal entity the user is employed in.
+
+            Can be set on create only.
+
+            Refers to `LegalEntityRead.LegalEntityID`. Look up valid values with `GET /v1/legal-entity`.
+
+            - Feature MultiLegalEntities on and the ID does not exist — 37029 (business rule, HTTP 500).
+
+            - Feature MultiLegalEntities off and the ID is not the system legal entity — 37921 (business rule, HTTP 500). Use `GET /v1/legal-entity/system`.
+
+            Valid values come from `GET /v1/legal-entity`.
+        DepartmentID:
+          type: integer
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Department the user belongs to. Inactive departments are accepted.
+
+            Can be set on create only.
+
+            Refers to `DepartmentRead.DepartmentID`. Look up valid values with `GET /v1/department`.
+
+            - The ID does not exist — 37039 (business rule, HTTP 500).
+
+            Valid values come from `GET /v1/department`.
+        ApprovalManagerID:
+          type: integer
+          x-timelog-identity:
+            role: reference
+          default: 0
+          description: |-
+            User ID (not employee ID) of the manager who approves this user's time sheets. 0 = no approval manager.
+
+            Can be set on create only.
+
+            Refers to `UserRead.UserID`. Look up valid values with `GET /v1/user`.
+
+            - Non-zero and not an existing user — 37038 (business rule, HTTP 500).
+
+            Valid values come from `GET /v1/user`.
+        EmployeeTypeID:
+          type: integer
+          x-timelog-identity:
+            role: reference
+          default: 0
+          description: |-
+            Employee type (tenant-defined category). 0 = none.
+
+            Can be set on create only.
+
+            Refers to `EmployeeTypeRead.EmployeeTypeID`.
+
+            - Non-zero and not an existing employee type — 37028 (business rule, HTTP 500).
+
+            Valid values come from `GET /v1/role`.
+
+            > **Not yet documented:** values → lookup op.
+        StandardHourlyRateID:
+          type: integer
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Standard hourly (sales) rate of the user; must belong to the user's legal entity.
+
+            Can be set on create only.
+
+            Refers to `HourlyRateRead.HourlyRateID`. Look up valid values with `GET /v1/hourly-rate`.
+
+            - 0 — 400 'Standard Hourly Rate ID' must not be empty.
+
+            - Negative — Replaced by the legal entity's system default hourly rate.
+
+            - Positive and not an existing rate / not a rate of LegalEntityID — 37030 / 37031 (business rule, HTTP 500).
+
+            `GET /v1/hourly-rate` returns the price-list entries of ALL legal entities (incl. customer lists); pick an entry with CustomerID null and LegalEntityID = the user's legal entity.
+
+            Valid values come from `GET /v1/hourly-rate`.
+        CostPriceID:
+          type: integer
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Cost price group of the user; must belong to the user's legal entity.
+
+            Can be set on create only.
+
+            Refers to `CostPriceRead.CostPriceID`. Look up valid values with `GET /v1/cost-price`.
+
+            - Not an existing cost price / not one of LegalEntityID — 37032 / 37051 (business rule, HTTP 500).
+
+            `GET /v1/cost-price` returns the cost price groups of ALL legal entities; pick one with LegalEntityId = the user's legal entity.
+
+            Valid values come from `GET /v1/cost-price`.
+        PublicHolidayCalendarID:
+          type: integer
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Public-holiday calendar that drives the user's non-working days.
+
+            Can be set on create only.
+
+            Refers to `HolidayCalendarRead.HolidayCalendarID`.
+
+            - Not an existing calendar — 37033 (business rule, HTTP 500).
+
+            > **Not yet documented:** values → lookup op.
+        AllowanceLegislationID:
+          type: integer
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Allowance (per-diem) legislation that applies to the user's travel expenses.
+
+            Can be set on create only.
+
+            Refers to `AllowanceLegislationRead.AllowanceLegislationID`. Look up valid values with `GET /v1/allowance-legislation`.
+
+            - Not an existing legislation — 37034 (business rule, HTTP 500).
+
+            Valid values come from `GET /v1/allowance-legislation`.
+        NormalWorkingTimeID:
+          type: integer
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Normal working time (weekly norm) of the user. Also stored as the user's work week.
+
+            Can be set on create only.
+
+            Refers to `NormalWorkingTimeRead.NormalWorkingTimeID`.
+
+            - Not an existing normal working time — 37035 (business rule, HTTP 500).
+
+            - Tenant on an edition that allows only the default normal working time — 37923 (business rule, HTTP 500).
+
+            > **Not yet documented:** values → lookup op.
+        SalaryGroupID:
+          type: integer
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Salary group of the user.
+
+            Can be set on create only.
+
+            Refers to `SalaryGroupRead.SalaryGroupID`.
+
+            - Feature SalaryGroups on and the group does not exist / is inactive — 37036 / 37925 (business rule, HTTP 500).
+
+            - Feature SalaryGroups off and the ID is not the system salary group — 37924 (business rule, HTTP 500).
+
+            Model validation only checks NotNull (never fails on an int); omitting it sends 0, which the business rule rejects in both feature states.
+
+            > **Not yet documented:** values → lookup op.
+        UserLicenseType:
+          type: integer
+          enum:
+          - 2
+          - 7
+          - 8
+          - 1
+          - 3
+          - 4
+          - 6
+          - 0
+          x-enum-descriptions:
+          - 'Standard user: access to most functionality, depending on the tenant''s licence model. The only value accepted
+            when neither ExternalUserLicense nor TimeExpenseUserLicense is on.'
+          - Limited user. Accepted only when feature ExternalUserLicense is on; the system role 'Limited user' is assigned
+            and UserRoleIDs must be empty.
+          - Time and expense tracking with reports. Accepted only when feature TimeExpenseUserLicense is on; the system role
+            'Time and expense registrations' is assigned and UserRoleIDs must be empty.
+          - External user (time tracking only). Rejected by this operation.
+          - Advanced user of special licence models. Rejected by this operation.
+          - External user with external disbursement. Rejected by this operation.
+          - Limited user of the Basic contract. Rejected by this operation.
+          - No licence (no access). Rejected by this operation.
+          default: 2
+          description: |-
+            Licence the user is billed for; decides which functionality the user can reach.
+
+            Can be set on create only.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `2` | Standard | Standard user: access to most functionality, depending on the tenant's licence model. The only value accepted when neither ExternalUserLicense nor TimeExpenseUserLicense is on. |
+            | `7` | Limited | Limited user. Accepted only when feature ExternalUserLicense is on; the system role 'Limited user' is assigned and UserRoleIDs must be empty. |
+            | `8` | TimeExpense | Time and expense tracking with reports. Accepted only when feature TimeExpenseUserLicense is on; the system role 'Time and expense registrations' is assigned and UserRoleIDs must be empty. |
+            | `1` | External | External user (time tracking only). Rejected by this operation. |
+            | `3` | Advanced | Advanced user of special licence models. Rejected by this operation. |
+            | `4` | ExternalPlus | External user with external disbursement. Rejected by this operation. |
+            | `6` | TlpBasicLimited | Limited user of the Basic contract. Rejected by this operation. |
+            | `0` | NotSpecified | No licence (no access). Rejected by this operation. |
+        UserRoleIDs:
+          type: array
+          items: {}
+          x-timelog-condition: Allowed only when UserLicenseType is Standard (2); must be null or empty otherwise (400).
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Additional roles to give the user. Only for Standard (2) users.
+
+            **Conditional.** Allowed only when UserLicenseType is Standard (2); must be null or empty otherwise (400).
+
+            Can be set on create only.
+
+            Refers to `RoleRead.RoleID`. Look up valid values with `GET /v1/role`.
+
+            > **Not yet documented:** multiple → max items.
+
+            > **Not yet documented:** multiple → duplicates allowed.
+      required:
+      - UserName
+      - FirstName
+      - LastName
+      - Initials
+      - Email
+      - EmploymentDate
+      - LegalEntityID
+      - DepartmentID
+      - StandardHourlyRateID
+      - CostPriceID
+      - PublicHolidayCalendarID
+      - AllowanceLegislationID
+      - NormalWorkingTimeID
+      - SalaryGroupID
+      description: 'A new user (employee) with the HR settings TimeLog needs before the person can register time: legal entity,
+        department, hourly rate, cost price, holiday calendar, allowance legislation, normal working time and salary group.
+        Most of these are IDs of tenant set-up data that REST v1 cannot list (see each field''s gap).'
+    UserRead:
+      type: object
+      properties:
+        UserID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier of the user. Used by GET /v1/user/{id}, and as UserID on time registrations and as owner (KAM) IDs on customers.
+
+            Identifier of this object, unique per TimeLog site.
+
+            Filterable via `id (path, GET /v1/user/{id})` (eq).
+        ID:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: false
+            id_format: guid
+          description: |-
+            The user's GUID. The update operation (PUT /v1/user) addresses the user by this value, not by UserID.
+
+            Alternate key, unique per TimeLog site.
+        FirstName:
+          type: string
+          readOnly: true
+          maxLength: 50
+          description: |-
+            First name. Empty for the technical users.
+
+            Contains personal data.
+
+            GET /v1/user is ordered by FirstName ascending, but no sort parameter is offered.
+        LastName:
+          type: string
+          readOnly: true
+          maxLength: 50
+          description: |-
+            Last name.
+
+            Contains personal data.
+        Initials:
+          type: string
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: false
+            id_format: string
+          maxLength: 50
+          description: |-
+            The user's initials. TimeLog uses initials as a short user handle; create rejects initials (or a user name) already used by another active user, by an application check only (no unique constraint). PUT /v1/user takes the approval manager by initials (ApprovalManagerInitials).
+
+            Alternate key, unique per TimeLog site.
+
+            Contains personal data.
+        IsActive:
+          type: boolean
+          readOnly: true
+          description: True when the user is active. Inactive users cannot log in; they stay in the list.
+        UserType:
+          type: string
+          enum:
+          - Employee
+          - ApiUser
+          - ExternalRessource
+          - AnonymizedEmployee
+          x-enum-descriptions:
+          - A person working in the tenant (the normal case). Integer 0 in the database.
+          - Technical account created by TimeLog (e.g. SYSTEM, ECNuser); not a person. Integer 1.
+          - Obsolete external-resource type (integer 2). Saving such a user converts it to Employee, so it only appears on
+            rows not saved since.
+          - Placeholder account that anonymized (GDPR) employee data is moved to. Integer 3.
+          readOnly: true
+          description: |-
+            Kind of user account, as the enum NAME (string).
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `Employee` | Employee | A person working in the tenant (the normal case). Integer 0 in the database. |
+            | `ApiUser` | ApiUser | Technical account created by TimeLog (e.g. SYSTEM, ECNuser); not a person. Integer 1. |
+            | `ExternalRessource` | ExternalRessource | Obsolete external-resource type (integer 2). Saving such a user converts it to Employee, so it only appears on rows not saved since. |
+            | `AnonymizedEmployee` | AnonymizedEmployee | Placeholder account that anonymized (GDPR) employee data is moved to. Integer 3. |
+        LegalEntityID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Legal entity (company) the user is employed in.
+
+            Refers to `LegalEntityRead.LegalEntityID`. Look up valid values with `GET /v1/legal-entity`.
+
+            Valid values come from `GET /v1/legal-entity`.
+        Email:
+          type: string
+          format: email
+          readOnly: true
+          maxLength: 255
+          description: |-
+            E-mail address. Empty for the technical users.
+
+            Contains personal data.
+      description: 'A TimeLog user as REST v1 returns it: identifiers, name, initials, e-mail, active flag, user type and
+        legal entity. In TimeLog a user and an employee are the same person seen from two sides: the user is the login, the
+        employee record carries the HR data. Every row of the user table is returned, including the inactive technical users
+        "SYSTEM" and "ECNuser" (UserType ApiUser) and anonymized former employees.'
+    UserUpdate.update:
+      type: object
+      properties:
+        ID:
+          type: string
+          format: uuid
+          x-timelog-identity:
+            role: reference
+          description: |-
+            GUID of the user to change (User.ID from any user read). Not the integer UserID.
+
+            Refers to `UserRead.ID`. Look up valid values with `GET /v1/user`.
+
+            - Omitted, empty GUID or not an existing user — HTTP 500, Code 100 'Unknown error' — not 400/404.
+        FirstName:
+          type: string
+          maxLength: 50
+          description: |-
+            New first name.
+
+            Contains personal data.
+
+            - Omitted or null — Stored first name cleared.
+        LastName:
+          type: string
+          maxLength: 50
+          description: |-
+            New last name.
+
+            Contains personal data.
+
+            - Omitted or null — Stored last name cleared.
+        ApprovalManagerInitials:
+          type: string
+          x-timelog-condition: Required when ApprovalManagerStartDate is sent, and vice versa (400).
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Initials of the user who becomes this user's approval manager from ApprovalManagerStartDate.
+
+            **Conditional.** Required when ApprovalManagerStartDate is sent, and vice versa (400).
+
+            Refers to `UserRead.Initials`. Look up valid values with `GET /v1/user`.
+
+            Contains personal data.
+
+            - Not the initials of an active user that TimeLog lists as able to approve (relative to the user's current approval manager) — 400 'ApprovalManagerInitials must be one of the valid approvers for the user's current manager.'
+
+            - The main save reported violations — The manager change is skipped and the call still returns 200.
+
+            Valid values come from `GET /v1/user`.
+
+            > **Not yet documented:** behaviour → when.
+        ApprovalManagerStartDate:
+          type: string
+          format: date-time
+          x-timelog-condition: Required when ApprovalManagerInitials is sent, and vice versa (400).
+          description: |-
+            Day from which the new approval manager applies.
+
+            **Conditional.** Required when ApprovalManagerInitials is sent, and vice versa (400).
+
+            Date only — no time component.
+
+            - Time-of-day sent — Only the date part is stored (valid-from day).
+
+            - Later than today — Stored as a manager change in the user's change history; the current approval manager stays until a background job applies it (per source comment).
+
+            > **Not yet documented:** behaviour → detail.
+        UserLicenseType:
+          type: integer
+          enum:
+          - 2
+          - 7
+          - 8
+          - 1
+          - 3
+          - 4
+          - 6
+          - 0
+          x-enum-descriptions:
+          - 'Standard user: access to most functionality, depending on the tenant''s licence model. The only value accepted
+            when neither ExternalUserLicense nor TimeExpenseUserLicense is on.'
+          - Limited user. Accepted only when feature ExternalUserLicense is on; the system role 'Limited user' is assigned
+            and UserRoleIDs must be empty.
+          - Time and expense tracking with reports. Accepted only when feature TimeExpenseUserLicense is on; the system role
+            'Time and expense registrations' is assigned and UserRoleIDs must be empty.
+          - External user (time tracking only). Rejected by this operation.
+          - Advanced user of special licence models. Rejected by this operation.
+          - External user with external disbursement. Rejected by this operation.
+          - Limited user of the Basic contract. Rejected by this operation.
+          - No licence (no access). Rejected by this operation.
+          description: |-
+            New licence type. Null or omitted keeps the current licence.
+
+            - Changed to Limited (7) or TimeExpense (8) — All system (non-employee-specific) roles and all modules are removed, then the licence's system role is added. Fails with a business rule (HTTP 500) when a role cannot be removed because the user holds the last system-administration privilege.
+
+            - Changed to Standard (2) — The 'Limited user' / 'Time and expense registrations' roles are removed; no other role is added unless UserRoleIDs is sent.
+
+            - Same as the current licence — No role or module change.
+
+            - Value not allowed by the tenant features (see UserCreate.UserLicenseType) — 400.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `2` | Standard | Standard user: access to most functionality, depending on the tenant's licence model. The only value accepted when neither ExternalUserLicense nor TimeExpenseUserLicense is on. |
+            | `7` | Limited | Limited user. Accepted only when feature ExternalUserLicense is on; the system role 'Limited user' is assigned and UserRoleIDs must be empty. |
+            | `8` | TimeExpense | Time and expense tracking with reports. Accepted only when feature TimeExpenseUserLicense is on; the system role 'Time and expense registrations' is assigned and UserRoleIDs must be empty. |
+            | `1` | External | External user (time tracking only). Rejected by this operation. |
+            | `3` | Advanced | Advanced user of special licence models. Rejected by this operation. |
+            | `4` | ExternalPlus | External user with external disbursement. Rejected by this operation. |
+            | `6` | TlpBasicLimited | Limited user of the Basic contract. Rejected by this operation. |
+            | `0` | NotSpecified | No licence (no access). Rejected by this operation. |
+
+            > **Not yet documented:** behaviour → detail.
+        UserRoleIDs:
+          type: array
+          items: {}
+          x-timelog-condition: Allowed only when UserLicenseType is sent as Standard (2) in the same request — even for a
+            user who already is Standard (400 otherwise).
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Roles to ADD to the user. Existing roles are never removed by this field.
+
+            **Conditional.** Allowed only when UserLicenseType is sent as Standard (2) in the same request — even for a user who already is Standard (400 otherwise).
+
+            Refers to `RoleRead.RoleID`. Look up valid values with `GET /v1/role`.
+
+            - A role does not exist / is employee-specific / is a locked system role / is inactive — 37037 / 37930 / 37929 / 37926 (business rule, HTTP 500).
+
+            Valid values come from `GET /v1/role`.
+
+            > **Not yet documented:** multiple → max items.
+
+            > **Not yet documented:** multiple → duplicates allowed.
+      required:
+      - ID
+      description: 'Changes an existing user, addressed by its GUID (User.ID): first and last name, licence type, extra roles,
+        and the approval manager from a given date. Not a full replace and not a patch (see each field).'
+x-timelog-service: Organization

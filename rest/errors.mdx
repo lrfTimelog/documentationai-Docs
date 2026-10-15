@@ -1,0 +1,309 @@
+---
+title: Errors
+description: The TimeLog REST API error body, the error classes and their HTTP status codes, how to handle business-rule errors safely, when to retry, and the most common business-rule error codes.
+---
+
+## Overview
+
+When a TimeLog REST API request fails, the response body tells you **what kind** of failure it was and, for business rules, **which rule** failed.
+v1 and v2 share one error contract. The body, the error classes and the status codes on this page apply to both versions.
+
+The most important rule on this page: **branch on the `Code` field in the body, not on the HTTP status.**
+The same kind of failure can come back with different HTTP status codes on different operations.
+[Business-rule errors](#business-rule-errors-422-or-500) explains why.
+
+Each operation's reference page lists the errors that operation can return. This page covers what they have in common.
+
+## The error body
+
+Most errors return a JSON body with five members. Property names are PascalCase, as everywhere in the API.
+
+| Member | Contains |
+|---|---|
+| `Code` | The error class, as a number. See [Error classes](#error-classes). This is the field to branch on. |
+| `Message` | A short description of the error class, for example `"Business rules exception."` or `"Invalid model state error."`. For permission errors it is the specific reason. |
+| `Details` | A list. Its items depend on the class: **strings** for validation errors (Code 200), or **objects** `{"ErrorCode", "Message"}` for business-rule violations (Code 102). It can be empty. |
+| `Parameters` | The arguments of the failed request, as a string. This **includes the full request payload**. |
+| `Url` | The URL of the failed request. |
+
+Example: a business-rule violation, `DELETE /v2/competences/1` on a competence that employees still have.
+
+```json
+{
+  "Code": 102,
+  "Details": [
+    {
+      "Message": "Unable to Delete competence with Competence ID ='1', because one or more Users are attached to it",
+      "ErrorCode": 38008
+    }
+  ],
+  "Message": "Business rules exception.",
+  "Parameters": "id: 1",
+  "Url": "https://app{server-number}.timelog.com/{account}/api/v2/competences/1"
+}
+```
+
+Example: a validation error, `POST /v1/time-registration` with an empty body `{}`. Each failed rule is one string in `Details`.
+
+```json
+{
+  "Code": 200,
+  "Details": [
+    "'ID' must not be empty.",
+    "'User ID' must not be empty.",
+    "'Date' must not be empty.",
+    "'Hours' must not be empty.",
+    "Group Type must be either Project (1), or Absence (3)."
+  ],
+  "Message": "Invalid model state error.",
+  "Parameters": "timeRegistrationApiCreateModel: {...}",
+  "Url": "https://app{server-number}.timelog.com/{account}/api/v1/time-registration"
+}
+```
+
+Things to note:
+
+- **Do not match on `Message` text.** Use `Code` and, for business rules, `Details[].ErrorCode`. Some messages are inaccurate. For example, the time registration message above says `GroupType` must be Project (1) or Absence (3), but TravelTime (6) is also accepted. The reference pages document the rule, not the message.
+- **Read every item in `Details`.** A request can break several rules at once, and each one is a separate item.
+- **Be careful when you log error bodies.** `Parameters` echoes the request, including the whole payload. If your payloads contain personal data, such as employee names or comments on time registrations, log `Code`, `ErrorCode` and `Url` rather than the full body.
+
+## Error classes
+
+`Code` identifies the error class. Each class maps to an HTTP status.
+
+| `Code` | Class | HTTP status | `Details` |
+|---|---|---|---|
+| `200` | Validation failed. The body or parameters failed input validation. | `400` | Strings, one per failed rule. |
+| `400` | Bad request. The operation rejected the request for a specific reason, given in `Message`. This is not the same as Code 200. | `400` | Read `Message` for the reason. |
+| `102` | Business rule. The request is well-formed but breaks a TimeLog business rule. | `422` or `500`, depending on the operation | Objects `{"ErrorCode", "Message"}`, one per broken rule. |
+| `103` | Privilege. The authenticated user lacks a privilege the operation needs. | `403` | None. `Message` gives the reason. |
+| `404` | Not found. The addressed resource does not exist. Only some operations use it. See [Not found is not always 404](#not-found-is-not-always-404). | `404` | — |
+| `100` | Unexpected error. | `500` | — |
+
+Things to note:
+
+- **Code 100 is not always a server fault.** It is also returned for several caller mistakes: a malformed `MonthlyPeriod`, a non-numeric `$page`, a missing record on some GET operations, and a missing record on `DELETE /v1/time-registration/{id}`.
+- **Code 103 does not always mean a missing permission.** On `POST /v1/customer/create` and `PUT /v1/customer/update`, a customer number that is already in use (when the tenant requires unique customer numbers) comes back as `403` Code 103 with the message `"Customer number is already in use"`. Read `Message` before you treat a 103 as a permissions problem.
+- **On task searches, Code 103 can be avoided.** Sending `searchAll=true` without the privilege to search all tasks returns `403` Code 103. Omit `searchAll` to search only the tasks the user is allocated to.
+
+### Business-rule errors: 422 or 500
+
+Business-rule violations (Code 102) come back as **422 on some operations and 500 on others**.
+The status depends on how the operation is built, not on the kind of error.
+For example, time registration create returns a business-rule violation as `422`, and time registration delete returns it as `500`.
+One operation uses a third status: `POST /v1/task/{taskID}/allocation` answers `409` with Code 102 and no `Details` when the user already has an allocation on the task.
+
+This has two consequences for client code:
+
+- **A 500 is not always a server fault.** A `500` with Code 102 means your request broke a rule. Retrying it unchanged gives the same result.
+- **A 422 is not the only business-rule signal.** If you only handle `422`, you miss most business-rule errors.
+
+So treat Code 102 as "business rule" whatever the HTTP status, and use `Details[].ErrorCode` to find out which rule.
+
+### Not found is not always 404
+
+Only some operations return `404` (Code 404) for a missing record. Many return a business-rule error (Code 102, `422` or `500`) with a "not found" `ErrorCode` instead. For example:
+
+- `PUT /v1/time-registration` with an unknown ID returns `422`, ErrorCode `38031`.
+- `PUT /v1/project/{projectID}` with an unknown project returns `500`, ErrorCode `37014`.
+
+Others return Code 100. Each operation's reference page states its actual not-found behaviour.
+
+## Errors with a different body
+
+Some errors are produced before the request reaches the API's own error handling. They do **not** use the error body above, so they have no `Code`.
+
+### 401 Unauthorized
+
+The bearer token is missing, invalid or expired. It is also returned when the token's user can no longer log in, for example because the user is inactive, locked or deleted.
+The body has a single `Message` member, with the text `"Authorization has been denied for this request."`:
+
+```json
+{ "Message": "Authorization has been denied for this request." }
+```
+
+Get a new token and retry.
+
+### 404 for a URL that matches no route
+
+The URL did not match any route. This includes a path segment of the wrong type, for example text where an integer ID is expected.
+The body has three members: `Message` (`"Page Not Found"`), `Timestamp` and `RawUrl`.
+Check the path against the operation's reference page.
+
+### 404 for a missing required query parameter
+
+The route exists, but a required query parameter was omitted or misspelled, typically a date such as `date`, `startDate` or `endDate`.
+It looks like a 404, but it is a missing-parameter error.
+Captured on `GET /v1/time-registration-financial-data/get-by-date` without its parameters:
+
+```json
+{
+  "Message": "No HTTP resource was found that matches the request URI 'https://app{server-number}.timelog.com/{account}/api/v1/time-registration-financial-data/get-by-date'.",
+  "MessageDetail": "No action was found on the controller 'TimeRegistrationFinancialData' that matches the request."
+}
+```
+
+Send every required query parameter named on the reference page.
+
+### 405 for a missing required query parameter
+
+The same mistake can also come back as `405`. This has been observed on `DELETE /v1/role` sent without its required query parameters.
+The body is `application/problem+json`, and it says the API version does not support the method:
+
+```json
+{
+  "code": "UnsupportedApiVersion",
+  "error": "No route providing a controller name with API version '1' was found to match HTTP method 'DELETE' and request URI 'https://app{server-number}.timelog.com/{account}/api/v1/role'.",
+  "traceId": "…",
+  "type": "https://docs.api-versioning.org/problems#unsupported",
+  "title": "Unsupported API version",
+  "status": 405,
+  "detail": "The requested resource with API version '1' does not support HTTP method 'DELETE'."
+}
+```
+
+Despite the wording, the version is not the problem. Send every required query parameter. This 405 is returned before authentication, so it also appears without a token.
+
+## Handling errors in client code
+
+The recipe below follows from the rules above. Branch on the body first, and use the HTTP status only to tell the body shapes apart.
+
+```text
+send request
+if status is 2xx:
+    success
+
+if status == 401:
+    get a new token
+    retry once; if it fails again, stop and report an authentication problem
+
+body = parse JSON (it may be missing or not JSON)
+
+if body has a "Code" member:
+    switch body.Code:
+        case 200:   # validation
+            report each string in body.Details; fix the request; do not retry unchanged
+        case 102:   # business rule, whatever the HTTP status (409, 422 or 500)
+            if body.Details is empty or missing:
+                report body.Message
+            for each item in body.Details:
+                handle item.ErrorCode (see the reference page of the operation)
+            do not retry unchanged
+        case 103:   # privilege
+            report body.Message; do not retry with the same user and data
+        case 400:   # bad request
+            report body.Message; fix the request
+        case 404:   # resource not found
+            treat the addressed record as missing
+        case 100:   # unexpected
+            log Code, Url and the time; see "When to retry"
+        default:
+            treat as unexpected
+else:
+    # no Code: a body from outside the API's error handling
+    if status == 404 and body has "MessageDetail":
+        a required query parameter is missing
+    else if status == 404:
+        the URL matches no route; check the path
+    else if status == 405 and body.code == "UnsupportedApiVersion":
+        a required query parameter is missing
+    else:
+        treat as unexpected
+```
+
+## When to retry
+
+| Error | Retry? |
+|---|---|
+| `401` | Yes, once, with a new token. |
+| Code 200 (validation), Code 400 (bad request) | Only after you fix the request. |
+| Missing-parameter 404 or 405 | Only after you add the missing parameters. |
+| Code 102 (business rule), any HTTP status | Not unchanged. It is not a transient error, even when the status is `500`. Some rules can be fixed by changing the request or the data, for example choosing an active task. Others cannot, for example deleting an expense that is already invoiced. |
+| Code 103 (privilege) | Not with the same user. Use a user whose role covers the operation and the data. |
+| Code 100 (unexpected) | See the note below. |
+
+<Callout kind="alert">**Not yet documented.** Whether a Code 100 error is transient and safe to retry has not been established; treat it as unknown.</Callout>
+
+Before you retry any **write**, check whether the operation is safe to repeat. Some creates are not idempotent, so a retry after a timeout can create a duplicate.
+[Writing data](/rest/conventions/writing-data) lists the retry safety of the main write operations.
+
+One useful case: `POST /v1/time-registration` with the same `ID` (GUID) is safe to resend. If the first attempt already succeeded, the retry returns `422` with ErrorCode `38030`, which you can treat as "already created".
+
+## Common business-rule error codes
+
+These are the business-rule codes (`Details[].ErrorCode` in a Code 102 response) that integrations meet most often.
+The list is not complete. **Each operation's reference page lists its own errors.**
+Some rules only apply when a tenant setting or feature is switched on; the reference page says which.
+
+### Time registrations
+
+| ErrorCode | Meaning | What to do |
+|---|---|---|
+| `38030` | A time registration with this `ID` (GUID) already exists. Create is not idempotent on ID. | If you are retrying a create with the same ID, treat it as already created. Otherwise send a new GUID. |
+| `38031` | No time registration with the given ID (on update). | Check the ID. This is not returned as a 404. |
+| `38032` | `TaskID` does not exist. | Send an existing task ID. |
+| `38033` | `UserID` does not exist. It does not check whether the user is active. | Send an existing user ID. |
+| `38034` | `EntityID` is not a valid absence code (when `GroupType` is Absence). | Send an existing absence code ID. |
+| `37982` | Hours and minutes are both zero. | Send a non-zero duration. |
+| `30010` | The task is inactive. This also blocks deleting registrations on that task. | Register on an active task. |
+| `30043` | The task has sub-tasks. Time cannot be registered on a parent task. | Register on a task without sub-tasks. |
+| `30045` | The project is inactive or not open for time registration. | Register on an open project. |
+| `37620` | A registration on a fixed-price task cannot be non-billable. | Send it as billable. |
+| `30011` | The date is in a closed accounting period. Also applies to update and delete. | Use a date in an open period. |
+| `30012` | The date is closed by a submitted or approved timesheet. Also applies to update and delete. | Use an open date. |
+| `37537` | The registration is invoiced or vouchered. Also applies to update and delete. | It can no longer be changed through the API. |
+| `37954` | An absence already exists on the date. | Do not create a second absence on that date. |
+| `37566` | The absence is approved and locked (on update and delete). | It can no longer be changed through the API. |
+| `300131` | Import: `UserID` is not the caller, and the caller lacks the privilege to register for all users. | Import only your own time, or use a user with that privilege. |
+| `38037` | Import: `HourlyRate` differs from the allocation's current rate (an omitted rate counts as 0), and `HourlyRateName` is empty. | Send `HourlyRateName`, or send the allocation's current rate as `HourlyRate`. |
+
+### Projects, tasks and contracts
+
+| ErrorCode | Meaning | What to do |
+|---|---|---|
+| `37014` | The project does not exist. Returned instead of a 404. | Use a project ID from the project list. |
+| `37001` | The task does not exist. Returned instead of a 404. | Use an existing task ID. |
+| `37042` | The contract does not exist or does not belong to the project. | Send a contract of the same project, or omit it where the operation then uses the project's default contract. |
+| `37944` | The hourly rate is not one of the rates of the task's contract. | Use an hourly rate of the chosen contract. |
+| `37957` | A contract type is required on this tenant, and `ContractTypeID` is 0 or missing. | Send the ID of one of the tenant's contract types. |
+| `37958` | `ContractTypeID` is not a contract type of the tenant. Nothing is written. | Use an existing contract type ID. |
+
+### Users (all areas)
+
+| ErrorCode | Meaning | What to do |
+|---|---|---|
+| `37040` | A user field (for example an owner, project manager or `UserID`) is not an existing **user** ID. Used by many operations. | Send a user ID from the user list, not an employee ID. |
+| `37931` | The user exists but is inactive. | Choose an active user. |
+
+### Customers and contacts
+
+| ErrorCode | Meaning | What to do |
+|---|---|---|
+| `30018` | `CustomerStatusID` does not exist. | Use a status ID from `GET /v1/customerstatus`. |
+| `30019` | `IndustryID` does not exist. Inactive industries are accepted. | Use an ID from `GET /v1/industry/get-all`. |
+| `38017` | Another customer has the same name and number (case-insensitive). | Change the name or the number. |
+| `30017` | `CountryID` or `InvoicingAddressCountryID` does not exist. The message says "ISO code", but the value is the country ID. | Send an existing country ID. |
+| `37011` | `ContactID` or `CustomerReferenceID` is not an existing contact. | Send an existing contact ID. |
+| `37697` | `UseEanNo` is true, but the tenant does not have the OIOXML feature. | Send `UseEanNo` false, or enable OIOXML. |
+
+### Employees and timesheets
+
+| ErrorCode | Meaning | What to do |
+|---|---|---|
+| `37966` | Submitting a timesheet for another employee without the rights to do so. | Submit as the employee, or use a user with the 'all registrations' privilege or an approval privilege that covers the employee. |
+| `37992` | The employee has a running time tracker that started on one of the days being submitted. | Stop or delete the time tracker, then submit again. |
+| `37654` | The tenant does not allow closing a timesheet with zero hours, and the submitted days hold no hours. | Register time on the days first. |
+| `37655` | The tenant does not allow closing a timesheet below normal working time, and the days hold fewer hours. | Register the missing time or absence, then submit again. |
+| `38015` | Competences: the user has no privilege to edit skills for this employee. | Use a user whose role has the employee skills privilege for that employee. |
+
+### Expenses and mileage
+
+| ErrorCode | Meaning | What to do |
+|---|---|---|
+| `37019` | `ExpenseTypeID` does not exist. | Use an expense type of the owner's legal entity. |
+| `31140` | The expense is on a fixed-price contract and `IsBillable` is false. | Send `IsBillable` true. |
+| `37699` | The expense date is in a closed accounting period. | Use a date in an open period. |
+| `37700` | The expense is approved and can no longer be changed. | It can no longer be changed through the API. |
+| `37698` | The expense is invoiced or vouchered (on update). | It can no longer be changed through the API. |
+| `37703` | The expense is approved (on delete). | It can no longer be deleted through the API. |
+| `37945` | The travel time registration's task is not a task of the mileage registration's project. | Pick a travel-time task of the same project. |

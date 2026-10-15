@@ -1,0 +1,1819 @@
+openapi: 3.1.0
+info:
+  title: Settings — REST API v1
+  version: v1
+  description: |-
+    Enums are integers in v1.
+
+    **Conventions that apply to every operation in this file:**
+    - Property names are PascalCase.
+    - Successful bodies use the TAF envelope: one object in `Properties`, lists in `Entities[].Properties`.
+    - Some operations succeed without content: HTTP 200 with the literal body `null`, or HTTP 204.
+    - `PUT` replaces the whole object: omitted fields are reset.
+    - Treat error `Code` 102 as a business-rule violation, whether the HTTP status is 422 or 500.
+
+    > **Not yet documented:** rate limits.
+servers:
+- url: https://app{server-number}.timelog.com/{account}/api
+  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
+    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
+    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.'
+  variables:
+    server-number:
+      default: '3'
+    account:
+      default: your-account
+security:
+- bearer: []
+paths:
+  /v1/barrier:
+    get:
+      operationId: getBarriers
+      summary: List barrier types
+      description: |-
+        Barriers are the tenant-wide list of reasons that hold back a sales OPPORTUNITY (system administration → "Barrier management in TimeLog CRM"). They are not period or registration locks and block nothing. The Reporting API (GetBarriersShortlist) reads the same table and is the working alternative.
+
+        **Not for:**
+        - Locking time registration — barriers have nothing to do with it
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `PUT /v1/barrier`, `DELETE /v1/barrier/{id}`
+
+        > **Not yet documented:** response → default ordering.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). As coded: every barrier, unpaged, with self links and add / delete actions.
+
+            Order: not yet documented.
+
+            Empty result: not yet documented.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/BarrierRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Example
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: ''
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/barrier
+      x-timelog-key: rest.v1.settings.barrier.list
+    post:
+      operationId: createBarrier
+      summary: Create a barrier type
+      description: |-
+        Adds a reason that can be attached to sales opportunities. Do not retry blindly — check the Reporting API's barrier list.
+
+        **Use it to:**
+        - Seed the CRM barrier list of a new tenant
+
+        **Behaviour:**
+        - Not idempotent.
+        - Not safe to retry blindly. A 500 may follow a committed insert. Retrying with the SAME Id fails on the unique GUID (no duplicate); with a new Id it creates a duplicate.
+        - Duplicates: Names are not deduplicated; the caller-supplied Id is unique (database constraint).
+        - Side effect: Inserts the barrier and raises BarrierCreated; clears the barrier cache.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `PUT /v1/barrier`
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BarrierCreate'
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). As coded: the new barrier.
+
+            Order: none
+
+            Empty result: none
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/BarrierRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: Name missing or empty
+            (captured). — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Empty body (captured)
+                  value:
+                    Code: 200
+                    Details:
+                    - '''Name'' must not be empty.'
+                    Message: Invalid model state error.
+                    Parameters: 'barrier: {"Id":"00000000-0000-0000-0000-000000000000","Name":null}'
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/barrier
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.settings.barrier.create
+    put:
+      operationId: updateBarrier
+      summary: Rename a barrier type
+      description: |-
+        Renames a CRM barrier type identified by its GUID.
+
+        Changes the display name of a barrier; opportunities keep referencing it by BarrierID, so the new name shows everywhere at once. The active state is kept (it cannot be changed through the API). Sending the current name writes nothing.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Side effect: Updates the name (and LastModified / LastModifiedBy) and raises BarrierUpdated — only when the name differs.
+        - Changes are visible to the next read immediately.
+
+        **See also:** `GET /v1/barrier`
+
+        > **Not yet documented:** examples.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BarrierUpdate'
+      responses:
+        '200':
+          description: |-
+            Success without content: HTTP 200 with the literal JSON body `null`. Literal JSON `null` (TafSuccessResult).
+
+            Order: none
+
+            Empty result: none
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 100** — Unhandled server error.
+
+            - **Code 60015** — Name missing or blank on an update. Raised by the domain check, because these update bodies have no working request validator. — When: Name missing or blank (no request validator). — Fix: Always send the full Name on update.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Empty body (captured)
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'barrierApi: {"Id":"00000000-0000-0000-0000-000000000000","Name":null}'
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/barrier
+      x-timelog-key: rest.v1.settings.barrier.update
+  /v1/barrier/{barrierId}:
+    get:
+      operationId: getBarrier
+      summary: Get a barrier type
+      description: |-
+        Would resolve a BarrierID (as stored on opportunities) to the barrier's GUID and name. Note the id mismatch of this controller: this read takes the integer BarrierID, while update and delete take the GUID Id.
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **See also:** `GET /v1/barrier`
+      parameters:
+      - name: barrierId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: |-
+          BarrierRead.BarrierID (integer), not the GUID.
+
+          Refers to `BarrierRead.BarrierID`. Look up valid values with `GET /v1/barrier`.
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). As coded: the barrier with a self link and the add / delete actions.
+
+            Order: none
+
+            Empty result: not yet documented.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/BarrierRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The URL did not match any route (including a route constraint such as {id:int} receiving a non-integer).
+            — When: barrierId not an integer (captured).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Example
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'barrierId: 1'
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/barrier/1
+      x-timelog-key: rest.v1.settings.barrier.get
+  /v1/barrier/{id}:
+    delete:
+      operationId: deleteBarrier
+      summary: Delete a barrier type
+      description: |-
+        Permanently deletes a CRM barrier type that no opportunity uses, by its GUID.
+
+        Hard delete. Refused (30118) while any opportunity lists the barrier. The id is the barrier's GUID (Id), not the integer BarrierID.
+
+        **Behaviour:**
+        - Not idempotent.
+        - Safe to retry only under a condition. A repeat after success hits an unknown id (500 Code 100).
+        - Changes are visible to the next read immediately.
+
+        **See also:** `GET /v1/barrier`
+
+        > **Not yet documented:** examples.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: |-
+          BarrierRead.Id (GUID).
+
+          Refers to `BarrierRead.Id`. Look up valid values with `GET /v1/barrier`.
+      responses:
+        '200':
+          description: |-
+            Success without content: HTTP 200 with the literal JSON body `null`. Literal JSON `null` (TafSuccessResult).
+
+            Order: none
+
+            Empty result: none
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '405':
+          description: '- The route matched, but no action for this HTTP method accepted the request. Observed when a DELETE
+            that needs required (non-nullable) query parameters is sent without them: the versioning layer reports it as an
+            unsupported version / method, although the method is listed in the Allow header. It is a missing-parameter error
+            that looks like a 405. Returned before authentication (also without a token). — When: id is not a GUID (captured).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: |-
+            - **Code 30118** — At least one opportunity lists the barrier. Also returned when the attachment count cannot be read (the generic data error is replaced by 30118). — When: An opportunity lists the barrier. — Fix: Remove the barrier from those opportunities first (TimeLog CRM UI).
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Unknown GUID (captured)
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'id: "00000000-0000-0000-0000-000000000001"'
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/barrier/00000000-0000-0000-0000-000000000001
+      x-timelog-key: rest.v1.settings.barrier.delete
+  /v1/car:
+    get:
+      operationId: getCars
+      summary: List my cars
+      description: |-
+        Lists the active cars the caller may register mileage with — the caller's own private cars plus the company cars of the caller's legal entity.
+
+        The car picker for a mileage registration. Returns, for the caller's legal entity, every ACTIVE company car and every ACTIVE private car owned by the caller, ordered by name and paged. Other employees' private cars are never listed, not even for administrators — this is "my cars", not a car register. IsDefault marks the caller's own default car.
+
+        **Use it to:**
+        - Populate the car choice before `POST /v1/mileage-registration` (send the chosen CarID)
+
+        **Not for:**
+        - Listing all cars of the tenant or of another employee (no such operation in REST v1)
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `POST /v1/mileage-registration`, `GET /v1/car/{id}`
+
+        **See also:** `GET /v1/car/default`
+
+        > **Not yet documented:** request → query params → $expand.
+      parameters:
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number (1-based).
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size. No maximum enforced in the API layer.
+      - name: $expand
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - owner
+          - mileagerate
+          x-enum-descriptions:
+          - Fill EmployeeUser (the owner's user record, incl. e-mail) on private cars.
+          - Fill DefaultMileageRate (the car's default mileage rate).
+        description: |-
+          Optional expansions; each value becomes procedure parameter Expand<Value>. Any other value adds a parameter the procedure does not declare (error not tested).
+
+          Several values: one string, separated by `,`.
+
+          Allowed values:
+
+          | Value | Name | Meaning |
+          |---|---|---|
+          | `owner` | owner | Fill EmployeeUser (the owner's user record, incl. e-mail) on private cars. |
+          | `mileagerate` | mileagerate | Fill DefaultMileageRate (the car's default mileage rate). |
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). One page. Properties: TotalRecord, TotalPage, PageNumber (strings). Each entity has a self link (/v1/car/{CarID}).
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: Name ascending (fixed)
+
+            Empty result: 200 with no Entities
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/CarRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.settings.car.list
+    post:
+      operationId: createCar
+      summary: Create my private car
+      description: |-
+        Registers a new private car owned by the caller and returns it.
+
+        Adds a car the caller can use on their own mileage registrations. The server fixes everything except the name, plate and default flag: type Private, owner = the caller, the caller's legal entity, active, the legal entity's default mileage rate for private cars, and "employee may change the rate" off. A car for another employee or a company car cannot be created through the API (use the TimeLog car administration page). Plates are not checked for duplicates.
+
+        **Use it to:**
+        - Self-service: an employee adds their own car from a mobile mileage app
+
+        **Not for:**
+        - Creating company cars or cars for other employees
+
+        **Behaviour:**
+        - Not idempotent.
+        - Not safe to retry blindly. Each call creates another car (new GUID, no duplicate check). After a lost response, check `GET /v1/car` before retrying.
+        - Duplicates: Not deduplicated (no unique constraint on name or plate).
+        - Side effect: Inserts the car and raises CarCreated.
+        - Side effect: IsDefault true: the caller's default-car user setting now points to the new car.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `POST /v1/mileage-registration`
+
+        **See also:** `GET /v1/car`, `GET /v1/mileage-rate`
+
+        > **Not yet documented:** examples.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CarCreate'
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). The new car (read back by its CarID), with a self link.
+
+            Order: none
+
+            Empty result: none
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/CarRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: Name or LicensePlate
+            missing / empty (captured). — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Empty body (captured)
+                  value:
+                    Code: 200
+                    Details:
+                    - '''Name'' must not be empty.'
+                    - '''License Plate'' must not be empty.'
+                    Message: Invalid model state error.
+                    Parameters: 'model: {"Name":null,"LicensePlate":null,"IsDefault":false}'
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/car
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 37937** — The caller's legal entity has no mileage rate marked as default for private cars, so the new car cannot get a rate. — When: The caller's legal entity has no default private-car mileage rate. — Fix: An administrator marks a mileage rate of the legal entity as default for private cars (Settings → Mileage rates; IsDefaultForPrivateCar in GET /v1/mileage-rate).
+
+            - **Code 37832** — The private car's default mileage rate is not a reimbursed rate (HasReimbursement false). On create: the legal entity's default rate for private cars is not reimbursed. — When: That default rate is not reimbursed. — Fix: An administrator makes the default private-car rate a reimbursed rate.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.settings.car.create
+    put:
+      operationId: updateCar
+      summary: Update a car
+      description: |-
+        Renames a car, changes its plate and sets or clears it as the caller's default car; returns the car.
+
+        Ordinary users can update only their OWN private cars. Users with access to the car administration page can update any car of the tenant (other employees' private cars and company cars). Name and LicensePlate are always overwritten, so send both. Owner, type, active state and mileage rate are not changeable here. IsDefault acts on the CALLER's default-car setting, even when the car belongs to someone else.
+
+        **Use it to:**
+        - Employee corrects the plate of their car
+        - Make a car the caller's default for mileage registrations
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Side effect: Updates Name and LicensePlate (always written, even when unchanged) and raises CarUpdated.
+        - Side effect: IsDefault true → the caller's default car becomes this car; false (or omitted) → clears the caller's default if it was this car.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/car`
+
+        **See also:** `GET /v1/car/default`
+
+        > **Not yet documented:** examples.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CarUpdate'
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). The car after the update, with a self link.
+
+            Order: none
+
+            Empty result: none
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/CarRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - **Code 100** — Unhandled server error.
+
+            - **Code 37833** — The caller has no access to the system-administration page for cars and the car is either another employee's private car or a company car. — When: Not the caller's own private car and no car-administration page access. — Fix: Change only your own private cars, or use a user whose role grants the car administration page.
+
+            - **Code 60015** — Name missing or blank on an update. Raised by the domain check, because these update bodies have no working request validator. — When: Name missing or blank. — Fix: Always send the full Name on update.
+
+            - **Code 60109** — LicensePlate missing or blank on update (domain check; on create the request validator answers 400 instead). — When: LicensePlate missing or blank. — Fix: Always send the full LicensePlate on update.
+
+            - **Code 37832** — The private car's default mileage rate is not a reimbursed rate (HasReimbursement false). On create: the legal entity's default rate for private cars is not reimbursed. — When: A private car whose default rate has meanwhile lost its reimbursement. — Fix: An administrator makes the default private-car rate a reimbursed rate.
+
+            - **Code 37844** — Saving an ACTIVE private car whose owner is deactivated. (Deactivating a user normally deactivates the user's private cars, so this needs data out of step.) — When: Active private car of a deactivated owner. — Fix: Reactivate the owner, or leave the car unchanged.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Empty body (captured)
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'carApiUpdateModel: {"CarID":0,"Name":null,"LicensePlate":null,"IsDefault":false}'
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/car
+      x-timelog-key: rest.v1.settings.car.update
+  /v1/car/default:
+    get:
+      operationId: getDefaultCar
+      summary: Get my default car
+      description: |-
+        Returns the caller's default car — the car preselected on the caller's new mileage registrations.
+
+        The default car is a per-user setting (not a property of the car). It is set with IsDefault true on car create or update, or in the user's settings in the UI. If the stored car no longer exists the setting is treated as empty. With no default car the call still answers 200, with "Properties": null.
+
+        **Use it to:**
+        - Preselect the car in a mobile mileage form
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `POST /v1/mileage-registration`
+
+        **See also:** `GET /v1/car`, `PUT /v1/car`
+
+        > **Not yet documented:** purpose → description; response → empty result.
+      parameters:
+      - name: $expand
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - owner
+          - mileagerate
+          x-enum-descriptions:
+          - Fill EmployeeUser.
+          - Fill DefaultMileageRate.
+        description: |-
+          Same expansions as the integer get (the default car is read through it).
+
+          Several values: one string, separated by `,`.
+
+          Allowed values:
+
+          | Value | Name | Meaning |
+          |---|---|---|
+          | `owner` | owner | Fill EmployeeUser. |
+          | `mileagerate` | mileagerate | Fill DefaultMileageRate. |
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). The default car with a self link to /v1/car/default. IsDefault is true.
+
+            Order: none
+
+            Empty result: No default car → 200 with "Properties": null and the self link (src only).
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/CarRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+              examples:
+                example1:
+                  summary: The caller's default car (captured, v1)
+                  value:
+                    Properties:
+                      CarID: 358
+                      Name: jenn202306210922
+                      LicensePlate: fyh5677
+                      CarType: 2
+                      EmployeeUser: null
+                      IsActive: true
+                      ID: c22cf8a9-352a-44da-b4d5-96e51d751065
+                      EmployeeUserID: 1
+                      DefaultMileageRate: null
+                      IsDefault: true
+                      AllowEmployeeChangeMileageRate: false
+                    Links:
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v1/car/default
+                      Rel: self
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+      x-timelog-key: rest.v1.settings.car.getdefault
+  /v1/car/{id}:
+    delete:
+      operationId: deleteCar
+      summary: Delete a car
+      description: |-
+        Permanently deletes a car that has never been used on a mileage registration.
+
+        Hard delete. Refused (37830) as soon as any mileage registration uses the car — a car with history can only be deactivated, which the API cannot do. Ordinary users can delete only their own private cars; users with access to the car administration page can delete any unused car of the tenant.
+
+        **Use it to:**
+        - Remove a car added by mistake
+
+        **Behaviour:**
+        - Not idempotent.
+        - Safe to retry only under a condition. A repeat after success hits an unknown id (500 Code 100).
+        - Side effect: Clears the CALLER's default-car setting if it pointed to this car. Another user's setting that pointed to it is treated as empty from then on.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/car`
+
+        **See also:** `GET /v1/mileage-registration`
+
+        > **Not yet documented:** examples.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+        description: |-
+          CarRead.CarID.
+
+          Refers to `CarRead.CarID`. Look up valid values with `GET /v1/car`.
+      responses:
+        '200':
+          description: |-
+            Success without content: HTTP 200 with the literal JSON body `null`. Literal JSON `null` (TafSuccessResult).
+
+            Order: none
+
+            Empty result: none
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The URL did not match any route (including a route constraint such as {id:int} receiving a non-integer).
+            — When: id not an integer (captured).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: |-
+            - **Code 37830** — At least one mileage registration (any employee, any date) uses the car. Cars with history cannot be deleted. — When: Any mileage registration uses the car (captured). — Fix: Keep the car (it can be deactivated in the TimeLog UI, not through this API).
+
+            - **Code 37833** — The caller has no access to the system-administration page for cars and the car is either another employee's private car or a company car. — When: Not the caller's own private car and no car-administration page access. — Fix: Change only your own private cars, or use a user whose role grants the car administration page.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Car used on mileage registrations (captured)
+                  value:
+                    Code: 102
+                    Details:
+                    - Message: Car is in used on mileage registration
+                      ErrorCode: 37830
+                    Message: Business rules exception.
+                    Parameters: 'id: 1'
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/car/1
+      x-timelog-key: rest.v1.settings.car.delete
+    get:
+      operationId: getCar
+      summary: Get a car
+      description: |-
+        Returns one car by its integer CarID or its GUID — any car of the tenant, active or not, whoever owns it.
+
+        Resolves the CarID of a mileage registration (or a car GUID) to the car's name, plate, type, owner and default rate. IsDefault refers to the caller's own default car.
+
+        **Use it to:**
+        - Resolve MileageRegistrationRead.CarID for a mileage export
+
+        **Not for:**
+        - Discovering which cars the caller may use — use `GET /v1/car`
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Call first:** `GET /v1/car`
+
+        **Next:** `PUT /v1/car`
+
+        **See also:** `GET /v1/mileage-registration/{mileageRegistrationID}`
+
+        > **Not yet documented:** transport → variants.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: |-
+          CarRead.CarID (integer) or CarRead.ID (GUID). The integer form is named carID in the source.
+
+          Refers to `CarRead.CarID`. Look up valid values with `GET /v1/car`.
+      - name: $expand
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - owner
+          - mileagerate
+          x-enum-descriptions:
+          - Fill EmployeeUser (owner's user record, incl. e-mail) on a private car. Both variants.
+          - Fill DefaultMileageRate. Integer variant only — on the GUID variant the procedure has no such parameter.
+        description: |-
+          Optional expansions (procedure parameter Expand<Value>).
+
+          Several values: one string, separated by `,`.
+
+          Allowed values:
+
+          | Value | Name | Meaning |
+          |---|---|---|
+          | `owner` | owner | Fill EmployeeUser (owner's user record, incl. e-mail) on a private car. Both variants. |
+          | `mileagerate` | mileagerate | Fill DefaultMileageRate. Integer variant only — on the GUID variant the procedure has no such parameter. |
+      responses:
+        '200':
+          description: |-
+            The object, wrapped in the TAF envelope (`Properties`). The car with a self link.
+
+            Order: none
+
+            Empty result: Unknown ID → 500 Code 100.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/CarRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+              examples:
+                example1:
+                  summary: A company car by integer ID (captured, v1)
+                  value:
+                    Properties:
+                      CarID: 1
+                      Name: 'Perodua Myvi '
+                      LicensePlate: YUSJ
+                      CarType: 1
+                      EmployeeUser: null
+                      IsActive: true
+                      ID: e1fe59c5-ba8c-480b-88c1-3878a4ee4464
+                      EmployeeUserID: null
+                      DefaultMileageRate: null
+                      IsDefault: false
+                      AllowEmployeeChangeMileageRate: true
+                    Links:
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v1/car/1
+                      Rel: self
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: No or invalid bearer token (captured). — Fix:
+            Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '404':
+          description: '- The URL did not match any route (including a route constraint such as {id:int} receiving a non-integer).
+            — When: Segment is neither an integer nor a GUID (captured: "Page Not Found").'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                example1:
+                  summary: Unknown ID (captured)
+                  value:
+                    Code: 100
+                    Details: []
+                    Message: Unknown error occur in system, please contact system administrator.
+                    Parameters: 'carID: 99999999'
+                    Url: https://app{server-number}.timelog.com/{account}/api/v1/car/99999999
+      x-timelog-key: rest.v1.settings.car.get
+  /v1/feature:
+    put:
+      operationId: updateFeature
+      summary: Switch a tenant feature on or off
+      description: |-
+        Turns one tenant-wide feature flag on or off (internal client only).
+
+        TENANT-WIDE CONFIGURATION WRITE. A feature is an on/off switch that changes TimeLog's behaviour for every user of the tenant. Examples: CurrencyMatrix (whether amounts are converted through the currency matrix, Settings service), UniqueCustomerNumber (customer-number uniqueness on customer create / update, CRM), ContractTypeIsRequired (contract creates, ProjectManagement), MandatoryComment (registration / absence comments, TimeRegistration and Salary), InvoiceMultilingual / OIOXML (customer invoice settings, CRM), MultiLegalEntities / Departments (user create rules, Organization), BillableOnTime (registration billable flag, TimeRegistration), AllocationDates (allocation dates, ProjectManagement). Only callable with a JWT issued to the OAuth client 'uitestmobile'. Setting a feature to its current value does nothing and still returns 200. A real change is validated, written, and then triggers the feature's side effects — some of which rewrite tenant data (see behaviour).
+
+        **Use it to:**
+        - Internal UI / test automation (client 'uitestmobile') switching features on a test tenant
+
+        **Not for:**
+        - Integrations: the operation rejects every other OAuth client (400).
+        - Changing a typed tenant setting (number, date, enum) → `PUT /v1/setting`
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Duplicates: Same value again = no write, no events, 200.
+        - Side effect: Writes the feature value for the whole tenant; invalidates the cached system configuration.
+        - Side effect: Feature-specific pre / post actions, e.g.: StopwatchTimeTracking (pre-change handling of running timers); SalaryAccounts / approval features (menus, process and user caches flushed); SalaryGroups / SalarySpecification (may switch further features and change the system salary group's salary type); AllocationDates OFF (rewrites the dates of EVERY allocation to its task's dates — not reversible by switching back); CopyWeek (menus); NewResourcePlanner ON (publishes the Resource Planner onboarding event).
+        - Side effect: Dependent settings / templates updated, e.g. export types (Pdf / Xml / MSExcel / MSWord / TextFile), invoice print-template recipient fields (CustomerSalutation / Initials / ProfessionalTitle1-2), password rules (AdvancedPasswordSecurity), project sub-contract features.
+        - Side effect: Post actions run TWICE per call — e.g. the onboarding event is published twice.
+
+        **See also:** `PUT /v1/setting`
+
+        > **Not yet documented:** behaviour → consistency; behaviour → side effects; examples (success).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeatureUpdate.update'
+      responses:
+        '200':
+          description: 'Success without content: HTTP 200 with the literal JSON body `null`. Literal JSON `null` — also when
+            the value was already set (no-op).'
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: '- The bearer token is a JWT whose client_id claim is not ''uitestmobile''. These two operations accept
+            only that OAuth client. — When: JWT of another OAuth client — Fix: None for integrations: the operations are internal.
+            Use the TimeLog UI to change features and settings.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: uitestmobile JWT that fails normal authentication
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - Raised before authentication, so a request with no token gets 500, not 401. The body discloses the exception, stack trace and server source paths. — When: No Authorization header, or a non-JWT token (captured) — Fix: Not callable with a non-JWT token.
+
+            - **Code 100** — Also: a feature defined with a null page list (e.g. CRM, UsePostEvents). — When: ValidateFeatureForUser violations; feature with a null page list — Fix: Change the feature in the TimeLog UI, where the reason is shown.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.settings.feature.update
+  /v1/setting:
+    put:
+      operationId: updateSetting
+      summary: Change a tenant setting
+      description: |-
+        Changes one typed tenant-wide setting (internal client only).
+
+        TENANT-WIDE CONFIGURATION WRITE. A setting is a typed configuration value (number, date, enum, text) that applies to the whole tenant, as opposed to an on/off feature (`PUT /v1/feature`). Only callable with a JWT issued to the OAuth client 'uitestmobile'. Every call writes — there is no "unchanged" short-cut — after validation.
+
+        **Use it to:**
+        - Internal UI / test automation (client 'uitestmobile') configuring a test tenant
+
+        **Not for:**
+        - Integrations: the operation rejects every other OAuth client (400).
+        - On/off feature flags → `PUT /v1/feature`
+
+        **Rules across fields:**
+        - R1: With an e-conomic integration active: InvoiceSetting_NumberOfDecimals must be 2 and InvoiceSetting_RoundTotals must be no rounding; InvoiceSetting_ExportType = export-and-e-mail needs InvoiceSetting_ExportEmail set.
+
+        **Behaviour:**
+        - Safe to retry only under a condition.
+        - Duplicates: Not short-circuited: re-sending the same value rewrites it and raises the events again.
+        - Side effect: Writes the sanitised value for the whole tenant, then invalidates the cached system configuration.
+        - Side effect: Setting-specific post actions, e.g. CustomerDefaultCountry, TimeRegistrationPotentialTypeColumn, DefaultTimeSheetViewForNewUsers; FlexTruncationDate 1 (Today) / 2 (Yesterday) raises the events that create / delete today's flex postings for employees.
+
+        **See also:** `PUT /v1/feature`
+
+        > **Not yet documented:** behaviour → consistency; behaviour → idempotent; examples (success).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingUpdate.update'
+      responses:
+        '200':
+          description: 'Success without content: HTTP 200 with the literal JSON body `null`. Literal JSON `null`.'
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: '- The bearer token is a JWT whose client_id claim is not ''uitestmobile''. These two operations accept
+            only that OAuth client. — When: JWT of another OAuth client — Fix: None for integrations: the operations are internal.
+            Use the TimeLog UI to change features and settings.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — When: uitestmobile JWT that fails normal authentication
+            — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: |-
+            - Raised before authentication, so a request with no token gets 500, not 401. The body discloses the exception, stack trace and server source paths. — When: No Authorization header, or a non-JWT token — Fix: Not callable with a non-JWT token.
+
+            - **Code 100** — When: ValidateSettingForUser violations (incl. R1) — Fix: Change the setting in the TimeLog UI, where the reason is shown.
+
+            - **Code 100** — Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.settings.setting.update
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: |-
+        OAuth 2.0 bearer token, sent as `Authorization: Bearer <token>`. JWT and reference tokens are both accepted. The token must carry the required scope (default `tlp`).
+
+        The token's `sub` claim is the acting user. A token WITHOUT `sub` (client-credentials) acts as the system service user. If the `sub` user cannot log in (inactive, locked, deleted), the request is rejected with 401 — it is no longer let through without a user.
+
+        > **Not yet documented:** how to obtain a token.
+
+        > **Not yet documented:** token lifetime.
+  schemas:
+    BarrierCreate:
+      type: object
+      properties:
+        Id:
+          type: string
+          format: uuid
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: guid
+          description: |-
+            GUID for the new barrier, generated by the caller. It becomes the barrier's Id (used by update and delete).
+
+            Can be set on create only.
+
+            Alternate key, unique per TimeLog site.
+
+            Default: 00000000-0000-0000-0000-000000000000
+
+            - Omitted — The all-zero GUID is stored as the barrier's Id.
+
+            - A GUID already used by another barrier (including a second all-zero one) — Unique constraint violation → 500 Code 100.
+        Name:
+          type: string
+          maxLength: 255
+          minLength: 1
+          description: |-
+            Display name of the barrier.
+
+            Can be set on create only.
+
+            - Missing, null or empty — 400 Code 200 "'Name' must not be empty." (captured).
+
+            > **Not yet documented:** behaviour.
+      description: A new CRM barrier type. The caller supplies the GUID; the integer BarrierID is assigned by the database.
+        New barriers are active.
+    BarrierRead:
+      type: object
+      properties:
+        BarrierID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier; the value opportunities store in their barrier list. Path id of GET /v1/barrier/{barrierId}.
+
+            Identifier of this object, unique per TimeLog site.
+        Id:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: guid
+          description: |-
+            GUID of the barrier (BarrierGUID). This — not BarrierID — is what DELETE /v1/barrier/{id} and PUT /v1/barrier take.
+
+            Alternate key, unique per TimeLog site.
+        Name:
+          type: string
+          readOnly: true
+          maxLength: 255
+          description: |-
+            Display name of the barrier (free text as entered by the administrator, not localized).
+
+            > **Not yet documented:** example.
+      description: 'A CRM barrier type: an entry of the tenant-wide list of reasons that hold back a sales opportunity (system
+        administration page "Barrier management in TimeLog CRM"). Opportunities reference barriers by BarrierID. A barrier
+        is NOT a time-registration or period lock: it is stored only on opportunities and used as a filter of the Reporting
+        API''s opportunity export. It blocks nothing. The active flag that exists in storage is not part of this model.'
+    BarrierUpdate:
+      type: object
+      properties:
+        Id:
+          type: string
+          format: uuid
+          writeOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            GUID of the barrier to rename (BarrierRead.Id — not BarrierID).
+
+            Refers to `BarrierRead.Id`. Look up valid values with `GET /v1/barrier`.
+
+            - Missing or unknown — 500 Code 100 — the cached-list lookup (First) throws (captured for {}).
+
+            Valid values come from `GET /v1/barrier`.
+        Name:
+          type: string
+          maxLength: 255
+          minLength: 1
+          description: |-
+            New display name.
+
+            - Same as the current name — Nothing is written; still 200.
+
+            - Missing, null or blank — 500 Code 102, ErrorCode 60015 "Name must be set on Barrier" (domain check, not 400).
+      description: Renames a CRM barrier type, identified by its GUID. The active state cannot be changed through the API.
+    CarCreate:
+      type: object
+      properties:
+        Name:
+          type: string
+          maxLength: 255
+          minLength: 1
+          description: |-
+            Display name of the car.
+
+            Can be set on create only.
+
+            - Missing, null or empty — 400 Code 200 "'Name' must not be empty." (captured).
+
+            - Longer than 255 characters — Database error → 500 Code 100.
+
+            > **Not yet documented:** behaviour.
+        LicensePlate:
+          type: string
+          maxLength: 255
+          minLength: 1
+          description: |-
+            Registration plate. Free text; duplicates are not checked.
+
+            Can be set on create only.
+
+            Contains personal data.
+
+            - Missing, null or empty — 400 Code 200 "'License Plate' must not be empty." (captured).
+        IsDefault:
+          type: boolean
+          default: false
+          description: |-
+            true = make the new car the caller's default car (preselected on new mileage registrations).
+
+            Can be set on create only.
+
+            - true — The caller's default-car user setting is set to the new car.
+
+            - false or omitted — The caller's existing default car is kept (it is cleared only if the caller had none).
+      description: A new PRIVATE car for the caller. Only the name, the plate and whether it becomes the caller's default
+        car can be sent; owner (the caller), type (Private), legal entity (the caller's), active state (true) and default
+        mileage rate (the legal entity's default rate for private cars) are set by the server.
+    CarRead:
+      type: object
+      properties:
+        CarID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier. Send it as CarID on mileage registrations and as the path id of get / delete, and in the update body.
+
+            Identifier of this object, unique per TimeLog site.
+        ID:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: guid
+          description: |-
+            GUID of the car.
+
+            Alternate key, unique per TimeLog site.
+        Name:
+          type: string
+          readOnly: true
+          maxLength: 255
+          description: Display name the owner or administrator gave the car (free text, e.g. make and model). The list is
+            ordered by it.
+        LicensePlate:
+          type: string
+          readOnly: true
+          maxLength: 255
+          description: |-
+            Registration plate as entered (free text, not normalized or checked for uniqueness).
+
+            Contains personal data.
+        CarType:
+          type: integer
+          format: int32
+          enum:
+          - 1
+          - 2
+          x-enum-descriptions:
+          - 'Company car: no owner (EmployeeUserID null); listed for every employee of its legal entity. Only users with access
+            to the car administration page can change or delete it.'
+          - Private car of one employee (EmployeeUserID). Only that employee can register mileage with it; only the owner
+            or a car administrator can change or delete it. Every car created through the API is Private.
+          readOnly: true
+          description: |-
+            Whether the car is a company car (shared, no owner) or an employee's private car.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `1` | CompanyCar | Company car: no owner (EmployeeUserID null); listed for every employee of its legal entity. Only users with access to the car administration page can change or delete it. |
+            | `2` | Private | Private car of one employee (EmployeeUserID). Only that employee can register mileage with it; only the owner or a car administrator can change or delete it. Every car created through the API is Private. |
+        EmployeeUserID:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Owner of a private car (a user / employee ID); null for a company car. Cannot be changed through the API.
+
+            Refers to `UserRead.UserID`.
+
+            Null: null = company car (no owner).
+
+            Contains personal data.
+
+            > **Not yet documented:** identity → references → lookup op.
+        EmployeeUser:
+          $ref: '#/components/schemas/UserRead'
+          readOnly: true
+          description: |-
+            The owner as a user object. Filled only with $expand=owner and only for private cars; otherwise null.
+
+            Null: null unless $expand=owner was sent and the car has an owner.
+
+            Contains personal data.
+        IsActive:
+          type: boolean
+          readOnly: true
+          description: Whether the car can be chosen for new mileage registrations. Private cars are deactivated automatically
+            when their owner is deactivated. Not changeable through the API.
+        DefaultMileageRate:
+          $ref: '#/components/schemas/MileageRateRead'
+          readOnly: true
+          description: |-
+            The car's default mileage rate as an object. Filled only with $expand=mileagerate (list and get by integer ID); otherwise null.
+
+            Null: null unless $expand=mileagerate was sent.
+
+            > **Not yet documented:** description.
+        IsDefault:
+          type: boolean
+          readOnly: true
+          description: true when this car is the CALLER's default car (the user setting that preselects a car on new mileage
+            registrations) — not the owner's. The same car can read IsDefault true for one caller and false for another.
+        AllowEmployeeChangeMileageRate:
+          type: boolean
+          readOnly: true
+          description: |-
+            Whether an employee may pick a different mileage rate than the car's default on a mileage registration. Set by car administrators in the UI; always false on cars created through the API.
+
+            > **Not yet documented:** description.
+      description: 'A car that mileage registrations are driven in. Two kinds exist (CarType): a COMPANY car (1) has no owner
+        and can be picked by every employee of its legal entity; a PRIVATE car (2) belongs to exactly one employee (EmployeeUserID)
+        and only that employee may register mileage with it. Each car belongs to one legal entity and carries a default mileage
+        rate (the rate preselected on a mileage registration). The registration plate and the owner make a private car personal
+        data.'
+    CarUpdate:
+      type: object
+      properties:
+        CarID:
+          type: integer
+          format: int32
+          writeOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The car to change.
+
+            Refers to `CarRead.CarID`. Look up valid values with `GET /v1/car`.
+
+            - Missing, 0 or unknown — 500 Code 100 — the car lookup throws (captured for {}).
+
+            - Another employee's private car or a company car, caller without access to the car administration page — 500 Code 102, ErrorCode 37833.
+
+            Valid values come from `GET /v1/car`.
+        Name:
+          type: string
+          maxLength: 255
+          minLength: 1
+          description: |-
+            New display name. Always written — omitting it does not keep the old name.
+
+            - Missing, null or blank — 500 Code 102, ErrorCode 60015 "Name must be set on Car" — not 400, the update validator never runs.
+        LicensePlate:
+          type: string
+          maxLength: 255
+          minLength: 1
+          description: |-
+            New registration plate. Always written.
+
+            Contains personal data.
+
+            - Missing, null or blank — 500 Code 102, ErrorCode 60109.
+        IsDefault:
+          type: boolean
+          default: false
+          description: |-
+            true = make this car the CALLER's default car; false = if it is the caller's default, clear the caller's default. Applies to the caller's own setting even when an administrator updates another employee's car.
+
+            - Omitted — false — clears the caller's default car if it was this car.
+      description: Renames a car, changes its plate and/or makes it (or stops it being) the caller's default car. Owner, type,
+        active state and mileage rate cannot be changed through the API. Name and LicensePlate are always written, so both
+        must be sent every time.
+    FeatureUpdate.update:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int32
+          writeOnly: true
+          description: |-
+            The feature to change, as a FeatureIdentifier member (integer in REST v1, e.g. 426 = CurrencyMatrix, 352 = UniqueCustomerNumber, 213 = AllocationDates). The enum has several hundred members; there is no REST v1 operation that lists them with their current values.
+
+            - omitted — Binds to 0 = InvoiceDefaultValue_UseProjectContactForInvoiceContact — no model validation catches it.
+
+            > **Not yet documented:** values → lookup op.
+
+            > **Not yet documented:** values.
+        Value:
+          type: boolean
+          writeOnly: true
+          description: |-
+            true = switch the feature on, false = switch it off.
+
+            - omitted — false — an omitted Value switches the feature OFF.
+
+            - equal to the current value — No write, no validation, no events; 200.
+      required:
+      - ID
+      - Value
+      description: Switches one tenant feature flag on or off. A feature is a boolean, tenant-wide configuration switch that
+        turns a TimeLog capability or rule on for every user — e.g. CurrencyMatrix, UniqueCustomerNumber, ContractTypeIsRequired,
+        AllocationDates.
+    MessageError:
+      type: object
+      description: Body of 401 and some framework errors — not the ResponseError shape.
+      properties:
+        Message:
+          type: string
+    MileageRateRead:
+      type: object
+      properties:
+        ID:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: guid
+          description: |-
+            GUID of the rate. Not used by any other operation; use MileageRateID.
+
+            Alternate key, unique per TimeLog site.
+        MileageRateID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier. Send it as MileageRateID on mileage registrations.
+
+            Identifier of this object, unique per TimeLog site.
+        Name:
+          type: string
+          readOnly: true
+          maxLength: 255
+          description: Display name as entered by the administrator (not localized). The list is ordered by it.
+        IsActive:
+          type: boolean
+          readOnly: true
+          description: Whether the rate can be chosen for new mileage registrations. The list returns active rates only; get-by-ID
+            also returns inactive ones.
+        SalaryCodeTaxFree:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          maxLength: 50
+          description: Payroll export code for the reimbursement — the 'code for non-taxable share' when the tenant splits
+            taxable / non-taxable shares, otherwise the single salary-system code. Empty or null when not set.
+        SalaryCodeTaxable:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          maxLength: 50
+          description: |-
+            Payroll export code for the TAXABLE share of the reimbursement (only used when the tenant splits shares). Null when not set.
+
+            > **Not yet documented:** description.
+        AccountNumber:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+          maxLength: 50
+          description: Finance (G/L) account number the mileage posts to. Empty when not set.
+        IsDefaultForPrivateCar:
+          type: boolean
+          readOnly: true
+          description: '"Default for private car": the rate preselected when an employee registers a trip in a private car.
+            At most one per legal entity is expected (lookup by legal entity + flag).'
+        HasReimbursement:
+          type: boolean
+          readOnly: true
+          description: '"Reimbursed": trips at this rate are reimbursed to the employee (an employee reimbursement is produced).
+            false = invoicing / cost only.'
+        UnitType:
+          type: integer
+          enum:
+          - 1
+          - 2
+          x-enum-descriptions:
+          - Kilometres. The default for new rates.
+          - Miles.
+          readOnly: true
+          description: |-
+            Distance unit of the rate's per-unit amounts.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `1` | Km | Kilometres. The default for new rates. |
+            | `2` | Miles | Miles. |
+
+            > **Not yet documented:** values.
+        ReimbursementCurrencyID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Currency the employee is reimbursed in: with MultiLegalEntityWithMultiCurrency the rate's legal-entity currency, otherwise the tenant base currency (set when the rate is saved).
+
+            Refers to `CurrencyRead.CurrencyID`. Look up valid values with `GET /v1/currency/{status}`.
+        LegalEntityID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Legal entity the rate belongs to. The list returns the caller's legal entity only.
+
+            Refers to `LegalEntityRead.LegalEntityID`. Look up valid values with `GET /v1/legal-entity`.
+      description: |-
+        A mileage rate's configuration: name, distance unit, reimbursement currency, finance account and payroll codes, and whether it is reimbursed and preselected for private cars. A rate belongs to ONE legal entity. The per-unit amounts (cost, sales price, reimbursement, tax-free share) are effective-dated rate periods that this model does not carry — TimeLog applies the period covering the trip date when a mileage registration is saved.
+
+        > **Not yet documented:** description.
+    ResponseError:
+      type: object
+      description: Error body for validation (400), privilege (403), business-rule (422/500) and other server errors. `Details`
+        lists strings for validation errors, or `{ErrorCode, Message}` objects for business-rule violations. `Parameters`
+        echoes the request arguments, including the full payload.
+      properties:
+        Code:
+          type: integer
+          description: 'TimeLog error class (not the HTTP status): 100 unexpected, 102 business rule, 103 privilege, 200 validation.'
+        Message:
+          type: string
+        Details:
+          type: array
+          items: {}
+        Parameters:
+          type:
+          - string
+          - object
+          - 'null'
+        Url:
+          type: string
+    SettingUpdate.update:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int32
+          writeOnly: true
+          description: |-
+            The setting to change, as a SettingIdentifier member (integer in REST v1, e.g. 27 = FlexTruncationDate, 277 = IntercompanyExchangeRateSelectedPollType). The enum has a few hundred members; there is no REST v1 operation that lists them with their current values.
+
+            - omitted — Binds to 0 = ExternalProjectDefaultOrderStatus — no model validation catches it.
+
+            > **Not yet documented:** values → lookup op.
+        Value:
+          type:
+          - string
+          - 'null'
+          writeOnly: true
+          description: |-
+            The new value as a string, in the setting's own format (number, date, enum integer, text). The manager parses and sanitises it per setting type before saving.
+
+            > **Not yet documented:** values.
+      required:
+      - ID
+      - Value
+      description: Changes one tenant setting. A setting is a typed, tenant-wide configuration value — a number, date, enum
+        or text such as FlexTruncationDate, IntercompanyExchangeRateSelectedPollType or InvoiceSetting_NumberOfDecimals —
+        as opposed to a feature, which is an on/off flag (FeatureUpdate).
+    TafAction:
+      type: object
+      description: A hypermedia action the caller may take on the object. Present only where the operation registers actions.
+    TafLink:
+      type: object
+      properties:
+        Href:
+          type: string
+        Rel:
+          type: string
+    TafListPaging:
+      type: object
+      description: 'Paging values. They are returned as STRINGS, for example `"TotalRecord": "12"`.'
+      properties:
+        TotalRecord:
+          type: string
+        TotalPage:
+          type: string
+        PageNumber:
+          type: string
+    UserRead:
+      type: object
+      properties:
+        UserID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier of the user. Used by GET /v1/user/{id}, and as UserID on time registrations and as owner (KAM) IDs on customers.
+
+            Identifier of this object, unique per TimeLog site.
+
+            Filterable via `id (path, GET /v1/user/{id})` (eq).
+        ID:
+          type: string
+          format: uuid
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: false
+            id_format: guid
+          description: |-
+            The user's GUID. The update operation (PUT /v1/user) addresses the user by this value, not by UserID.
+
+            Alternate key, unique per TimeLog site.
+        FirstName:
+          type: string
+          readOnly: true
+          maxLength: 50
+          description: |-
+            First name. Empty for the technical users.
+
+            Contains personal data.
+
+            GET /v1/user is ordered by FirstName ascending, but no sort parameter is offered.
+        LastName:
+          type: string
+          readOnly: true
+          maxLength: 50
+          description: |-
+            Last name.
+
+            Contains personal data.
+        Initials:
+          type: string
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: false
+            id_format: string
+          maxLength: 50
+          description: |-
+            The user's initials. TimeLog uses initials as a short user handle; create rejects initials (or a user name) already used by another active user, by an application check only (no unique constraint). PUT /v1/user takes the approval manager by initials (ApprovalManagerInitials).
+
+            Alternate key, unique per TimeLog site.
+
+            Contains personal data.
+        IsActive:
+          type: boolean
+          readOnly: true
+          description: True when the user is active. Inactive users cannot log in; they stay in the list.
+        UserType:
+          type: string
+          enum:
+          - Employee
+          - ApiUser
+          - ExternalRessource
+          - AnonymizedEmployee
+          x-enum-descriptions:
+          - A person working in the tenant (the normal case). Integer 0 in the database.
+          - Technical account created by TimeLog (e.g. SYSTEM, ECNuser); not a person. Integer 1.
+          - Obsolete external-resource type (integer 2). Saving such a user converts it to Employee, so it only appears on
+            rows not saved since.
+          - Placeholder account that anonymized (GDPR) employee data is moved to. Integer 3.
+          readOnly: true
+          description: |-
+            Kind of user account, as the enum NAME (string).
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `Employee` | Employee | A person working in the tenant (the normal case). Integer 0 in the database. |
+            | `ApiUser` | ApiUser | Technical account created by TimeLog (e.g. SYSTEM, ECNuser); not a person. Integer 1. |
+            | `ExternalRessource` | ExternalRessource | Obsolete external-resource type (integer 2). Saving such a user converts it to Employee, so it only appears on rows not saved since. |
+            | `AnonymizedEmployee` | AnonymizedEmployee | Placeholder account that anonymized (GDPR) employee data is moved to. Integer 3. |
+        LegalEntityID:
+          type: integer
+          format: int32
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Legal entity (company) the user is employed in.
+
+            Refers to `LegalEntityRead.LegalEntityID`. Look up valid values with `GET /v1/legal-entity`.
+
+            Valid values come from `GET /v1/legal-entity`.
+        Email:
+          type: string
+          format: email
+          readOnly: true
+          maxLength: 255
+          description: |-
+            E-mail address. Empty for the technical users.
+
+            Contains personal data.
+      description: 'A TimeLog user as REST v1 returns it: identifiers, name, initials, e-mail, active flag, user type and
+        legal entity. In TimeLog a user and an employee are the same person seen from two sides: the user is the login, the
+        employee record carries the HR data. Every row of the user table is returned, including the inactive technical users
+        "SYSTEM" and "ECNuser" (UserType ApiUser) and anonymized former employees.'
+x-timelog-service: Settings

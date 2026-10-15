@@ -1,0 +1,237 @@
+---
+title: Writing data
+description: How updates, retries, validate-before-write operations and external keys behave in the TimeLog REST API, and what a successful write returns.
+---
+
+## Overview
+
+Writing to TimeLog through the REST API is straightforward, but four behaviours catch integrators out:
+
+- **Most `PUT` operations replace the whole object.** A field you leave out is reset, not kept. Some `PUT` operations behave differently, and the reference page of each one says how.
+- **Retrying a write is not always safe.** Some creates make a duplicate when you retry them. Others let you detect that the first attempt already succeeded.
+- **Validate operations are dry runs, but not perfect ones.** Several of them skip checks that the real write performs, and one of them writes data.
+- **External keys link TimeLog objects to your IDs, but they are not unique.** TimeLog does not prevent two objects from carrying the same key.
+
+This page explains each behaviour and what your client should do about it.
+
+## Updating objects
+
+### PUT replaces the whole object
+
+The API-wide rule is that **`PUT` is a full replace**. The body you send becomes the new state of the object.
+A field you leave out does not keep its stored value. It is reset, for example cleared, set to `false` or set to `0`.
+
+This is why you must never send only the fields you want to change.
+Use this sequence instead:
+
+<Steps>
+  <Step title="Read the object" icon="download">
+    Call the operation's `GET` to read the current object.
+  </Step>
+  <Step title="Change the fields you need" icon="pencil">
+    Change only those fields in the object you read. Leave every other field as it is.
+  </Step>
+  <Step title="Send the whole object back" icon="upload">
+    Send the complete object in the `PUT` body, including the fields you did not change.
+  </Step>
+  <Step title="Read it back if the response has no body" icon="refresh-cw">
+    Many `PUT` operations answer `200` with the body `null`. Call `GET` again to see the stored result.
+  </Step>
+</Steps>
+
+### Full-replace operations
+
+These `PUT` operations replace the object. The right-hand column shows what happens to fields you leave out, as far as it is documented.
+
+| Operation | What a missing field does |
+|---|---|
+| `PUT /v1/time-registration` | Fields are reset: `Comment` and `AdditionalComment` are cleared, `Billable` becomes `false`, `BillableHours` becomes `0`. Two exceptions: an omitted `MonthlyPeriod` keeps its value, and a `Factor` that is not in the allowed list keeps the stored value. |
+| `PUT /v1/time-tracker` | The six editable fields are overwritten. Omitted fields become `null`, `0` or "not specified". Start time, minutes and status do not change. |
+| `PUT /v1/employee-expense` | The ten writable fields are overwritten. An omitted `Comment` is cleared and an omitted `Amount` becomes `0`. The owner and the contract cannot be changed. |
+| `PUT /v2/employee-expense` | Same as v1, but the body also carries the contract (`ProjectSubContractID`). You must send it: an omitted contract is `0` and fails with error `37042`. |
+| `PUT /v1/mileage-registration` | Every field in the body overwrites the stored value. The owner and the contract cannot be changed. |
+| `PUT /v2/competences` | `Name`, `GroupId` and `IsActive` are all written. An omitted `IsActive` **deactivates** the competence. An omitted `GroupId` fails. |
+| `PUT /v2/employee-competences` | Only the value changes. An omitted `Value` writes `0`. |
+| `PUT /v1/external-systems/{externalSystemID}` | Both `Name` and `Description` are required and both are overwritten. Send the current value of the one you are not changing. |
+
+For expense and mileage updates, **the last write wins**: there is no concurrency token.
+
+<Callout kind="alert">
+**Not yet documented.** Whether any other operation detects concurrent updates has not been established; assume the last write wins.
+</Callout>
+
+### PUT operations that do not fully replace
+
+Some `PUT` operations do not follow the API-wide rule. Do not assume any rule for a `PUT` operation that is not listed on this page: check its reference page.
+
+| Operation | Behaviour |
+|---|---|
+| `PUT /v1/allocation/{allocationID}` | **Partial update.** Only `AllocatedHours`, `HourlyRateID`, `StartDate` and `EndDate` can change, and you must send at least one of them. |
+| `PUT /v1/payment/{paymentID}` | **Partial update.** Only the fields you send change. An empty object is accepted and changes nothing. |
+| `PUT /v1/task/{taskID}` | **Partial update.** Only the fields you send change. The task's contract cannot be changed. |
+| `PUT /v1/project/{projectID}` | **Mixed.** `Name`, `CustomerID`, `ContactID`, `Description` and `ProjectManagerID` are always written, so an omitted `Description` or `ContactID` clears the stored value. The other fields are written only when you send them. To change the status, use `PUT /v1/project/{projectID}/status`. |
+| `PUT /v1/project/{projectID}/status` | Always send `ProjectStatus`. An omitted value is `0`, which is Quote. |
+| `PUT /v1/customer/update` | **Mixed.** Eleven text fields are **cleared** when omitted: `Name`, `CustomerNo`, `NickName`, `OrganizationNo`, `Phone`, `Fax`, `Email`, `Website`, `VatNo`, `CreditorID` and `InvoicingName`. The other fields are left unchanged when omitted. In an address block, if you send any field of the block, the fields you leave out keep their stored values. Invoice settings cannot be changed here. |
+| `PUT /v1/user` | Changes names, licence type, extra roles and approval manager only. `FirstName` and `LastName` are always written, so always send both: an omitted name is cleared. |
+| `PUT /v2/competence-groups` | Changes the name only. |
+
+Two related cases:
+
+- `POST /v1/time-registration/update-time` changes a project or travel registration by its integer ID. It reads the current values first, but an omitted `Comment` or `Billable` is still replaced.
+- `PUT /v1/user` answers `200` with `null`. Read the user back to confirm that the change was saved.
+
+### PATCH
+
+The public API has one `PATCH` operation: `PATCH /v2/page-settings/widgets/displayorder`. It moves one of the caller's own front-page widgets to a new position.
+Every other update uses `PUT` or `POST`.
+
+## Safe retries
+
+A network timeout leaves you not knowing whether a write happened. Whether you can simply send it again depends on the operation.
+Each operation's reference page states whether it is safe to retry.
+
+### Client-supplied GUIDs
+
+Some creates let you choose the object's GUID. The time registration create is the main example:
+you send the GUID in the body field `ID`. If the call times out, retry with the **same** GUID. A `422` with error code `38030` means the first attempt succeeded.
+See [Data types](/rest/conventions/data-types#ids-integer-id-and-guid) for how that GUID relates to the integer ID.
+
+Where the server generates the GUID instead, a retry creates a second object.
+
+### Retry behaviour of common write operations
+
+The table covers the services integrations use most. The full list is in each operation's reference page.
+
+| Operation | Safe to retry | What to do |
+|---|---|---|
+| **Time registrations** | | |
+| `POST /v1/time-registration` | Conditional | Retry with the same GUID. A `422` with `38030` means the first attempt succeeded. |
+| `POST /v1/time-registration/import` | No | The server generates the GUID, so a retry after a timeout creates a second registration. |
+| `PUT /v1/time-registration` | Yes | |
+| `POST /v1/time-registration/update-time` | Yes | |
+| `DELETE /v1/time-registration/{id}` | Conditional | A retry after a lost response returns `500` with `Code` `100`, the same as an unknown ID. Confirm with `GET` or your own records before you treat it as success. |
+| `POST /v1/time-tracker/task/start-time-tracker` | No | A retry starts a second tracker and stops the first one, turning it into a registration. |
+| `POST /v1/time-registration/stop-time-tracker/{timeTrackerId}` | No | A second call targets a tracker that no longer exists and fails with `500`. |
+| **Project management** | | |
+| `POST /v1/task` | No | Every call inserts a new task. After a timeout or a `500`, list the project's tasks before retrying. |
+| `PUT /v1/task/{taskID}` | Conditional | Safe after a `4xx`: nothing was written. After a `500` or a timeout, read the task and list the project's tasks first, because part of the change may already be saved. |
+| `DELETE /v1/task/{taskID}` | Conditional | A second delete answers `500` with error `37001`. A `GET` that answers `500` with `37001` means the task is gone. |
+| `POST /v1/task/{taskID}/allocation` | Conditional | A retry after success answers `409` with the existing allocation ID. Treat that `409` as "already done". |
+| `PUT /v1/allocation/{allocationID}` | Conditional | Safe after a `2xx` or a timeout. After a `400` from the project save or a `500`, the allocation may already be updated: read it first. |
+| `DELETE /v1/allocation/{allocationID}` | Conditional | Treat a `404` on retry as "already deleted". |
+| `POST /v1/contract/create-…-contract` (all five models) | No | Every call inserts a new contract. After a timeout or a `500`, list the project's contracts (newest first) before retrying. |
+| `POST /v1/payment` | No | Every call adds a new instalment. List the contract's payments before retrying. |
+| `PUT /v1/payment/{paymentID}` | Yes | |
+| `POST /v1/project/create-from-template` | No | Every call creates a new project. Look the project up before retrying. |
+| `PUT /v1/project/{projectID}` | Conditional | The same body gives the same state, but an omitted `Description` or `ContactID` is cleared every time. |
+| `PUT /v1/project/{projectID}/status` | Yes | The status date is reset to today and the status-change event is raised again. |
+| `PUT /v2/projects/status` | Conditional | The first failing project stops the call with `500`, and the projects before it keep their new status. Send the whole list again: projects already moved are re-applied without harm. |
+| **Employees** | | |
+| `POST /v1/approval/timesheets/submit-time-registrations` | Conditional | A retry of a partly failed call refuses the registrations that were already submitted, with `37971`. Read the violations instead of retrying blindly. |
+| `POST /v1/approval/timesheets/submit-dates` | Conditional | Re-submitting adds another approval dialogue entry and raises the event again for each day. Nothing checks whether a day is already submitted. |
+| `POST /v1/normal-working-time/assign-to-employee` | Yes | |
+| `POST /v2/employee-competences` | Conditional | A retry after a lost success fails with `500` and `Code` `100`. Check with `GET` before retrying. |
+| `POST /v2/employee-competences/bulk` | Yes | Competences the employee already has are skipped. |
+| **Expenses** | | |
+| `POST /v1/employee-expense` and `/v2/employee-expense` | No | Each call creates a new expense. After a lost response, list the owner's expenses for the date before retrying. |
+| `PUT /v1/employee-expense` and `/v2/employee-expense` | Yes | |
+| `POST /v1/employee-expense/{employeeExpenseID}/file` and `/image` | No | Each call adds new files, so a retry stores the receipt twice. Read the expense and compare `FileUrls` or `ImageUrls` first. |
+| `DELETE /v1/employee-expense/{employeeExpenseID}` | Conditional | After a lost response, check with `GET` that the expense still exists before retrying. |
+| `POST /v1/project-expense` | No | Each call creates a new expense, and `ExternalID` is not deduplicated. List the project's expenses and match `ExternalID` before retrying. |
+| `POST /v1/mileage-registration` | No | Every call creates a new registration. Check the owner's registrations before retrying. |
+| `PUT /v1/mileage-registration` | Yes | |
+| `DELETE /v1/mileage-registration/{mileageRegistrationID}` | Conditional | A retry after success fails with `Code` `100` but changes nothing. |
+| **CRM** | | |
+| `POST /v1/customer/create` | Conditional | A retry with the same `Name` and `CustomerNo` fails with `38017` if the first attempt created the customer. With an empty `CustomerNo` and a number series active, each attempt gets a new number, so a retry creates a duplicate. |
+| `PUT /v1/customer/update` | Yes | |
+| `POST /v1/contact/create` | No | |
+
+## Validate before you write
+
+Many create, update and delete operations have a matching **validate** operation.
+It takes the same path and body as the write, runs checks without saving, and answers `200` with the body `null` when the checks pass.
+
+Use them to show TimeLog's errors to a user early, or to check an import batch before you send it.
+**A `200` from a validate operation does not guarantee that the write succeeds**, except where the table says so. Most of them skip some checks, and one of them writes data.
+
+| Validate operation | What it checks | What it does not check |
+|---|---|---|
+| `POST /v1/time-registration/validate-import` | The project, that the contract is on the project, that the task is on the contract, that the user is active, and the time registration rules. This is stricter than the import itself, which does **not** check that `TaskID` belongs to `ContractID` and `ProjectID`. | `HourlyRate`, so error `38037` cannot be checked in advance. **It is not free of side effects:** if the employee is not allocated to the task, it adds the employee to the project's resource group and the contract's team and creates a 0-hour allocation. This change is kept. |
+| `POST /v1/task/validate-new-task` | The body, the project, contract, hourly rate and product number, and the task save rules. | Whether `TaskTypeID` exists, the depth of the task tree and the task's own validation. It ignores `ParentTaskID` and always validates a root task, so it cannot check a sub-task. |
+| `POST /v1/task/{taskID}/validate-update-task` | The body, access, and every rule the update checks before its first write: fields, moves and status. | The status change's own processing and the project save rules. |
+| `POST /v1/task/{taskID}/validate-delete-task` | The same checks as the delete, before its first write. Where the delete reports one violation, the validate operation reports all of them. | |
+| `POST /v1/task/{taskID}/allocation/validate-new-allocation` | The same checks as the create, up to the write. | The allocation's own validation, the rate chosen when `HourlyRateID` is omitted, and the project save rules. |
+| `POST /v1/allocation/{allocationID}/validate-delete` | The allocation exists, project privileges, and that it has no time registrations or running time tracker. | |
+| `POST /v1/contract/validate-…-contract` (five contract models) | The checks the create runs before it inserts the contract: body, project, owner, dates, contract type. | The tenant setting that makes a contract type required (`37957`), and everything from the insert on: contract-customer rules, hourly-rate creation, the first instalment, the project save rules and database constraints. |
+| `POST /v1/contract/validate-update-recurring-contract-payment-plan-amount` | The contract rules on the changed amount. | The save that regenerates the instalments. A contract that is not recurring also answers `200`. |
+| `POST /v1/payment/validate-new-payment` | The body, project, access, task, product number and billing-plan rules. | It is stricter than the create in one case: it rejects (`37511`) a second fixed-price instalment for a task, which the create accepts. |
+| `POST /v1/payment/{paymentID}/validate-update-payment` | The update's refusals and the save rules, applied to a copy of the payment. | |
+| `POST /v1/payment/{paymentID}/validate-delete-payment` | The delete's first checks: the payment, access, contract model, and that the instalment is not booked or on a draft invoice. | |
+| `POST /v1/project/validate-create-from-template` | The body, users, price list, template and project business rules. | Some checks the create runs, including a business-process check and the mapping of the invoicing reference and default invoice language. |
+| `POST /v1/customer/validate-new-customer` | The body, references, customer rules and invoice-setting rules. | Whether you may create customers (the create checks this), and the customer-number uniqueness rule (`30169`). |
+| `POST /v1/contact/validate-new-contact` | The body, the customer lookup and the country rule. | Whether you may add contacts to the customer (the create checks this). |
+| `POST /v1/user/validate-new-user` | Everything the create checks, including the caller's privilege and unique user name and initials. **A `200` here means the create will pass validation.** It can still fail on a database error. | |
+| `POST /v1/project-expense/validate-project-expense` | The body, project, currency code and the expense rules. | The caller's licence, a missing exchange rate and errors that only the database insert detects, such as field length. |
+| `POST /v1/contract-hourly-rate/validate-hourly-rate` | Uses **different rules** from the create. It also refuses fixed-price-style contracts (`38003`) and unknown product numbers (`37939`). | It matches an existing Standard rate only on the same name **and** amount, so it does not warn that the create would re-price a Standard rate with the same name. |
+
+## External keys
+
+An **external key** links a TimeLog object to its ID in another system, such as an ERP, payroll or CRM system.
+Store your own ID on the TimeLog object, and you can trace the object back to the record it came from.
+
+External keys are available on **time registrations, projects and tasks**. Each key belongs to an **external system**.
+
+### Register your external system
+
+Do this once per integration and tenant:
+
+1. Call `GET /v1/external-systems` to see the systems already registered. TimeLog's built-in integrations register their own systems.
+2. If yours is not there, call `POST /v1/external-systems` with a `Name` and a `Description`. Store the returned ID in your own configuration.
+3. Use that ID as `ExternalSystemID` whenever you write a key.
+
+`POST /v1/external-systems` does not check for duplicates. Every call creates a new system, even with a name that already exists.
+If the call times out, list the systems before you retry. An integration that syncs with two systems registers two external systems, so their keys never collide.
+
+To rename a system, use `PUT /v1/external-systems/{externalSystemID}`. Its keys are not affected.
+
+### Set a key
+
+| Object | Operation |
+|---|---|
+| Time registration | `PUT /v1/time-registration/{timeRegistrationID}/external-keys` |
+| Project | `PUT /v1/project/{projectID}/external-keys` |
+| Task | `PUT /v1/task/{taskID}/external-keys` |
+
+The body has two fields: `ExternalID` (your ID, a string of up to 250 characters) and `ExternalSystemID`.
+The call is an **upsert**. An object has at most one key per external system, so if it already has a key for that system, the key is overwritten.
+The response is the stored key. The call is safe to retry.
+
+### Read keys
+
+Use `GET` on the same paths:
+
+- **Without** `externalSystemID`, you get a paged list of all keys on the object.
+- **With** `?externalSystemID=…`, you get the single key for that system.
+
+If the object has no key for that system, the single read answers with business-rule error `37046` and HTTP `500`. It does not answer `404` or an empty body.
+
+### What external keys do not do
+
+- **They are not unique.** TimeLog does not stop the same `ExternalID` from being stored on several objects of the same external system. If your integration needs one-to-one mapping, enforce it in your own system.
+- **You cannot look up an object by its external key.** There is no operation that finds a time registration, project or task from an `ExternalID`. Keep the mapping (your ID to TimeLog ID) in your own system.
+
+## Success without content
+
+Many write operations do not return the object they changed. They answer one of two ways:
+
+- `200` with the literal JSON body `null`. Examples: `PUT /v1/time-registration`, `PUT /v1/project/{projectID}`, and every validate operation when it passes.
+- `204` with an empty body. Examples: `PUT /v2/competences`, `PUT /v2/filter-view/{pageIdentifier}`.
+
+Check the status code before you parse the body. When you need the stored result, call `GET`.
+For details, see [Response envelope](/rest/conventions/response-envelope#responses-without-an-envelope).
+
+## When a write is refused
+
+A write that breaks a TimeLog business rule is refused with an error body that carries a TimeLog error code, such as `38030` or `37046`.
+Business-rule failures do not always use the same HTTP status, so read the error code in the body rather than relying on the status.
+See [Errors](/rest/errors) for the error body, the status codes and the error catalogue.

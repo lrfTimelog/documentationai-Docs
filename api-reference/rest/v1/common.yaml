@@ -1,0 +1,914 @@
+openapi: 3.1.0
+info:
+  title: Reference data and tenant settings — REST API v1
+  version: v1
+  description: |-
+    Read the lookups other resources reference (countries, currencies, unit types) and the tenant settings a client needs at start-up.
+
+    Enums are integers in v1.
+
+    **Conventions that apply to every operation in this file:**
+    - Property names are PascalCase.
+    - Successful bodies use the TAF envelope: one object in `Properties`, lists in `Entities[].Properties`.
+    - Some operations succeed without content: HTTP 200 with the literal body `null`, or HTTP 204.
+    - `PUT` replaces the whole object: omitted fields are reset.
+    - Treat error `Code` 102 as a business-rule violation, whether the HTTP status is 422 or 500.
+
+    > **Not yet documented:** rate limits.
+servers:
+- url: https://app{server-number}.timelog.com/{account}/api
+  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
+    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
+    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.'
+  variables:
+    server-number:
+      default: '3'
+    account:
+      default: your-account
+security:
+- bearer: []
+paths:
+  /v1/country/get-all:
+    get:
+      operationId: listCountries
+      summary: List countries
+      description: |-
+        Lists the system countries with their ISO code, by name.
+
+        The value set for CountryID and InvoicingAddressCountryID on customer create and update. The list is system data, not tenant configuration. Names come from the base (Danish) column and are not translated to the caller's language; match on ISO instead.
+
+        **Use it to:**
+        - Build a mapping ISO 3166 alpha-2 → CountryID before creating customers
+
+        **Not for:**
+        - Displaying localised country names (the names are Danish)
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **Next:** `POST /v1/customer/create`, `PUT /v1/customer/update`
+
+        **See also:** `GET /v1/currency/{status}`
+      parameters:
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size. No maximum enforced in the API layer; 244 countries in the captured tenant, so $pagesize=300
+          returns all in one call.
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). Countries without per-entity links.
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: Country (Danish name) ascending
+
+            Empty result: 200 with TotalRecord "0" and no Entities (not expected: the table is seeded)
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/CountryRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.common.country.list
+  /v1/currency/{status}:
+    get:
+      operationId: listCurrenciesByStatus
+      summary: List currencies
+      description: |-
+        Lists the tenant's currencies, optionally only active or inactive ones, with today's rate to the caller's legal-entity currency.
+
+        The value set for CurrencyID on customer create/update. The {status} segment filters on IsActive; omit it (GET /v1/currency) for all currencies. Obsolete currencies are not excluded. Each row's CurrentRate is computed per call against the CALLER's legal-entity currency, so two users in different legal entities see different rates for the same currency.
+
+        **Use it to:**
+        - Map ISO currency codes (CurrencyABB) to CurrencyID before creating customers
+
+        **Not for:**
+        - Authoritative exchange rates for accounting: on an exchange-rate-service failure the stored rate is returned silently
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Side effect: Fills the application cache with the computed rate per (legal entity, today, currency, LE currency), long expiration.
+        - Side effect: Each uncached currency on the page triggers one outbound call to the exchange-rate service (with the tenant's retry count and timeout), sequentially — first call of the day for a large page can be slow.
+        - Consistency: Rates are cached per day; a rate change during the day is not reflected until the cache entry expires.
+
+        **Next:** `POST /v1/customer/create`, `PUT /v1/customer/update`
+
+        **See also:** `GET /v1/user-setting`, `GET /v1/country/get-all`
+
+        > **Not yet documented:** errors; request → path params → description.
+      parameters:
+      - name: status
+        in: path
+        required: true
+        schema:
+          type: integer
+          enum:
+          - -1
+          - 0
+          - 1
+          x-enum-descriptions:
+          - 'No filter: active and inactive currencies (default when omitted).'
+          - Only currencies with IsActive = false.
+          - Only currencies with IsActive = true.
+          default: -1
+          x-timelog-filter:
+            operators:
+            - eq
+        description: |-
+          ActiveStatus. Also bound from the member name (enum type converter; not tested live).
+
+          Filters on `CurrencyRead.IsActive` (eq).
+
+          Allowed values:
+
+          | Value | Name | Meaning |
+          |---|---|---|
+          | `-1` | All | No filter: active and inactive currencies (default when omitted). |
+          | `0` | Inactive | Only currencies with IsActive = false. |
+          | `1` | Active | Only currencies with IsActive = true. |
+      - name: $page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: Page number.
+      - name: $pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Page size. No maximum enforced in the API layer. Large pages are slow when rates are not cached (see
+          behaviour).
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). Currencies without per-entity links.
+
+            Paged with `$page` (default 1) and `$pagesize` (default 10).
+
+            Order: CurrencyABB ascending
+
+            Empty result: 200 with TotalRecord "0" and no Entities (e.g. status=0 on a tenant without inactive currencies)
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/TafListPaging'
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/CurrencyRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+        '400':
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: status that is neither
+            an integer nor a member name; not captured — Fix: Fix every item listed in Details and resend.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.common.currency.list
+  /v1/unit-type:
+    get:
+      operationId: listUnitTypes
+      summary: List unit types
+      description: |-
+        Lists the unit types switched on for the tenant.
+
+        Unit types are a fixed code list (Undefined, Hours, Minutes, Days, Km, Pieces, Liters, Meters, Kilograms); each is a tenant feature (UnitType<Name>) under invoice settings. Only the active ones are returned, in enum order, without paging. Nothing is read from the database.
+
+        **Use it to:**
+        - Validate a unit before sending it on an invoice line or product (consumers not curated yet)
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Changes are visible to the next read immediately.
+
+        **See also:** `GET /v1/user-setting`
+      responses:
+        '200':
+          description: |-
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). Active unit types. The envelope has Entities and Links only — no Properties/paging block.
+
+            Order: UnitTypeID ascending (enum declaration order)
+
+            Empty result: 200 with an empty Entities list when every unit-type feature is off
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF list envelope: each item is in `Entities[].Properties`.'
+                properties:
+                  Entities:
+                    type: array
+                    description: Omitted (not `[]`) when the list is empty.
+                    items:
+                      type: object
+                      properties:
+                        Properties:
+                          $ref: '#/components/schemas/UnitTypeRead'
+                        Links:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafLink'
+                        Actions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/TafAction'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+              examples:
+                example1:
+                  summary: Example
+                  value:
+                    Entities:
+                    - Properties:
+                        UnitTypeID: 0
+                        Name: Undefined
+                    - Properties:
+                        UnitTypeID: 1
+                        Name: Hours
+                    - Properties:
+                        UnitTypeID: 2
+                        Name: Minutes
+                    - Properties:
+                        UnitTypeID: 3
+                        Name: Days
+                    - Properties:
+                        UnitTypeID: 4
+                        Name: Km
+                    - Properties:
+                        UnitTypeID: 6
+                        Name: Pieces
+                    - Properties:
+                        UnitTypeID: 7
+                        Name: Liters
+                    - Properties:
+                        UnitTypeID: 9
+                        Name: Kilograms
+                    Links:
+                    - Href: https://app{server-number}.timelog.com/{account}/api/v1/unit-type
+                      Rel: self
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+      x-timelog-key: rest.v1.common.unittype.list
+  /v1/user-setting:
+    get:
+      operationId: getUserSettings
+      summary: Get user settings
+      description: |-
+        Returns the tenant settings a time/expense client needs (duration format, billable and stopwatch features, system currency, approval mode …) plus a few caller-specific flags.
+
+        One object, no parameters. Call it once at client start-up to decide which fields to show and which operations will work — e.g. StopwatchTimeTracking before using the time-tracker operations, SiteSettings.ShowUserDefinedComment / UserDefinedCommentName before sending an additional text field, CanUseTravelTimeTask before sending GroupType 6. Despite the name, almost everything is tenant-wide; only SystemCurrencyRate, Privileges.RegistrationAllTasks and SiteSettings.TimeRegistrationTimestamp depend on the caller.
+
+        **Use it to:**
+        - Feature-detect a tenant before enabling time-tracker or travel-time flows
+        - Format durations and numbers the way the tenant's users see them
+
+        **Not for:**
+        - The caller's personal preferences (language, views) — see REST v2 /user-settings (not curated)
+
+        **Behaviour:**
+        - Idempotent.
+        - Safe to retry.
+        - Side effect: Caches the system-currency rate per (legal entity, today, currencies); may call the exchange-rate service once per day.
+        - Consistency: Feature/setting values are read from the configuration cache; a change made in TimeLog may take effect with the configuration cache's delay (not measured).
+
+        **Next:** `POST /v1/time-registration`, `POST /v1/time-tracker/task/start-time-tracker`
+
+        **See also:** `GET /v1/currency/{status}`
+
+        > **Not yet documented:** behaviour → consistency.
+      responses:
+        '200':
+          description: The object, wrapped in the TAF envelope (`Properties`). One settings object.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'TAF envelope: the object is in `Properties`. Null members are omitted; a null result is `{"Links":
+                  [self]}` without `Properties`.'
+                properties:
+                  Properties:
+                    $ref: '#/components/schemas/UserSettingRead'
+                  Links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafLink'
+                  Actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TafAction'
+        '401':
+          description: '- Missing, invalid or expired bearer token. — Fix: Obtain a new token and retry.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageError'
+        '500':
+          description: '- **Code 100** — Unhandled server error.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      x-timelog-key: rest.v1.common.usersetting.get
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: |-
+        OAuth 2.0 bearer token, sent as `Authorization: Bearer <token>`. JWT and reference tokens are both accepted. The token must carry the required scope (default `tlp`).
+
+        The token's `sub` claim is the acting user. A token WITHOUT `sub` (client-credentials) acts as the system service user. If the `sub` user cannot log in (inactive, locked, deleted), the request is rejected with 401 — it is no longer let through without a user.
+
+        > **Not yet documented:** how to obtain a token.
+
+        > **Not yet documented:** token lifetime.
+  schemas:
+    CountryRead:
+      type: object
+      properties:
+        CountryID:
+          type: integer
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: global
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier. Send it as CountryID / InvoicingAddressCountryID on customer create/update.
+
+            Identifier of this object, globally unique.
+
+            The capture shows the same IDs as the seeded list (1 = Afghanistan); whether IDs are identical across all tenants is not proven.
+
+            > **Not yet documented:** identity → stable.
+        Country:
+          type: string
+          readOnly: true
+          maxLength: 255
+          description: 'Country name from the base (Danish) name column, e.g. "Albanien", "Algeriet". Not translated to the
+            caller''s language: the localised columns (Country_uk, _no, _de, _se) are not read. A NULL name is returned as
+            an empty string.'
+        ISO:
+          type: string
+          readOnly: true
+          maxLength: 2
+          description: |-
+            ISO 3166-1 alpha-2 code (e.g. "AF", "DK"). NULL in the table is returned as an empty string.
+
+            Not declared unique in the table. Map external countries by ISO, but keep CountryID as the value you send.
+        DefaultCurrencyID:
+          type: integer
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            Currency suggested for this country. 0 = none set (the table default); most countries are 0 in the captured tenant.
+
+            Refers to `CurrencyRead.CurrencyID`. Look up valid values with `GET /v1/currency/{status}`.
+
+            Valid values come from `GET /v1/currency/{status}`.
+
+            > **Not yet documented:** notes.
+      description: A country from the system country list. The list is the same for every tenant (seeded system data, no API
+        to change it). It is the value set for CountryID and InvoicingAddressCountryID on customer create/update.
+    CurrencyRead:
+      type: object
+      properties:
+        CurrencyID:
+          type: integer
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            Integer identifier. Send it as CurrencyID on customer create/update.
+
+            Identifier of this object, unique per TimeLog site.
+        CurrencyABB:
+          type: string
+          readOnly: true
+          x-timelog-identity:
+            role: alternate_key
+            unique_scope: tenant
+            uniqueness_enforced: true
+            id_format: string
+          maxLength: 10
+          description: |-
+            Currency code, e.g. "EUR", "DKK". ISO 4217 for system currencies; a tenant-created currency can carry any unique code.
+
+            Alternate key, unique per TimeLog site.
+
+            Not accepted as input by any curated operation; map to CurrencyID on your side.
+        DescriptiveName:
+          type: string
+          readOnly: true
+          maxLength: 255
+          description: Display name, e.g. "Afghan afghani". NULL is returned as an empty string.
+        CurrentRate:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Today's exchange rate between this currency and the caller's legal-entity currency, quoted per 100 (100 = same value as the legal-entity currency), rounded to the tenant's invoice decimals. Computed per request from the exchange-rate service (cached per legal entity, day and currency pair); for a tenant-created currency it is derived from the stored rates of both currencies.
+
+            Unit: rate per 100 units (100 = parity with the caller's legal-entity currency)
+
+            - Rate for (legal entity, today, currency, LE currency) already cached — Cached value is returned.
+
+            - Not cached, system currency — Exchange-rate service factor × 100; stored in the long-expiration cache.
+
+            - Not cached, currency created by the tenant — stored rate(currency) × 100 / stored rate(LE currency).
+
+            - That stored rate is not computed against the legal-entity currency.
+
+            - Always — Rounded half away from zero to InvoiceSetting_NumberOfDecimals.
+
+            Direction of the quote (how many LE-currency units per 100 of this currency, or the reverse) is not established from source; only parity (same currency → 100) is.
+
+            > **Not yet documented:** notes.
+        IsActive:
+          type: boolean
+          readOnly: true
+          description: |-
+            Whether the currency is active in the tenant. Filter with the {status} path segment.
+
+            Filterable via `status` (eq).
+
+            Obsolete currencies are not excluded and the flag is not returned.
+      description: A currency of the tenant, with today's exchange rate towards the caller's legal-entity currency. The value
+        set for CurrencyID on customer create/update.
+    MessageError:
+      type: object
+      description: Body of 401 and some framework errors — not the ResponseError shape.
+      properties:
+        Message:
+          type: string
+    ResponseError:
+      type: object
+      description: Error body for validation (400), privilege (403), business-rule (422/500) and other server errors. `Details`
+        lists strings for validation errors, or `{ErrorCode, Message}` objects for business-rule violations. `Parameters`
+        echoes the request arguments, including the full payload.
+      properties:
+        Code:
+          type: integer
+          description: 'TimeLog error class (not the HTTP status): 100 unexpected, 102 business rule, 103 privilege, 200 validation.'
+        Message:
+          type: string
+        Details:
+          type: array
+          items: {}
+        Parameters:
+          type:
+          - string
+          - object
+          - 'null'
+        Url:
+          type: string
+    TafAction:
+      type: object
+      description: A hypermedia action the caller may take on the object. Present only where the operation registers actions.
+    TafLink:
+      type: object
+      properties:
+        Href:
+          type: string
+        Rel:
+          type: string
+    TafListPaging:
+      type: object
+      description: 'Paging values. They are returned as STRINGS, for example `"TotalRecord": "12"`.'
+      properties:
+        TotalRecord:
+          type: string
+        TotalPage:
+          type: string
+        PageNumber:
+          type: string
+    UnitTypeRead:
+      type: object
+      properties:
+        UnitTypeID:
+          type: integer
+          enum:
+          - 0
+          - 1
+          - 2
+          - 3
+          - 4
+          - 6
+          - 7
+          - 8
+          - 9
+          x-enum-descriptions:
+          - No unit.
+          - Hours.
+          - Minutes.
+          - Days.
+          - Kilometres.
+          - Pieces (count of items).
+          - Litres.
+          - Metres.
+          - Kilograms.
+          readOnly: true
+          x-timelog-identity:
+            role: primary_id
+            unique_scope: global
+            uniqueness_enforced: true
+            id_format: int
+          description: |-
+            The InvoiceUnitTypes value. Stable across tenants (a code enum).
+
+            Identifier of this object, globally unique.
+
+            Value 5 (Miles) is commented out in the enum and never returned.
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | Undefined | No unit. |
+            | `1` | Hours | Hours. |
+            | `2` | Minutes | Minutes. |
+            | `3` | Days | Days. |
+            | `4` | Km | Kilometres. |
+            | `6` | Pieces | Pieces (count of items). |
+            | `7` | Liters | Litres. |
+            | `8` | Meters | Metres. |
+            | `9` | Kilograms | Kilograms. |
+        Name:
+          type: string
+          readOnly: true
+          description: The enum member name in English (e.g. "Hours", "Km"). Not localised — use it as a code, not a display
+            label.
+      description: A unit in which an invoiceable quantity is measured (hours, km, pieces …). Unit types are a fixed code
+        enum (InvoiceUnitTypes), not tenant data; each one is switched on or off per tenant by a feature. Only the switched-on
+        ones are listed.
+    UserSettingPrivilegesRead:
+      type: object
+      properties:
+        RegistrationAllTasks:
+          type: boolean
+          readOnly: true
+          description: |-
+            Whether the CALLER holds the area privilege RegistrationAllTasks (may register time on any task, not only tasks they are allocated to).
+
+            > **Not yet documented:** description.
+        ExpenseTravelRegistrationAllProjects:
+          type: boolean
+          readOnly: true
+          description: State of tenant feature EnableAllEmployeesRegisterOnAllActiveProjects (expense/travel can be registered
+            on all active projects). Same for every caller.
+      description: Nested in UserSettingRead. Despite the name, only RegistrationAllTasks is a privilege of the caller; ExpenseTravelRegistrationAllProjects
+        is a tenant feature.
+    UserSettingRead:
+      type: object
+      properties:
+        CompanyName:
+          type: string
+          readOnly: true
+          description: Tenant company name (application value 'Firma').
+        NumberCultureID:
+          type: integer
+          readOnly: true
+          description: Windows LCID of the tenant's number/page culture (application value 'PageLCID'), e.g. 1030 = Danish.
+            Use it to format numbers the way the tenant's users see them.
+        TimeFormat:
+          type: integer
+          enum:
+          - 0
+          - 1
+          x-enum-descriptions:
+          - Durations shown as hours.
+          - Durations shown as minutes.
+          readOnly: true
+          description: |-
+            How the tenant displays durations (setting TimeFormat).
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | Hours | Durations shown as hours. |
+            | `1` | Minutes | Durations shown as minutes. |
+
+            > **Not yet documented:** values → members.
+        TimeRoundingFormat:
+          type: integer
+          enum:
+          - 0
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+          x-enum-descriptions:
+          - No rounding.
+          - Round to the nearest 5 minutes.
+          - Round to the nearest 10 minutes.
+          - Round to the nearest 15 minutes.
+          - Round to the nearest 30 minutes.
+          - Round to the nearest full hour.
+          readOnly: true
+          description: |-
+            Rounding applied to billable time when RoundingOfBillableTime is on (setting RoundingOfBillableTimeFormat).
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | NoRounding | No rounding. |
+            | `1` | Nearest5Minutes | Round to the nearest 5 minutes. |
+            | `2` | Nearest10Minutes | Round to the nearest 10 minutes. |
+            | `3` | Nearest15Minutes | Round to the nearest 15 minutes. |
+            | `4` | Nearest30Minutes | Round to the nearest 30 minutes. |
+            | `5` | NearestFullHour | Round to the nearest full hour. |
+        BillableHourIsEditable:
+          type: boolean
+          readOnly: true
+          description: State of feature BillableHoursIsEditable (billable hours can differ from registered hours).
+        BillableHourIsEditableOnFixedPrice:
+          type: boolean
+          readOnly: true
+          description: State of feature BillableHoursIsEditableOnFixedPrice (same, on fixed-price tasks).
+        ShowBillableCheckbox:
+          type: boolean
+          readOnly: true
+          description: State of feature BillableOnTime (a time registration carries a billable flag the user can set).
+        StopwatchTimeTracking:
+          type: boolean
+          readOnly: true
+          description: State of feature StopwatchTimeTracking (the time-tracker operations are usable).
+        SystemCurrencyID:
+          type: integer
+          readOnly: true
+          x-timelog-identity:
+            role: reference
+          description: |-
+            The tenant's system (base) currency (application value 'BaseCurrencyID').
+
+            Refers to `CurrencyRead.CurrencyID`. Look up valid values with `GET /v1/currency/{status}`.
+
+            Valid values come from `GET /v1/currency/{status}`.
+        SystemCurrencyRate:
+          type: number
+          format: double
+          readOnly: true
+          description: |-
+            Today's rate between the system currency and the CALLER's legal-entity currency, per 100 (100 = parity), rounded to the tenant's invoice decimals. Same computation and same failure fallback as CurrencyRead.CurrentRate.
+
+            Unit: rate per 100 units (100 = parity with the caller's legal-entity currency)
+
+            - Always — Half away from zero, InvoiceSetting_NumberOfDecimals.
+        SystemCurrencyABB:
+          type: string
+          readOnly: true
+          maxLength: 10
+          description: Code of the system currency, e.g. "EUR".
+        IsAbsenceActive:
+          type: boolean
+          readOnly: true
+          description: True unless the tenant's product type is Time (absence registration is available).
+        RoundingOfBillableTime:
+          type: boolean
+          readOnly: true
+          description: State of feature RoundingOfBillableTime (TimeRoundingFormat is applied).
+        IsMLEActive:
+          type: boolean
+          readOnly: true
+          description: State of feature MultiLegalEntities (the tenant has several legal entities).
+        Privileges:
+          $ref: '#/components/schemas/UserSettingPrivilegesRead'
+          readOnly: true
+          description: Two registration-scope flags.
+        SiteSettings:
+          $ref: '#/components/schemas/UserSettingSiteSettingsRead'
+          readOnly: true
+          description: Time and expense UI settings of the tenant.
+      description: A snapshot of the tenant configuration that a time/expense client needs to render its UI correctly, plus
+        three caller-specific values (SystemCurrencyRate, Privileges.RegistrationAllTasks, SiteSettings.TimeRegistrationTimestamp).
+        Read-only, one object per call. Most booleans are the on/off state of a named tenant feature (FeatureConfiguration);
+        the feature name is given per field. Only CompanyName, NumberCultureID and the three SystemCurrency* fields come from
+        the stored procedure.
+    UserSettingSiteSettingsRead:
+      type: object
+      properties:
+        TreatAllTimeRegistrationAsRecurringTask:
+          type: boolean
+          readOnly: true
+          description: |-
+            State of feature TempTreatAllTimeRegistrationAsRecurringTask.
+
+            > **Not yet documented:** description.
+        TaskNumber:
+          type: boolean
+          readOnly: true
+          description: State of feature TaskNo (tasks carry a task number).
+        ShowOdometer:
+          type: boolean
+          readOnly: true
+          description: State of feature ShowOdometer (mileage registrations show odometer fields).
+        OdometerIsRequired:
+          type: boolean
+          readOnly: true
+          description: State of feature OdometerIsRequired.
+        CanUseTravelTimeTask:
+          type: boolean
+          readOnly: true
+          description: State of feature TravelTimeTasks (time can be registered as travel time, GroupType 6).
+        FileAttachmentInExpense:
+          type: boolean
+          readOnly: true
+          description: Always true (hard-coded).
+        ShowUserDefinedComment:
+          type: boolean
+          readOnly: true
+          description: State of feature TimeRegistrationAdditionalTextField (registrations carry an additional text field).
+        UserDefinedCommentName:
+          type: string
+          readOnly: true
+          description: Label the tenant gave the additional text field (setting AdditionalTextFieldLabel), e.g. "Support ticket
+            number".
+        UserDefinedCommentDataType:
+          type: string
+          enum:
+          - TypeNotSet
+          - Text
+          - Integer
+          x-enum-descriptions:
+          - 'Setting value 0: no type configured.'
+          - 'Setting value 1: any characters.'
+          - 'Any other setting value: whole numbers only.'
+          readOnly: true
+          description: |-
+            Data type of the additional text field (setting AdditionalTextFieldType), as the member NAME (string, unlike the integer enums of this object).
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `TypeNotSet` | TypeNotSet | Setting value 0: no type configured. |
+            | `Text` | Text | Setting value 1: any characters. |
+            | `Integer` | Integer | Any other setting value: whole numbers only. |
+        UseTimeRegistrationFinancialDataService:
+          type: boolean
+          readOnly: true
+          description: State of feature TimeRegistrationServiceProcessing (financial data of registrations is produced by
+            the separate processing service; see the time-registration-financial-data operations).
+        TimeTrackingWarning:
+          type: integer
+          enum:
+          - 0
+          - 1
+          - 2
+          - 3
+          - 4
+          x-enum-descriptions:
+          - No warning.
+          - Warn when less than standard time is registered.
+          - The timesheet cannot be closed when less than standard time is registered.
+          - Warn when zero hours are registered.
+          - The timesheet cannot be closed when zero hours are registered.
+          readOnly: true
+          description: |-
+            What happens when a timesheet is short (setting TimetrackingWarning).
+
+            Allowed values:
+
+            | Value | Name | Meaning |
+            |---|---|---|
+            | `0` | NoWarning | No warning. |
+            | `1` | ShowWarningIfRegisteredLessThanStandardTime | Warn when less than standard time is registered. |
+            | `2` | TimesheetNotCloseIfRegisteredLessThanStandardTime | The timesheet cannot be closed when less than standard time is registered. |
+            | `3` | ShowWarningIfEmployeeRegisteredZeroHour | Warn when zero hours are registered. |
+            | `4` | TimesheetNotClosetIfRegisteredZeroHours | The timesheet cannot be closed when zero hours are registered. |
+        TimeRegistrationTimestamp:
+          type: boolean
+          readOnly: true
+          description: 'Whether the CALLER registers time with start/end timestamps: feature TimeRegistrationTimestamp on
+            AND (timestamp type ActivateTimestampsForAll, OR type ActivateTimestampsOnEmployeeCard and the caller''s employee/personal
+            timestamp flag set).'
+        ShowWarningWhenTimestampOverlap:
+          type: boolean
+          readOnly: true
+          description: State of feature ShowWarningWhenTimestampOverlap.
+        ApprovalFlows:
+          type: boolean
+          readOnly: true
+          description: State of PROCESS ApprovalFlows (not a feature).
+        ProjectManagerApproval:
+          type: boolean
+          readOnly: true
+          description: True when timesheet approval is set to 'project manager only' or 'project manager, then employee manager'.
+        EnhancedTimesheetApprovals:
+          type: boolean
+          readOnly: true
+          description: State of feature EnhancedTimesheetApprovals.
+        CommentIsMandatory:
+          type: boolean
+          readOnly: true
+          description: State of feature MandatoryComment (time registrations require a comment).
+        ShowExpenseCurrency:
+          type: boolean
+          readOnly: true
+          description: |-
+            State of feature InvoiceCurrencySetting (expenses can be entered in another currency).
+
+            > **Not yet documented:** description.
+      description: Nested in UserSettingRead. Tenant settings for time and expense clients. All values are the same for every
+        caller except TimeRegistrationTimestamp, which depends on the caller's employee card when the tenant activates timestamps
+        per employee.
+x-timelog-service: Common

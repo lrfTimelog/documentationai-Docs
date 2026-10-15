@@ -1,0 +1,112 @@
+---
+title: Base URL and versioning
+description: How the TimeLog REST API is versioned in the URL, what v1 and v2 share and where they differ, and how to choose the version for an operation.
+---
+
+## Overview
+
+The TimeLog REST API has two public versions, **v1** and **v2**. The version is part of the URL path.
+
+Both versions are served by the same application. They use the same authentication, the same response envelope and the same error body.
+They differ in a few conventions, most visibly in how enum values are written in responses. This page lists what is shared and what differs, so you can call both versions from one client.
+
+## Base URL
+
+Every request goes to your TimeLog site, followed by `/api/` and the version:
+
+```text
+https://app{server-number}.timelog.com/{account}/api/v1/...
+https://app{server-number}.timelog.com/{account}/api/v2/...
+```
+
+The placeholders are explained in [Authentication: Base URL](/rest/authentication#base-url).
+
+## The version is a URL segment
+
+The version is selected only by the path segment after `/api/`: `v1` or `v2`.
+
+```text
+GET https://app{server-number}.timelog.com/{account}/api/v1/time-tracker/active-time-tracker
+GET https://app{server-number}.timelog.com/{account}/api/v2/time-tracker/active
+```
+
+Things to know:
+
+- **There are no version headers.** The version is not taken from a request header, and responses carry no version or deprecation headers.
+- **v2 operations always need `/v2/`.** A v2 operation is reached only at `/api/v2/<resource>`. Leaving the version out never reaches a v2 operation.
+- **Always send the version segment.** The API is configured to fall back to a default version when the version is not specified, but which version that is has not been documented. A URL with an explicit version does not depend on it.
+
+<Callout kind="alert">**Not yet documented.** Which version a request without a version segment is served by is not yet confirmed.</Callout>
+
+## What v1 and v2 share
+
+v2 is not a separate API. A v2 operation runs in the same application as a v1 operation and goes through the same request handling.
+
+| Convention | v1 and v2 | Details |
+|---|---|---|
+| Authentication | Same bearer token, same scope. There is no v2-specific token, scope or setting. | [Authentication](/rest/authentication) |
+| Permissions | Checked per operation, the same way in both versions. | [Permissions and data scope](/rest/permissions) |
+| Response envelope | Same `Properties` / `Entities` / `Links` / `Actions` shape, same `200 null` and `204` responses, same empty-list shape. | [Response envelope](/rest/conventions/response-envelope) |
+| Errors | Same error body, same status mapping, same error codes. The error catalogue applies to both versions. | [Errors](/rest/errors) |
+| Paging mechanism | Same `$page` / `$pagesize` parameters and the same paging values in the response, on operations that are paged. | [Pagination](/rest/conventions/pagination) |
+| Property names | PascalCase in both versions. | [Data types](/rest/conventions/data-types#property-names) |
+| Dates and times | Same handling in both versions. | [Data types](/rest/conventions/data-types#dates-and-times) |
+| Request bodies | Read the same way in both versions, including enum fields. | [Data types](/rest/conventions/data-types#in-requests) |
+
+## What differs
+
+| Convention | v1 | v2 | Details |
+|---|---|---|---|
+| Enums in responses | Integers, with a few fields that return the name. | Names, as strings. Exception: the operations under `/v2/feed`, `/v2/insights-service` and `/v2/widget-data` return integers, like v1. | [Data types: Enums](/rest/conventions/data-types#enums) |
+| Paged lists | Each list operation is either paged or not; the pagination page lists which. | Many list operations are **not** paged: they return the complete list, without paging values, and ignore `$page` / `$pagesize`. | [Pagination: Which list operations are paged](/rest/conventions/pagination#which-list-operations-are-paged) |
+| Resource names in the path | Kebab-case, chosen per resource, for example `/v1/time-registration`. | Kebab-case, chosen per resource, often plural, for example `/v2/competences` and `/v2/employee-competences`. | The operation's reference page |
+
+Resource names are not mapped from one version to the other. Do not build a v2 path by changing `v1` to `v2` in a v1 path: for example, the active time tracker is `GET /v1/time-tracker/active-time-tracker` in v1 and `GET /v2/time-tracker/active` in v2. Take every path from the reference.
+
+### Resources in both versions
+
+A few resources have operations in both versions. The two are not always identical, so read the reference page of the version you call.
+
+For example, employee expenses have the same set of operations in v1 and v2, but the v2 read model has no approval `Status` field. To read whether an employee expense is approved, use `GET /v1/employee-expense/{employeeExpenseID}`.
+
+## Which version to use
+
+<Callout kind="alert">**Not yet documented.** Which version is recommended for new integrations, and the deprecation policy for v1 and v2, are not yet confirmed.</Callout>
+
+What follows from the published operations:
+
+- **Most resources live in one version only.** Use the version the reference lists for the operation you need.
+- **One integration can call both versions.** The token, envelope and errors are the same, so the only per-version handling your client needs is for the differences above, mainly enums in responses and unpaged v2 lists.
+- **Where a resource is in both versions, compare the two reference pages** before you choose. See [Resources in both versions](#resources-in-both-versions).
+
+### Service groups per version
+
+Number of published operations per service group:
+
+| Service group | v1 | v2 |
+|---|---|---|
+| Time registrations | 25 | 2 |
+| Projects | 75 | 16 |
+| Employees | 14 | 16 |
+| Expenses | 34 | 10 |
+| Customers | 14 | — |
+| Users and organisation | 11 | 1 |
+| Settings | 13 | 11 |
+| Salary and absence | 12 | — |
+| Invoicing | 7 | — |
+| Integrations | 7 | — |
+| Timesheet (time tracking items) | 5 | — |
+| Roles and privileges | 4 | — |
+| Reference data and tenant settings | 4 | — |
+| Global search | — | 3 |
+| Saved filter views | — | 4 |
+| Navigation (menus, bookmarks, pages, filters) | — | 37 |
+| Dashboard widgets and reports | — | 10 |
+| API root | 1 | 2 |
+| **Total** | **226** | **112** |
+
+Each service group has its own section in the **API reference — v1** and **API reference — v2** groups of this tab.
+
+## Changes and compatibility
+
+<Callout kind="alert">**Not yet documented.** How changes to the REST API are announced, and whether a changelog for it is published, is not yet confirmed.</Callout>

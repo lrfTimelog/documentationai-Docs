@@ -1,0 +1,135 @@
+---
+title: Data types
+description: How the TimeLog REST API represents IDs, dates and times, numbers and units, property names, enums, nulls and localized text.
+---
+
+## Overview
+
+The REST API uses the same small set of data conventions in every service. Most are simple, but a few catch integrators out:
+
+- An object usually has **two identifiers**, an integer ID and a GUID, and operations do not agree on which one they take.
+- Dates are returned **as stored**, with or without a timezone offset.
+- **Enums** are integers in v1 responses and names in v2 responses, with exceptions in both directions.
+
+This page explains each convention and points to where the exact details for a field are documented.
+
+## IDs: integer ID and GUID
+
+Most objects have both an integer ID (for example `TimeRegistrationID`) and a GUID.
+**Which one an operation takes varies per operation.** Before you call an operation, check its parameter or body field in the reference.
+Do not assume that an operation takes the ID you used for a related call.
+
+The rule that matters most: a body field named `ID` or `Id` is not always the integer ID. In the examples below it is the GUID.
+
+### Example: time registrations
+
+| Operation | Identifier it takes |
+|---|---|
+| `POST /v1/time-registration` | **You supply** the GUID, in the body field `ID`. The response is the created registration, including its integer `TimeRegistrationID`. |
+| `GET /v1/time-registration/{timeRegistrationID}` | The integer `TimeRegistrationID`. A value that is not an integer does not match the route and returns `404`. |
+| `PUT /v1/time-registration` | The GUID, in the body field `ID`. It selects the registration to replace. |
+| `DELETE /v1/time-registration/{id}` | Either the integer `TimeRegistrationID` or the GUID. |
+
+A read returns both values: `TimeRegistrationID` (integer) and `TimeRegistrationGUID` (the GUID you sent as `ID` on create).
+Store both if you need to read, update and delete the same registration.
+
+Because you choose the GUID on create, it also makes retries safe. If a create times out, retry with the **same** GUID. A `422` with error code `38030` (duplicate ID) means the first attempt succeeded.
+
+### Example: users
+
+| Operation | Identifier it takes |
+|---|---|
+| `GET /v1/user/{id}` | The integer `UserID`. |
+| `PUT /v1/user` | The user's GUID, in the body field `ID`. Not the integer `UserID`. |
+
+### Example: CRM barrier types
+
+| Operation | Identifier it takes |
+|---|---|
+| `GET /v1/barrier/{barrierId}` | The integer `BarrierID`. |
+| `PUT /v1/barrier` | The barrier's GUID, in the body field `Id`. |
+| `DELETE /v1/barrier/{id}` | The barrier's GUID. A value that is not a GUID matches no route. |
+
+A barrier read returns both values: `BarrierID` (integer) and `Id` (GUID).
+
+### External keys
+
+Some objects can also carry keys from your own system (external keys), so you can map them to your IDs.
+How to set and use them is covered in [Writing data](/rest/conventions/writing-data).
+
+## Dates and times
+
+Dates and times use **ISO 8601** strings. Offset handling is not consistent across the API:
+
+- **Values are returned as stored.** Some carry an offset or a `Z`, others carry none. For example, `GET /v1/payment/{paymentID}` returns `"InvoiceDate": "2017-03-31T00:00:00"` with no offset, while the `Timestamp` in a `404` error body ends in `Z`.
+- **No timezone conversion is applied on input.** The value you send is the value that is stored.
+- **Date-only fields are still date-time strings.** For example, `Date` on a time registration is typed as a date-time.
+
+What this means for your client:
+
+- **Send the date and time you want stored.** Send explicit local dates, in the form the tenant expects. Do not convert to UTC first: the API will not convert it back, so a registration made just after midnight local time can be stored on the previous day.
+- **Do not assume UTC.** A value without an offset is not documented as UTC.
+- **Parse both forms.** Your parser must accept values with and without an offset.
+
+<Callout kind="alert">
+**Not yet documented.** Whether date and time values without an offset are in the tenant's timezone, the employee's timezone or UTC has not been established.
+</Callout>
+
+## Numbers and units
+
+- **Durations are decimal hours** unless a field says otherwise. For example, `Hours: 1.5` on a time registration means 1 hour 30 minutes.
+- Some models carry the same duration in **minutes** as well, in a separate field. On a time registration read, `Minutes` is derived from `Hours`. The field description says which unit a field uses.
+- **Paging values are strings**, not numbers: `"TotalRecord": "244"`. See [Pagination](/rest/conventions/pagination).
+
+<Callout kind="alert">
+**Not yet documented.** There is no API-wide rule for monetary amounts and their currency; rely on each field's description in the reference.
+</Callout>
+
+## Property names
+
+Property names are **PascalCase** in requests and responses, in v1 and v2: `TimeRegistrationID`, `TotalRecord`, `Properties`.
+
+## Enums
+
+An enum field holds one value from a fixed list. How it is written depends on the API version and on the direction.
+
+### In responses
+
+| Version | Default | Exceptions |
+|---|---|---|
+| v1 | **Integer** value, for example `GroupType` on a time registration. | A few v1 fields return the member **name** instead. Examples: `UserType` on users (`"UserType": "Employee"`), `CreditTerm` and `InterestPeriod` on payment terms, and `TaskStatus` on `GET /v1/task/filter`. |
+| v2 | Member **name**, as a string. | The operations under `/v2/feed`, `/v2/insights-service` and `/v2/widget-data` return **integers**, like v1. |
+
+The field's type in the reference tells you which form a field uses: `integer` or `string`.
+
+Watch for fields where the two forms meet. On `GET /v1/task/filter`, the response field `TaskStatus` is the name, but the `taskStatus` filter parameter takes the integer.
+
+### In requests
+
+Requests are read the same way in v1 and v2. Most write models document enum fields as **integers**. Send integers unless the field's type in the reference says otherwise.
+
+<Callout kind="alert">
+**Not yet documented.** Whether request bodies also accept enum names (the v2 response form) has not been verified; send integers.
+</Callout>
+
+### Where enum values are documented
+
+| You need | Where to find it |
+|---|---|
+| The allowed values of a field | The field in the operation's reference page. Its description has an **Allowed values** table with `Value`, `Name` and `Meaning`. |
+| What a value means | The `Meaning` column of that table. Where the meaning has not been established, the reference says so. |
+| Whether the field is sent as an integer or a name | The field's type in the reference (`integer` or `string`), and the exceptions above. |
+| Values that are accepted in some combinations only | The operation's reference page. For example, `GroupType` on a time registration accepts `1`, `3` and `6` only. |
+
+## Null values
+
+Inside `Properties`, a field without a value is normally sent as `null`, in v1 and v2, unless the model says otherwise.
+Envelope members follow a different rule: they are left out when they have no value. For both rules, and for what empty lists look like, see [Response envelope](/rest/conventions/response-envelope#null-and-empty-values).
+
+## Localization
+
+Some responses contain text that TimeLog translates, for example the labels of some dropdown values.
+
+<Callout kind="alert">
+**Not yet documented.** How the API chooses the language of text in responses, and whether a request can select it, has not been established.
+</Callout>

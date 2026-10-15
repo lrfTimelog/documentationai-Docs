@@ -1,0 +1,208 @@
+---
+title: Permissions and data scope
+description: Which user a REST API request acts as, how TimeLog checks that user's privileges and data scope per operation, how a privilege failure looks, and which tenant features an operation can depend on.
+---
+
+## Overview
+
+Every REST API request runs as the token's user. See [Authentication](/rest/authentication) for how the token decides that user.
+
+TimeLog then checks that user's privileges **per operation**. Two things follow from this:
+
+- **Whether the call is allowed.** Some operations need a privilege, for example a project privilege that covers the project you address. Without it, the call fails.
+- **Which rows you get back.** Some operations return only the data the user's privileges cover, for example only the projects the user may see. A shorter list is not an error.
+
+Requirements are documented per operation, and they can differ between operations on the same object. For example, deleting another employee's expense accepts fewer privileges than reading it.
+
+<Callout kind="alert">**Not yet documented.** This page lists the requirements of a selection of operations only. The privilege requirements of the other operations are not yet documented.</Callout>
+
+## How a privilege failure looks
+
+A missing privilege does not always come back the same way. Depending on the operation, you get one of these:
+
+| Response | When | Example |
+|---|---|---|
+| `403` with `Code` `103` | Most operations that check a privilege. `Message` gives the reason. | `GET /v1/project/{projectID}` without a project privilege that covers the project. |
+| `500` or `422` with `Code` `102` and a business-rule `ErrorCode` in `Details` | Operations that check the privilege as a business rule. | `POST /v1/user/validate-new-user` returns ErrorCode `20012` when the user lacks the employee privilege. |
+
+Business-rule codes that mean "the user lacks a privilege" include:
+
+| ErrorCode | Operations | Meaning |
+|---|---|---|
+| `20012` | `POST /v1/user/validate-new-user` | The user has no employee privilege that covers the new user's department or legal entity, combined with the Create or Edit action. |
+| `38013` | `POST /v2/competences`, `PUT /v2/competences`, `DELETE /v2/competences/{id}` | The user has no access to the system-administration page *Employee competencies*. |
+| `38014` | `POST /v2/competence-groups`, `PUT /v2/competence-groups`, `DELETE /v2/competence-groups/{id}` | Same check as `38013`, for competence groups. |
+| `38015` | `POST /v2/employee-competences`, `POST /v2/employee-competences/bulk`, `PUT /v2/employee-competences`, `DELETE /v2/employee-competences/{id}` | The user has no *Employee skills* create/edit privilege that covers the employee. |
+| `37681` | `DELETE /v1/employee-expense/{employeeExpenseID}`, `DELETE /v2/employee-expense/{employeeExpenseID}` | The expense belongs to another employee, and the user lacks the 'all registrations' privilege. |
+| `300131` | `POST /v1/time-registration/import`, `POST /v1/time-registration/validate-import` | `UserID` is not the caller, and the caller lacks the 'all registrations' privilege. |
+
+So check `Code` and `Details[].ErrorCode`, not only the HTTP status. A privilege failure is not fixed by retrying with the same user. See [Errors](/rest/errors#error-classes) for the error body and [Common business-rule error codes](/rest/errors#common-business-rule-error-codes) for the full code lists.
+
+Also note that `Code` `103` does not always mean a missing permission. Read `Message` first. See [Errors](/rest/errors#error-classes).
+
+## Data scope patterns
+
+These are the patterns integrations meet most often. Each table lists only operations whose requirements are documented.
+
+### Search operations: your allocations, or all tasks with a privilege
+
+The search operations below return results from the tasks the user is **allocated to**.
+To search across all tasks, send `searchAll=true`. This needs the privilege **'all tasks'** (`RegistrationAllTasks`).
+Without it, `searchAll=true` returns `403` with the message `"User have no privilege to search all tasks."`.
+
+If your integration only needs the user's own work, omit `searchAll`. You then never get this `403`.
+
+| Operation | Default result | With `searchAll=true` |
+|---|---|---|
+| `GET /v1/task/search-for-time-tracking` | Tasks the user is allocated to | Needs `RegistrationAllTasks` |
+| `GET /v1/task/search-for-time-tracking-order-by-recent-registration` | Tasks the user is allocated to | Needs `RegistrationAllTasks` |
+| `GET /v1/task/search-for-time-tracking-by-project-id` | Tasks the user is allocated to | Needs `RegistrationAllTasks` |
+| `GET /v1/task/search-for-time-tracking-by-project-id-order-by-recent-registration` | Tasks the user is allocated to | Needs `RegistrationAllTasks` |
+| `GET /v1/task/search-for-time-tracking-by-customer-id` | Tasks the user is allocated to | Needs `RegistrationAllTasks` |
+| `GET /v1/task/search-for-time-tracking-by-customer-id-order-by-recent-registration` | Tasks the user is allocated to | Needs `RegistrationAllTasks` |
+| `GET /v1/task/search-by-project` | Tasks the user is allocated to | Needs `RegistrationAllTasks` |
+| `GET /v1/task/search-by-customer` | Tasks the user is allocated to | Needs `RegistrationAllTasks` |
+| `GET /v1/project-header/search-for-time-tracking-order-by-recent-registration` | Projects reached through the user's allocations | Needs `RegistrationAllTasks` |
+| `GET /v1/project-header/search-for-time-tracking-by-customer-id-order-by-recent-registration` | Projects reached through the user's allocations | Needs `RegistrationAllTasks` |
+| `GET /v1/customer/search-for-time-tracking` | Customers reached through the user's allocations | Needs `RegistrationAllTasks`; returns every customer that has a task |
+| `GET /v1/customer/search-for-time-tracking-order-by-recent-registration` | Customers reached through the user's allocations | Needs `RegistrationAllTasks` |
+
+### Projects: the user's project privileges
+
+Project data is scoped by the user's **project privileges**. A project privilege covers one of these sets of projects:
+
+- all projects (`ProjectAllProjects`)
+- all projects in the user's legal entity (`ProjectAllInLegalEntityEmployees`, when the tenant uses multiple legal entities)
+- projects whose handling department is the user's department or below it (`ProjectProjectsInUserDepartmentAndSubDepartment`)
+- projects where the user is project manager (`ProjectProjectsWhereUserIsSetAsProjectManager`)
+- projects where the user is account manager (`ProjectProjectsWhereUserIsSetAsAccountManager`, when the tenant uses account managers)
+
+The lists below are **filtered**: rows outside the user's project privileges are left out, and there is no `403`.
+
+| Operation | Scope |
+|---|---|
+| `GET /v1/project/get-all` | Only projects covered by the user's project privileges. `TotalRecord` counts only those projects. |
+| `GET /v2/projects` | Only projects covered by the user's project privileges. |
+| `GET /v2/filters/project/content` | Only projects the user may access: all projects with `ProjectAllProjects`, otherwise the projects covered by the user's project privileges. |
+
+The operations below **check** access and return `403` when the project is not covered.
+They need a project privilege with the **ViewCreateEditDelete** action that covers the project. For template projects, access to the system-administration page for project templates also qualifies.
+
+| Operation | Needs a project privilege covering |
+|---|---|
+| `GET /v1/project/{projectID}` | The project |
+| `PUT /v1/task/{taskID}`, `DELETE /v1/task/{taskID}` | The task's project |
+| `POST /v1/task/{taskID}/validate-update-task`, `POST /v1/task/{taskID}/validate-delete-task` | The task's project |
+| `POST /v1/task/{taskID}/allocation/validate-new-allocation` | The task's project |
+| `GET /v1/allocation/{allocationID}`, `PUT /v1/allocation/{allocationID}`, `DELETE /v1/allocation/{allocationID}` | The allocation's task's project |
+| `POST /v1/allocation/{allocationID}/validate-delete` | The allocation's task's project |
+| `GET /v1/payment/{paymentID}`, `PUT /v1/payment/{paymentID}`, `DELETE /v1/payment/{paymentID}` | The payment's project |
+| `POST /v1/payment/{paymentID}/validate-update-payment`, `POST /v1/payment/{paymentID}/validate-delete-payment` | The payment's project |
+| `POST /v1/payment/validate-new-payment` | The project in `ProjectID` |
+| `GET /v1/payment` | The contract's project |
+
+On allocations, read access alone is not enough: `GET /v1/allocation/{allocationID}` also needs the ViewCreateEditDelete action.
+
+### Registering on behalf of other employees
+
+Some registration operations take a `UserID` or address another user's registration.
+For the operations below, your **own** registrations need no registration privilege.
+For **another user's**, the user needs one of these registration privileges:
+
+| Privilege | Covers |
+|---|---|
+| 'All registrations' (`RegistrationAllRegistrations`) | Every user |
+| `RegistrationEmployeesInMyOwnDepartmentAndSubDepartments` | Users in the caller's department or a department below it. Applies only when the tenant uses departments. |
+| `RegistrationEmployeesInMyOwnLegalEntity` | Users in the caller's legal entity. Applies only when the tenant uses multiple legal entities. |
+
+Which of these an operation accepts differs:
+
+| Operation | Accepts | Without it |
+|---|---|---|
+| `GET /v1/time-registration/{timeRegistrationID}` | All three | `403` |
+| `DELETE /v1/time-registration/{id}` | All three | `403` |
+| `POST /v1/time-registration/update-time` | All three | `403` |
+| `POST /v1/time-registration/update-full-day-absence` | All three | `403` |
+| `POST /v1/time-registration/update-half-or-full-day-absence` | All three | `403` |
+| `POST /v1/time-registration/update-hours-absence` | All three | `403` |
+| `POST /v1/time-registration/import`, `POST /v1/time-registration/validate-import` | 'All registrations' only | ErrorCode `300131` |
+| `POST /v1/employee-expense`, `POST /v2/employee-expense` | All three | `403` |
+| `GET /v1/employee-expense/{employeeExpenseID}`, `GET /v2/employee-expense/{employeeExpenseID}` | All three | `403` |
+| `DELETE /v1/employee-expense/{employeeExpenseID}`, `DELETE /v2/employee-expense/{employeeExpenseID}` | 'All registrations' only | ErrorCode `37681` |
+| `POST /v1/mileage-registration` | All three | `403` |
+| `POST /v1/project-header/mileage-registration` | All three | `403` |
+| `POST /v1/project-header/employee-expense` | All three | `403` |
+
+On the expense and mileage create operations, the target user must also exist and be active. That is checked first, with ErrorCode `37040` (not an existing user) or `37931` (inactive user).
+
+### Customers: all customers, or customers where you are account manager
+
+`POST /v1/customer/create` needs one of two customer privileges:
+
+- **'All customers'** (`CustomerAll`), or
+- **'Customers where user is account manager'**, with the caller set as the customer's primary account manager (`PrimaryKAMID`).
+
+Otherwise the call returns `403` with the message `"User has insufficient privileges to create customer"`.
+
+### Employees, competences and settings
+
+| Operation | Needs |
+|---|---|
+| `POST /v1/user/validate-new-user` | An employee privilege that covers the new user — 'all employees', 'employees in my department and sub-departments' (when the tenant uses departments) or 'all employees in my legal entity' (when the tenant uses multiple legal entities) — with the Create or Edit action. Otherwise ErrorCode `20012`. |
+| `POST /v2/employee-competences`, `POST /v2/employee-competences/bulk`, `PUT /v2/employee-competences`, `DELETE /v2/employee-competences/{id}`, `DELETE /v2/employee-competences/bulk` | The *Employee skills* create/edit privilege covering the employee, at one of three scopes: all employees; employees of the caller's legal entity; employees of the caller's department or a department directly under it (one level only). This also applies to the caller's own competences. The bulk create checks once, before any item, and writes nothing if it fails. The bulk delete returns `403` `Code` `103`; the others return ErrorCode `38015`. |
+| `POST /v2/competences`, `PUT /v2/competences`, `DELETE /v2/competences/{id}` | Access to the system-administration page *Employee competencies*. Otherwise ErrorCode `38013`. |
+| `POST /v2/competence-groups`, `PUT /v2/competence-groups`, `DELETE /v2/competence-groups/{id}` | Access to the system-administration page *Employee competencies*. Otherwise ErrorCode `38014`. |
+| `POST /v2/settings/frontpage-image` | The area privilege `AccountAndGeneralSettingFrontPageGrantPermission` on the user's role. Otherwise `403`. |
+
+### Operations that return only your own data
+
+These operations always return the token user's own data.
+To read another user's data with them, you need a token for that user.
+
+| Operation | Returns |
+|---|---|
+| `GET /v1/privilege/user-privileges` | The token user's own privileges |
+| `GET /v1/time-tracking-item/get-by-date` | The user's own registrations |
+| `GET /v1/time-tracking-item/get-by-date-order-by-recent-registration` | The user's own registrations |
+| `GET /v1/time-tracking-item/get-weekly-registrations` | The user's own registrations and normal working time |
+| `GET /v1/time-registration-financial-data/get-by-date`, `.../get-by-date-range` | Financial data for the user's own registrations |
+| `GET /v1/time-registration-financial-data/get-status-by-date`, `.../get-status-by-date-range` | Status for the user's own registrations |
+| `GET /v1/time-tracker`, `GET /v1/time-tracker/active-time-tracker`, `GET /v2/time-tracker/active` | The user's own time trackers |
+| `GET /v1/employee-expense-financial-data/get-all-time-total`, `.../get-by-date`, `.../get-by-date-range` | The user's own expenses |
+| `GET /v1/task/get-recently-registered` | Tasks from the user's own allocations and registrations |
+| `GET /v1/task/travel-time-task-for-time-tracking` | Travel-time tasks from the user's own allocations |
+| `GET /v1/absence-code/get-recently-registered` | Absence codes from the user's own registrations |
+
+`GET /v2/search` is scoped differently: each result category needs access to the matching TimeLog page and a matching area privilege.
+
+## Licences, modules and tenant features
+
+Besides the user's privileges, an operation can depend on what the tenant has: its TimeLog product and licence plan, the user's licence, and the features switched on in TimeLog.
+
+For example, the time registration operations listed above (`DELETE /v1/time-registration/{id}`, `POST /v1/time-registration/update-time`, the absence updates and `POST /v1/time-registration/import`) also check the product, licence-plan, module, feature and user-licence policies of the action. The expense and mileage creates and the employee-expense delete check the product, licence-plan and user-licence policies.
+
+These are the requirements documented so far:
+
+| Service | Requirement | Operations |
+|---|---|---|
+| Time registration | The tenant's product must include absence registration. On the Time product, absence updates fail with ErrorCode `70023`. | `POST /v1/time-registration/update-full-day-absence`, `POST /v1/time-registration/update-half-or-full-day-absence`, `POST /v1/time-registration/update-hours-absence` |
+| Expenses and mileage | The department rule needs the tenant feature *Departments*. The legal-entity rule needs *MultiLegalEntities*. | The on-behalf operations in [Registering on behalf of other employees](#registering-on-behalf-of-other-employees) |
+| Project management | The project-privilege rule for account managers needs the tenant feature *AccountManager*. The legal-entity rule needs *MultiLegalEntities*. | `GET /v1/project/{projectID}`, `PUT /v1/task/{taskID}` |
+| Project management | `StartDate` and `EndDate` on an allocation are accepted only when the tenant feature *AllocationDates* ("Enable start and end date on allocations") is on. | `PUT /v1/allocation/{allocationID}`, `POST /v1/task/{taskID}/allocation/validate-new-allocation` |
+| Project management | A payment can be updated or deleted only when the contract model of its contract allows it. | `PUT /v1/payment/{paymentID}`, `DELETE /v1/payment/{paymentID}`, `POST /v1/payment/{paymentID}/validate-update-payment`, `POST /v1/payment/{paymentID}/validate-delete-payment` |
+| Employee | The system-administration page *Employee competencies* must be available on the tenant (its product, module and feature policies) and granted to the user's role. On a tenant without the page, the check fails. | `POST /v2/competences`, `PUT /v2/competences`, `DELETE /v2/competences/{id}`, `POST /v2/competence-groups`, `PUT /v2/competence-groups`, `DELETE /v2/competence-groups/{id}` |
+| Organization | The department rule needs the tenant feature *Departments*. The legal-entity rule needs *MultiLegalEntities*. | `POST /v1/user/validate-new-user` |
+
+<Callout kind="alert">**Not yet documented.** Licence, module and feature requirements of operations not listed here are not yet documented.</Callout>
+
+## Recommendation: a dedicated integration user
+
+Because every call runs as the token's user, the user you choose decides what your integration can do and see.
+
+- **Create a dedicated integration user.** Do not use a person's own account. Actions are then attributed to the integration, and you can change its access without affecting a person.
+- **Give that user exactly the privileges the integration needs.** Use the tables above to find them. For example, an integration that imports time for other users with `POST /v1/time-registration/import` needs 'all registrations'.
+- **Test with that user, not with an administrator.** A user with broad privileges passes checks that your integration user may fail. Those failures then show up in production as `403` or as a privilege `ErrorCode`.
+- **Check the user's privileges from the API.** `GET /v1/privilege/user-privileges` returns the privileges of the token's user.
+- **Expect lists to depend on the user.** Lists such as `GET /v1/project/get-all` return fewer rows for a user with narrower privileges. Missing rows are not an error.
+
+See also [Authentication](/rest/authentication#which-user-should-own-the-token) for choosing the token's user, and [Errors](/rest/errors) for handling privilege failures.
