@@ -341,6 +341,54 @@
         ]
       },
       {
+        "tab": "Transactional API",
+        "icon": "arrow-left-right",
+        "dropdowns": [
+          {
+            "dropdown": "Prototype",
+            "icon": "flask-conical",
+            "groups": [
+              {
+                "group": "A — OpenAPI explorer",
+                "icon": "braces",
+                "pages": [
+                  {
+                    "group": "Salary V1_1",
+                    "icon": "wallet",
+                    "expandable": true,
+                    "openapi": "api-reference/transactional/prototype/salary-v1_1.yaml",
+                    "pages": []
+                  }
+                ]
+              },
+              {
+                "group": "B — MDX pages",
+                "icon": "file-code",
+                "pages": [
+                  {
+                    "group": "Salary V1_1",
+                    "icon": "wallet",
+                    "expandable": true,
+                    "pages": [
+                      {
+                        "title": "GetAllowances",
+                        "path": "transactional/prototype/get-allowances",
+                        "icon": "list"
+                      },
+                      {
+                        "title": "GetAllSalaryCodes",
+                        "path": "transactional/prototype/get-all-salary-codes",
+                        "icon": "list"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
         "tab": "Help Center",
         "icon": "help-circle",
         "pages": [

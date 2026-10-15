@@ -1,0 +1,105 @@
+---
+title: "GetAllSalaryCodes"
+description: "Salary service V1_1 — list every salary code of the tenant with its salary-account posting rules."
+---
+
+<Callout kind="info">Rendering prototype B: one MDX page per SOAP operation.</Callout>
+
+Returns every salary code of the tenant (active and inactive) with its salary-account posting rules.
+
+Salary codes are the codes that time is posted under on the salary accounts: the system codes for normal working time and project time, and the tenant's supplement and paid-out codes. Factors are multipliers, not money. The list is not paged and is ordered by code, shorter codes first.
+
+Use it to map TimeLog salary codes to the wage types of a payroll system.
+
+| | |
+|---|---|
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/Salary/V1_1/SalaryServiceSecure.svc` |
+| SOAPAction | `http://www.timelog.com/api/tlp/v1_1/SalaryService/GetAllSalaryCodes` |
+| Content-Type | `text/xml; charset=utf-8` (SOAP 1.1) |
+| WSDL | `…/SalaryServiceSecure.svc?wsdl` |
+| Safe to retry | Yes (read-only) |
+
+## Parameters
+
+<ParamField body="salaryCodeStatus" param-type="string" required="false">
+`All`, `Active` or `Inactive`. **Not applied on V1_1:** every call returns active and inactive codes. Send `All` so the request states what the response contains, and filter on `IsActive` yourself.
+</ParamField>
+
+<ParamField body="token" param-type="SecurityToken" required="true">
+The token returned by the Security service's GetToken. Send its three fields back unchanged.
+</ParamField>
+
+## Response
+
+`GetAllSalaryCodesResponse` / `GetAllSalaryCodesResult`. Errors are also returned with HTTP 200: check `ResponseState` first, then `ErrorCode`.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+Error code when `ResponseState` is not `Success`.
+</ResponseField>
+
+<ResponseField name="Return" field-type="Salary[]">
+The salary codes. Empty when the tenant has none (`ResponseState` is then `Success`) and on error.
+</ResponseField>
+
+<Expandable title="Salary fields" default-open="false">
+
+| Field | Type | Notes |
+|---|---|---|
+| `SalaryCodeID` | integer | |
+| `SalaryCodeGuid` | guid | |
+| `Code` | string | |
+| `Name` | string | |
+| `Description` | string | |
+| `IsActive` | boolean | Filter on this field (see `salaryCodeStatus`). |
+| `IsSystemSalaryCode` | boolean | |
+| `SalaryCodeSystemType` | `NormalWorkingTime` \| `ProjectTime` | |
+| `SalaryAccountID` | integer | |
+| `SalaryAccountFactor` | number | Posting factor (a multiplier, not money). |
+| `SalaryAccountFactorEffect` | `Substract` \| `Add` | Posting sign. `Substract` is spelled this way on the wire. |
+| `FlexPositiveFactor` | number | |
+| `TimeTrackingFormat` | `Hours` \| `FullDay` \| `HalfDay` \| `YesNo` \| `Count` | |
+| `SalarySpecificationType` | `SalaryTime` \| `Supplement` \| `PaidOut` | |
+
+</Expandable>
+
+## Errors
+
+| ErrorCode | Meaning | What to do |
+|---|---|---|
+| 40001 | The `token` element was omitted or sent as nil. | Pass the token from GetToken. |
+| 20003 | The token does not match this site: it was issued by another site, a field was edited, or `Expires` was not sent back exactly as received. | Send the token's three fields back unchanged. |
+| 20004 | The token has expired. Tokens live 12 hours. | Call GetToken again and retry. |
+| 20008 | The Transactional API is not enabled for this site. | Ask your TimeLog administrator. Retrying does not help. |
+| 20009 | The call was not made over HTTPS. | Call the `…ServiceSecure.svc` URL over HTTPS. |
+
+<Request uid="soap-proto-getallsalarycodes-req" show-lines="true" tabs={["SOAP 1.1 request"]}>
+
+```xml
+POST /{account}/WebServices/Salary/V1_1/SalaryServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/api/tlp/v1_1/SalaryService/GetAllSalaryCodes"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:v1_1="http://www.timelog.com/api/tlp/v1_1"
+                  xmlns:v1_3="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <v1_1:GetAllSalaryCodes>
+      <v1_1:salaryCodeStatus>All</v1_1:salaryCodeStatus>
+      <v1_1:token>
+        <v1_3:Initials>{Initials from GetToken}</v1_3:Initials>
+        <v1_3:Expires>{Expires from GetToken, unchanged}</v1_3:Expires>
+        <v1_3:Hash>{Hash from GetToken}</v1_3:Hash>
+      </v1_1:token>
+    </v1_1:GetAllSalaryCodes>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+</Request>
+
+<Callout kind="alert">**Not yet documented.** No recorded response exists yet, so no example response is shown.</Callout>
