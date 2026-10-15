@@ -27,9 +27,6 @@ servers:
       default: your-account
 security:
 - bearer: []
-tags:
-- name: API root
-  description: The REST v1 entry point — build version, server time zone and a hypermedia link to every v1 controller.
 paths:
   /v2:
     get:
@@ -57,8 +54,6 @@ paths:
         **See also:** `GET /v1`
 
         > **Not yet documented:** response → success.
-      tags:
-      - API root
       responses:
         '200':
           description: The object, wrapped in the TAF envelope (`Properties`). Properties = IndexReadV2 (enums as names, CustomerPortalUrl
@@ -117,8 +112,6 @@ paths:
         **See also:** `GET /v2`
 
         > **Not yet documented:** behaviour → consistency; examples (success).
-      tags:
-      - API root
       responses:
         '200':
           description: The body is returned without the TAF envelope. The remote RSS document re-serialized by XmlDocument
