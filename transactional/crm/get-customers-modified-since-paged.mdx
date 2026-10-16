@@ -28,50 +28,50 @@ The `date` you send decides what you get back:
 
 ## Parameters
 
-Each parameter is marked **Required**, **Conditional** (required depending on other values) or **Optional**.
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
 Send them in the order shown.
 
-<ParamField body="date" param-type="dateTime" required="true">
-**Required.** Return changes made at or after this moment, in the TimeLog server's local time.
+<ResponseField name="date" field-type="dateTime" required="true">
+Return changes made at or after this moment, in the TimeLog server's local time.
 Format `YYYY-MM-DDThh:mm:ss`, e.g. `2026-10-01T00:00:00`. A date before 2000-01-01 switches to the full list.
-</ParamField>
+</ResponseField>
 
-<ParamField body="includeCustomers" param-type="boolean" required="true">
+<ResponseField name="includeCustomers" field-type="boolean">
 **Conditional.** `true` to include customers whose status is in the *Customers* group.
 At least one of `includeCustomers`, `includeSuppliers` and `includeLeads` must be `true`: with all three `false`
 the result is always empty.
-</ParamField>
+</ResponseField>
 
-<ParamField body="includeSuppliers" param-type="boolean" required="true">
+<ResponseField name="includeSuppliers" field-type="boolean">
 **Conditional.** `true` to include suppliers. See `includeCustomers`.
-</ParamField>
+</ResponseField>
 
-<ParamField body="includeLeads" param-type="boolean" required="true">
+<ResponseField name="includeLeads" field-type="boolean">
 **Conditional.** `true` to include leads. See `includeCustomers`.
-</ParamField>
+</ResponseField>
 
-<ParamField body="loadCustomFields" param-type="boolean">
-**Optional**, default `false`. `true` fills `CustomFields` on each returned customer. Adds work per customer: leave it
+<ResponseField name="loadCustomFields" field-type="boolean">
+**Optional.** Default `false`. `true` fills `CustomFields` on each returned customer. Adds work per customer: leave it
 off unless you need the values.
-</ParamField>
+</ResponseField>
 
-<ParamField body="loadExternalKeys" param-type="boolean">
-**Optional**, default `false`. `true` fills `ExternalKeys` (the customer's IDs in other systems) on each returned
+<ResponseField name="loadExternalKeys" field-type="boolean">
+**Optional.** Default `false`. `true` fills `ExternalKeys` (the customer's IDs in other systems) on each returned
 customer.
-</ParamField>
+</ResponseField>
 
-<ParamField body="page" param-type="integer" required="true">
-**Required.** The page to return, starting at `1`.
-</ParamField>
+<ResponseField name="page" field-type="integer" required="true">
+The page to return, starting at `1`.
+</ResponseField>
 
-<ParamField body="pageSize" param-type="integer" required="true">
-**Required.** Customers per page: `1` to `500`. Larger values are lowered to 500.
-</ParamField>
+<ResponseField name="pageSize" field-type="integer" required="true">
+Customers per page: `1` to `500`. Larger values are lowered to 500.
+</ResponseField>
 
-<ParamField body="token" param-type="SecurityToken" required="true">
-**Required.** The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`,
-sent back unchanged.
-</ParamField>
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back
+unchanged.
+</ResponseField>
 
 ## Request
 
@@ -248,10 +248,122 @@ customer by GUID if you need them.</Callout>
 
 ### Example responses
 
-<Callout kind="alert">**Not yet documented.** No recorded successful response exists yet, so no example of a
-successful call is shown.</Callout>
+<Response uid="trx-crm-getcustomersmodifiedsincepaged-res" show-lines="true" tabs={["HTTP 200 - success", "HTTP 200 - expired token"]}>
 
-<Response uid="trx-crm-getcustomersmodifiedsincepaged-err" show-lines="true" tabs={["HTTP 200 - expired token"]}>
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetCustomersModifiedSincePagedResponse xmlns="http://api.timelog.com/services/crm/1_4">
+      <GetCustomersModifiedSincePagedResult xmlns:a="http://api.timelog.com"
+                                            xmlns:b="http://api.timelog.com/services/crm/1_4"
+                                            xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:Customer>
+            <a:Action>Updated</a:Action>
+            <a:IsCustomFieldsLoaded>false</a:IsCustomFieldsLoaded>
+            <a:CustomFields i:nil="true"/>
+            <a:IsExternalKeysLoaded>false</a:IsExternalKeysLoaded>
+            <a:ExternalKeys i:nil="true"/>
+            <b:ID>1042</b:ID>
+            <b:GUID>3f2504e0-4f89-41d3-9a0c-0305e82c3301</b:GUID>
+            <b:Name>Example Customer A/S</b:Name>
+            <b:No>1042</b:No>
+            <b:TimeStamp>AAAAAAAJ+qA=</b:TimeStamp>
+            <b:VAT>25</b:VAT>
+            <b:CalculateVAT>true</b:CalculateVAT>
+            <b:DefaultDiscountPercent>0</b:DefaultDiscountPercent>
+            <b:Address>
+              <a:Address1>Example Street 1</a:Address1>
+              <a:Address2/>
+              <a:Address3/>
+              <a:ZipCode>1000</a:ZipCode>
+              <a:City>Copenhagen</a:City>
+              <a:State/>
+              <a:Country>DK</a:Country>
+            </b:Address>
+            <b:Fax/>
+            <b:WebSite>https://www.example.com</b:WebSite>
+            <b:Phone>+45 00 00 00 00</b:Phone>
+            <b:Email>info@example.com</b:Email>
+            <b:KAM>ABC</b:KAM>
+            <b:EAN/>
+            <b:IsOIOCustomer>false</b:IsOIOCustomer>
+            <b:CreditorID/>
+            <b:AccountNo/>
+            <b:Contacts>
+              <b:ContactHeader>
+                <b:GUID>9b2d7c41-5e6a-4f0b-8c3d-2a1e0f9d8c7b</b:GUID>
+                <b:FirstName>Anna</b:FirstName>
+                <b:LastName>Example</b:LastName>
+              </b:ContactHeader>
+            </b:Contacts>
+            <b:Industry>Consulting</b:Industry>
+            <b:Status>Customer</b:Status>
+            <b:VATNo>DK00000000</b:VATNo>
+            <b:Currency>DKK</b:Currency>
+            <b:PaymentTermId>0</b:PaymentTermId>
+            <b:InvoicingAddress>
+              <a:Address1/>
+              <a:Address2/>
+              <a:Address3/>
+              <a:ZipCode/>
+              <a:City/>
+              <a:State/>
+              <a:Country/>
+            </b:InvoicingAddress>
+            <b:InvoicingName/>
+            <b:UseInvoicingAddress>false</b:UseInvoicingAddress>
+            <b:CustomerSinceDate>2024-01-15T00:00:00</b:CustomerSinceDate>
+            <b:NickName/>
+            <b:OrganizationNumber/>
+            <b:KAM2/>
+            <b:Details>
+              <b:Status>
+                <b:ID>1</b:ID>
+                <b:Name>Customer</b:Name>
+                <b:Type>IsShownInCustomers</b:Type>
+              </b:Status>
+              <b:Industry>
+                <b:ID>3</b:ID>
+                <b:Branche>Consulting</b:Branche>
+              </b:Industry>
+              <b:Currency>
+                <a:ID>1</a:ID>
+                <a:Abbreviation>DKK</a:Abbreviation>
+                <a:Rate>100</a:Rate>
+                <a:RateDate>2026-10-01T00:00:00</a:RateDate>
+                <a:DescriptiveName>Danish krone</a:DescriptiveName>
+              </b:Currency>
+              <b:KAM>
+                <a:ID>12</a:ID>
+                <a:Initials>ABC</a:Initials>
+                <a:FullName>Alex Example</a:FullName>
+              </b:KAM>
+              <b:KAM2 i:nil="true"/>
+            </b:Details>
+          </b:Customer>
+        </a:Return>
+        <a:ReturnTypeDescription>Customer</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>true</a:IsReturnPaged>
+        <a:TotalPageCount>1</a:TotalPageCount>
+      </GetCustomersModifiedSincePagedResult>
+    </GetCustomersModifiedSincePagedResponse>
+  </s:Body>
+</s:Envelope>
+```
 
 ```xml
 HTTP/1.1 200 OK
@@ -288,7 +400,9 @@ Content-Type: text/xml; charset=utf-8
 
 </Response>
 
-Recorded from a real call. The `Request` block is shortened.
+<Callout kind="info">**Success** is an illustrative example: built from the service description (WSDL) in the same
+format as a real response, with made-up values. **Expired token** was recorded from a real call. In both, the
+`Request` block is shortened.</Callout>
 
 ## Errors
 

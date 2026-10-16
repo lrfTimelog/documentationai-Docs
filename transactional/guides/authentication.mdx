@@ -38,13 +38,13 @@ Always call the `…ServiceSecure.svc` endpoints over HTTPS.
 | SOAPAction | `GetTokenRequest` |
 | Content-Type | `text/xml; charset=utf-8` |
 
-<ParamField body="user" param-type="string" required="true">
+<ResponseField name="user" field-type="string" required="true">
 The TimeLog **user name** of the user the integration runs as. Not the initials.
-</ParamField>
+</ResponseField>
 
-<ParamField body="password" param-type="string" required="true">
+<ResponseField name="password" field-type="string" required="true">
 That user's TimeLog password.
-</ParamField>
+</ResponseField>
 
 <Request uid="trx-auth-gettoken-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
 
@@ -111,7 +111,46 @@ When the token stops working, 12 hours after it was issued.
 The signature of the token.
 </ResponseField>
 
-<Callout kind="alert">**Not yet documented.** No recorded GetToken response exists yet, so no example response is shown.</Callout>
+<Response uid="trx-auth-gettoken-res" show-lines="true" tabs={["HTTP 200 - success"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetTokenResponse xmlns="http://www.timelog.com/api/tlp/v1_2">
+      <GetTokenResult xmlns:a="http://www.timelog.com/api/tlp/v1_1"
+                      xmlns:b="http://www.timelog.com/api/tlp/v1_2"
+                      xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:SecurityToken>
+            <b:Initials>ABC</b:Initials>
+            <b:Expires>2026-10-16T22:30:00</b:Expires>
+            <b:Hash>EXAMPLEHASH0123456789abcdefEXAMPLE=</b:Hash>
+          </b:SecurityToken>
+        </a:Return>
+        <a:ReturnTypeDescription>SecurityToken</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0812455 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+      </GetTokenResult>
+    </GetTokenResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real
+response, with made-up values. The `Request` block is shortened.</Callout>
 
 ## Sending the token
 
