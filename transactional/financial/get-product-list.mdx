@@ -1,0 +1,234 @@
+---
+title: "GetProductList"
+description: "Financial service 1.4: Returns the account's product catalogue - all, active or inactive products - with cost and sales prices."
+---
+
+Returns the account's product catalogue - all, active or inactive products - with cost and sales prices.
+
+| | |
+|---|---|
+| Service | Financial 1.4 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc` |
+| SOAPAction | `http://www.timelog.com/api/tlp/v1_4/FinancialService/GetProductList` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | No |
+| Safe to retry | Yes |
+
+## How it works
+
+No paging. Each product costs two extra look-ups; if any product's currency or product number does not resolve, the WHOLE call fails.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="status" field-type="integer" required="true">
+ 
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<Request uid="trx-financial-getproductlist-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/api/tlp/v1_4/FinancialService/GetProductList"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:financial="http://www.timelog.com/api/tlp/v1_4"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <financial:GetProductList>
+      <financial:status>{status}</financial:status>
+      <financial:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </financial:token>
+    </financial:GetProductList>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/api/tlp/v1_4/FinancialService/GetProductList"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc"
+SOAP_ACTION = '"http://www.timelog.com/api/tlp/v1_4/FinancialService/GetProductList"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:financial="http://www.timelog.com/api/tlp/v1_4"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <financial:GetProductList>
+      <financial:status>{status}</financial:status>
+      <financial:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </financial:token>
+    </financial:GetProductList>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="Product[]">
+No product with that status: Return empty, ResponseState Success.
+
+<Expandable title="Product fields">
+
+<ResponseField name="CostCurrencyID" field-type="integer">
+Integer ID of the currency of CostPerUnit.
+</ResponseField>
+
+<ResponseField name="CostCurrencyISO" field-type="string">
+DKK) of CostCurrencyID, looked up per product. Ignored on input.
+</ResponseField>
+
+<ResponseField name="CostPerUnit" field-type="double">
+ 
+</ResponseField>
+
+<ResponseField name="GUID" field-type="guid">
+GUID of the product. Ignored on input.
+</ResponseField>
+
+<ResponseField name="IsActive" field-type="boolean">
+Whether the product is active. GetProductList's status parameter filters on it. Ignored on input.
+</ResponseField>
+
+<ResponseField name="LegalEntityID" field-type="integer">
+Integer ID of the legal entity the product is restricted to; -1 = available in every legal entity. The XML comment's '0 for all legal entities' does not match the stored default. Ignored on input.
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+Product name. GetProductList is ordered by it. Ignored on input.
+</ResponseField>
+
+<ResponseField name="ProductID" field-type="integer">
+Integer ID of the product.
+</ResponseField>
+
+<ResponseField name="ProductNumber" field-type="string">
+The accounting product number the product posts to, or '' when none is set. Ignored on input.
+</ResponseField>
+
+<ResponseField name="SalesPricePerUnit" field-type="double">
+Ignored on input. Its currency is not on the contract.
+</ResponseField>
+
+<ResponseField name="SupplierID" field-type="integer">
+Integer ID of the product's supplier. Ignored on input.
+</ResponseField>
+
+<ResponseField name="UnitType" field-type="integer">
+Ignored on input.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<Response uid="trx-financial-getproductlist-res" show-lines="true" tabs={["HTTP 200 - success"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetProductListResponse xmlns="http://www.timelog.com/api/tlp/v1_4">
+      <GetProductListResult xmlns:a="http://api.timelog.com"
+                            xmlns:b="http://schemas.datacontract.org/2004/07/TimeLog.TLP.API.Proxy.Financial.V1_4"
+                            xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:Product>
+            <b:CostCurrencyID>1001</b:CostCurrencyID>
+            <b:CostCurrencyISO>DKK</b:CostCurrencyISO>
+            <b:CostPerUnit>0</b:CostPerUnit>
+            <b:GUID>3f2504e0-4f89-41d3-9a0c-305000000001</b:GUID>
+            <b:IsActive>true</b:IsActive>
+            <b:LegalEntityID>1001</b:LegalEntityID>
+            <b:Name>Example </b:Name>
+            <b:ProductID>1001</b:ProductID>
+            <b:ProductNumber>1001</b:ProductNumber>
+            <b:SalesPricePerUnit>0</b:SalesPricePerUnit>
+            <b:SupplierID>1001</b:SupplierID>
+            <b:UnitType>0</b:UnitType>
+          </b:Product>
+        </a:Return>
+        <a:ReturnTypeDescription>Product</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </GetProductListResult>
+    </GetProductListResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Error | 40001 | Error during call on TimeLog.API, Message 'Unable to retrieve result from … with ID:\{currencyID\}' | Any returned product has a currency ID that is not a currency - the whole list is lost. | Send a valid CostCurrencyID; repair the product to restore GetProductList. |

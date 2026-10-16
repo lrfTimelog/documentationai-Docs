@@ -1,0 +1,281 @@
+---
+title: "CreateAllocations"
+description: "Project management service 1.8: Creates several allocations in one call - but reports every created allocation as a duplicate."
+---
+
+Creates several allocations in one call - but reports every created allocation as a duplicate.
+
+| | |
+|---|---|
+| Service | Project management 1.8 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc` |
+| SOAPAction | `CreateAllocationsRequest` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | Yes |
+| Safe to retry | No |
+
+## How it works
+
+For each Allocation in the list, in order: the task is loaded, the request values are mapped and the allocation is CREATED through the same path as CreateAllocation. So an all-Invalid response is the NORMAL successful outcome. External keys sent on the items are ignored.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="allocations" field-type="Allocation[]" required="true">
+The Allocation[] to send. Its fields are listed below.
+
+<Expandable title="Allocation fields">
+
+<ResponseField name="IsCustomFieldsLoaded" field-type="boolean">
+**Optional.** Set to `true` to save the `CustomFields` you send.
+</ResponseField>
+
+<ResponseField name="CustomFields" field-type="CustomField[]">
+**Optional.** Custom field values. Saved only when `IsCustomFieldsLoaded` is `true`.
+</ResponseField>
+
+<ResponseField name="IsExternalKeysLoaded" field-type="boolean">
+**Optional.** Set to `true` to save the `ExternalKeys` you send.
+</ResponseField>
+
+<ResponseField name="ExternalKeys" field-type="ExternalSystemContext[]">
+**Optional.** The record's IDs in other systems. Saved only when `IsExternalKeysLoaded` is `true`.
+</ResponseField>
+
+<ResponseField name="ID" field-type="guid">
+**Optional.**
+</ResponseField>
+
+<ResponseField name="TaskID" field-type="integer" required="true">
+Integer ID of the task the employee is allocated to.
+</ResponseField>
+
+<ResponseField name="HoursAllocated" field-type="double">
+**Optional.** Planned hours for the employee on the task. 0 = no budget.
+</ResponseField>
+
+<ResponseField name="HourlyRateID" field-type="integer">
+**Optional.** ID of the contract hourly rate that prices this employee's time on the task. The rate AMOUNT is not returned.
+</ResponseField>
+
+<ResponseField name="EmployeeID" field-type="integer" required="true">
+Integer ID of the allocated employee.
+</ResponseField>
+
+<ResponseField name="StartDate" field-type="dateTime">
+**Optional.** First day of the allocation.
+</ResponseField>
+
+<ResponseField name="EndDate" field-type="dateTime">
+**Optional.** Last day of the allocation.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<Request uid="trx-projectmanagement-createallocations-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "CreateAllocationsRequest"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:pm="http://www.timelog.com/api/tlp/v1_8"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3"
+                  xmlns:tlp="http://www.timelog.com/api/tlp/v1_7">
+  <soapenv:Body>
+    <pm:CreateAllocations>
+      <pm:allocations>
+        <tlp:Allocation>
+          <tlp:TaskID>{TaskID}</tlp:TaskID>
+          <tlp:EmployeeID>{EmployeeID}</tlp:EmployeeID>
+          <!-- more fields: see Parameters -->
+        </tlp:Allocation>
+      </pm:allocations>
+      <pm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </pm:token>
+    </pm:CreateAllocations>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "CreateAllocationsRequest"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc"
+SOAP_ACTION = '"CreateAllocationsRequest"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:pm="http://www.timelog.com/api/tlp/v1_8"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3"
+                  xmlns:tlp="http://www.timelog.com/api/tlp/v1_7">
+  <soapenv:Body>
+    <pm:CreateAllocations>
+      <pm:allocations>
+        <tlp:Allocation>
+          <tlp:TaskID>{TaskID}</tlp:TaskID>
+          <tlp:EmployeeID>{EmployeeID}</tlp:EmployeeID>
+          <!-- more fields: see Parameters -->
+        </tlp:Allocation>
+      </pm:allocations>
+      <pm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </pm:token>
+    </pm:CreateAllocations>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="BatchContainerOfAllocation[]">
+'Successfully called' message on the envelope. allocations omitted / empty: Success, empty Return.
+
+<Expandable title="BatchContainerOfAllocation fields">
+
+<ResponseField name="Item" field-type="Allocation">
+ 
+</ResponseField>
+
+<ResponseField name="Status" field-type="string">
+Allowed values: `NotSet`, `Success`, `Invalid`, `Error`.
+</ResponseField>
+
+<ResponseField name="Message" field-type="string">
+ 
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<Response uid="trx-projectmanagement-createallocations-res" show-lines="true" tabs={["HTTP 200 - success"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <CreateAllocationsResponse xmlns="http://www.timelog.com/api/tlp/v1_8">
+      <CreateAllocationsResult xmlns:a="http://www.timelog.com/api/tlp/v1_2"
+                               xmlns:b="http://api.timelog.com"
+                               xmlns:c="http://www.timelog.com/api/tlp/v1_7"
+                               xmlns:d="http://www.timelog.com/api/tlp/v1_5"
+                               xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <a:BatchContainerOfAllocation>
+            <a:Item>
+              <b:Action>Original</b:Action>
+              <b:IsCustomFieldsLoaded>false</b:IsCustomFieldsLoaded>
+              <b:CustomFields i:nil="true"/>
+              <b:IsExternalKeysLoaded>false</b:IsExternalKeysLoaded>
+              <b:ExternalKeys i:nil="true"/>
+              <c:AllocationID>1001</c:AllocationID>
+              <c:ID>3f2504e0-4f89-41d3-9a0c-305000000001</c:ID>
+              <c:TaskID>1001</c:TaskID>
+              <c:HoursAllocated>0</c:HoursAllocated>
+              <c:HourlyRateID>1001</c:HourlyRateID>
+              <c:EmployeeID>1001</c:EmployeeID>
+              <c:StartDate>2026-10-01T00:00:00</c:StartDate>
+              <c:EndDate>2026-10-01T00:00:00</c:EndDate>
+              <c:Details>
+                <c:EmployeeHeader>
+                  <d:ID>3f2504e0-4f89-41d3-9a0c-305000000002</d:ID>
+                  <d:EmployeeID>1001</d:EmployeeID>
+                  <d:Initials>ABC</d:Initials>
+                  <d:FirstName>Example first</d:FirstName>
+                  <d:LastName>Example last</d:LastName>
+                  <d:EmployeeNo>1001</d:EmployeeNo>
+                  <d:Fullname>Example</d:Fullname>
+                </c:EmployeeHeader>
+              </c:Details>
+            </a:Item>
+            <a:Status>Success</a:Status>
+            <a:Message>Example</a:Message>
+          </a:BatchContainerOfAllocation>
+        </a:Return>
+        <a:ReturnTypeDescription>BatchContainerOfAllocation</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <b:APIMessage>
+            <b:Message>Duration of call was 0,0421337 sec.</b:Message>
+            <b:Severity>Message</b:Severity>
+            <b:ErrorCode>0</b:ErrorCode>
+          </b:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </CreateAllocationsResult>
+    </CreateAllocationsResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Error | 30008 | Server unable to create allocation, Task and Employee relationship already exists on allocation:  | First pass: an item's employee is already on its task - the call aborts, earlier items stay created. | Treat as 'already allocated': read the allocation and update it instead. |
+| Error | 30009 | Unable to validate allocation for creation: Allocation is associated with parent task. | First pass: parent task - call aborts. | Allocate the employee to a sub-task. |
+| Error | 37808 | Allocation cannot be added to cancelled or completed task. | First pass: completed / cancelled task - call aborts. | Reopen the task or choose another task. |
+| Error | — | — | Large batch inserts are the realistic trigger. | Split the batch into smaller requests. |

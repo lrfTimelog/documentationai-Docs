@@ -371,18 +371,719 @@
             "icon": "boxes",
             "groups": [
               {
+                "group": "Security 1.2",
+                "icon": "shield",
+                "pages": [
+                  {
+                    "group": "Authentication",
+                    "icon": "key-round",
+                    "expandable": true,
+                    "pages": [
+                      {
+                        "title": "GetTimeRegistrationSettings",
+                        "path": "transactional/security/get-time-registration-settings",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetToken",
+                        "path": "transactional/security/get-token",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetUser",
+                        "path": "transactional/security/get-user",
+                        "icon": "file-search"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
                 "group": "CRM 1.4",
                 "icon": "users",
                 "pages": [
+                  {
+                    "group": "Contacts",
+                    "icon": "contact",
+                    "expandable": true,
+                    "pages": [
+                      {
+                        "title": "GetContactByGUID",
+                        "path": "transactional/crm/get-contact-by-guid",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetContactsByCustomerPaged",
+                        "path": "transactional/crm/get-contacts-by-customer-paged",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetContactsModifiedSincePaged",
+                        "path": "transactional/crm/get-contacts-modified-since-paged",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "InsertContact",
+                        "path": "transactional/crm/insert-contact",
+                        "icon": "pencil"
+                      }
+                    ]
+                  },
                   {
                     "group": "Customers",
                     "icon": "building-2",
                     "expandable": true,
                     "pages": [
                       {
+                        "title": "GetCustomerByExternalKey",
+                        "path": "transactional/crm/get-customer-by-external-key",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetCustomerByGUID",
+                        "path": "transactional/crm/get-customer-by-guid",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetCustomerByID",
+                        "path": "transactional/crm/get-customer-by-id",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetCustomersByFieldsForLinking",
+                        "path": "transactional/crm/get-customers-by-fields-for-linking",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetCustomersByFieldsPaged",
+                        "path": "transactional/crm/get-customers-by-fields-paged",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetCustomersByNamePaged",
+                        "path": "transactional/crm/get-customers-by-name-paged",
+                        "icon": "file-search"
+                      },
+                      {
                         "title": "GetCustomersModifiedSincePaged",
                         "path": "transactional/crm/get-customers-modified-since-paged",
-                        "icon": "refresh-cw"
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetCustomerStatuses",
+                        "path": "transactional/crm/get-customer-statuses",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "InsertCustomer",
+                        "path": "transactional/crm/insert-customer",
+                        "icon": "pencil"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Expenses 1.0",
+                "icon": "receipt",
+                "pages": [
+                  {
+                    "group": "Expenses",
+                    "icon": "receipt",
+                    "expandable": true,
+                    "pages": [
+                      {
+                        "title": "GetExpensesByEmployee",
+                        "path": "transactional/expenses/get-expenses-by-employee",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetExpenseTypes",
+                        "path": "transactional/expenses/get-expense-types",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetPaymentMethods",
+                        "path": "transactional/expenses/get-payment-methods",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "InsertExpense",
+                        "path": "transactional/expenses/insert-expense",
+                        "icon": "pencil"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Financial 1.4",
+                "icon": "landmark",
+                "pages": [
+                  {
+                    "group": "Legal entities",
+                    "icon": "building",
+                    "expandable": true,
+                    "pages": [
+                      {
+                        "title": "GetLegalEntities",
+                        "path": "transactional/financial/get-legal-entities",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetLegalEntitiesByName",
+                        "path": "transactional/financial/get-legal-entities-by-name",
+                        "icon": "file-search"
+                      }
+                    ]
+                  },
+                  {
+                    "group": "Contracts and payments",
+                    "icon": "file-signature",
+                    "expandable": true,
+                    "pages": [
+                      {
+                        "title": "GetContractList",
+                        "path": "transactional/financial/get-contract-list",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetPaymentList",
+                        "path": "transactional/financial/get-payment-list",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "UpdatePaymentQuantity",
+                        "path": "transactional/financial/update-payment-quantity",
+                        "icon": "pencil"
+                      }
+                    ]
+                  },
+                  {
+                    "group": "Products",
+                    "icon": "package",
+                    "expandable": true,
+                    "pages": [
+                      {
+                        "title": "GetProductList",
+                        "path": "transactional/financial/get-product-list",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetProductNumbers",
+                        "path": "transactional/financial/get-product-numbers",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetRecurringProductSaleList",
+                        "path": "transactional/financial/get-recurring-product-sale-list",
+                        "icon": "file-search"
+                      }
+                    ]
+                  },
+                  {
+                    "group": "Prices and rates",
+                    "icon": "tag",
+                    "expandable": true,
+                    "pages": [
+                      {
+                        "title": "CreateCustomerPriceList",
+                        "path": "transactional/financial/create-customer-price-list",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "GetEmployeeCostRates",
+                        "path": "transactional/financial/get-employee-cost-rates",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetNewCustomerHourlyRates",
+                        "path": "transactional/financial/get-new-customer-hourly-rates",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetNewStandardHourlyRates",
+                        "path": "transactional/financial/get-new-standard-hourly-rates",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetPriceGroups",
+                        "path": "transactional/financial/get-price-groups",
+                        "icon": "file-search"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Invoicing 1.1",
+                "icon": "file-text",
+                "pages": [
+                  {
+                    "group": "Credit notes",
+                    "icon": "file-minus",
+                    "expandable": true,
+                    "pages": [
+                      {
+                        "title": "GetCreditNoteByGUID",
+                        "path": "transactional/invoicing/get-credit-note-by-guid",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetCreditNoteByID",
+                        "path": "transactional/invoicing/get-credit-note-by-id",
+                        "icon": "file-search"
+                      }
+                    ]
+                  },
+                  {
+                    "group": "Invoices",
+                    "icon": "file-text",
+                    "expandable": true,
+                    "pages": [
+                      {
+                        "title": "GetInvoiceByExternalKey",
+                        "path": "transactional/invoicing/get-invoice-by-external-key",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetInvoiceByGUID",
+                        "path": "transactional/invoicing/get-invoice-by-guid",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetInvoiceByID",
+                        "path": "transactional/invoicing/get-invoice-by-id",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetInvoiceSpecificationPDF",
+                        "path": "transactional/invoicing/get-invoice-specification-pdf",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "MarkInvoiceAsChecked",
+                        "path": "transactional/invoicing/mark-invoice-as-checked",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "UpdateExternalData",
+                        "path": "transactional/invoicing/update-external-data",
+                        "icon": "pencil"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Organisation 1.9",
+                "icon": "network",
+                "pages": [
+                  {
+                    "group": "Licences",
+                    "icon": "badge-check",
+                    "expandable": true,
+                    "pages": [
+                      {
+                        "title": "AssignAdvancedLicenseTypeToEmployee",
+                        "path": "transactional/organisation/assign-advanced-license-type-to-employee",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "AssignExternalLicenseTypeToEmployee",
+                        "path": "transactional/organisation/assign-external-license-type-to-employee",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "AssignStandardLicenseTypeToEmployee",
+                        "path": "transactional/organisation/assign-standard-license-type-to-employee",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "AssignTimeExpenseLicenseTypeToEmployee",
+                        "path": "transactional/organisation/assign-time-expense-license-type-to-employee",
+                        "icon": "pencil"
+                      }
+                    ]
+                  },
+                  {
+                    "group": "Roles and modules",
+                    "icon": "shield-check",
+                    "expandable": true,
+                    "pages": [
+                      {
+                        "title": "AddModuleToEmployee",
+                        "path": "transactional/organisation/add-module-to-employee",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "AddRoleToEmployeeByGuid",
+                        "path": "transactional/organisation/add-role-to-employee-by-guid",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "AddRoleToEmployeeByName",
+                        "path": "transactional/organisation/add-role-to-employee-by-name",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "GetEmployeeRoles",
+                        "path": "transactional/organisation/get-employee-roles",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetModules",
+                        "path": "transactional/organisation/get-modules",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetRoles",
+                        "path": "transactional/organisation/get-roles",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "RemoveModuleFromEmployee",
+                        "path": "transactional/organisation/remove-module-from-employee",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "RemoveRoleFromEmployeeByGuid",
+                        "path": "transactional/organisation/remove-role-from-employee-by-guid",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "RemoveRoleFromEmployeeByName",
+                        "path": "transactional/organisation/remove-role-from-employee-by-name",
+                        "icon": "pencil"
+                      }
+                    ]
+                  },
+                  {
+                    "group": "Departments",
+                    "icon": "folder-tree",
+                    "expandable": true,
+                    "pages": [
+                      {
+                        "title": "ChangeEmployeeDepartment",
+                        "path": "transactional/organisation/change-employee-department",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "CreateDepartment",
+                        "path": "transactional/organisation/create-department",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "DeactivateDepartment",
+                        "path": "transactional/organisation/deactivate-department",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "GetDepartmentByNo",
+                        "path": "transactional/organisation/get-department-by-no",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetDepartments",
+                        "path": "transactional/organisation/get-departments",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "UpdateDepartment",
+                        "path": "transactional/organisation/update-department",
+                        "icon": "pencil"
+                      }
+                    ]
+                  },
+                  {
+                    "group": "Employees",
+                    "icon": "user",
+                    "expandable": true,
+                    "pages": [
+                      {
+                        "title": "ActivateEmployee",
+                        "path": "transactional/organisation/activate-employee",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "CreateEmployee",
+                        "path": "transactional/organisation/create-employee",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "CreateEmployeeNotification",
+                        "path": "transactional/organisation/create-employee-notification",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "DeactivateEmployee",
+                        "path": "transactional/organisation/deactivate-employee",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "GetEmployeeByUsername",
+                        "path": "transactional/organisation/get-employee-by-username",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetEmployeesPaged",
+                        "path": "transactional/organisation/get-employees-paged",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "UpdateEmployee",
+                        "path": "transactional/organisation/update-employee",
+                        "icon": "pencil"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Project management 1.8",
+                "icon": "kanban",
+                "pages": [
+                  {
+                    "group": "Allocations",
+                    "icon": "calendar-range",
+                    "expandable": true,
+                    "pages": [
+                      {
+                        "title": "CreateAllocation",
+                        "path": "transactional/projectmanagement/create-allocation",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "CreateAllocations",
+                        "path": "transactional/projectmanagement/create-allocations",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "DeleteAllocation",
+                        "path": "transactional/projectmanagement/delete-allocation",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "GetAllocationByExternalKey",
+                        "path": "transactional/projectmanagement/get-allocation-by-external-key",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetAllocationsToEmployee",
+                        "path": "transactional/projectmanagement/get-allocations-to-employee",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "SetAllocationStatus",
+                        "path": "transactional/projectmanagement/set-allocation-status",
+                        "icon": "pencil"
+                      }
+                    ]
+                  },
+                  {
+                    "group": "Time registrations",
+                    "icon": "clock",
+                    "expandable": true,
+                    "pages": [
+                      {
+                        "title": "GetEmployeeWork",
+                        "path": "transactional/projectmanagement/get-employee-work",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetWorkPaged",
+                        "path": "transactional/projectmanagement/get-work-paged",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetWorkPagedWithExternalIds",
+                        "path": "transactional/projectmanagement/get-work-paged-with-external-ids",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "InsertWork",
+                        "path": "transactional/projectmanagement/insert-work",
+                        "icon": "pencil"
+                      }
+                    ]
+                  },
+                  {
+                    "group": "Tasks",
+                    "icon": "list-checks",
+                    "expandable": true,
+                    "pages": [
+                      {
+                        "title": "AddEmployeeToTask",
+                        "path": "transactional/projectmanagement/add-employee-to-task",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "ChangeTaskContract",
+                        "path": "transactional/projectmanagement/change-task-contract",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "CreateSubTask",
+                        "path": "transactional/projectmanagement/create-sub-task",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "CreateTask",
+                        "path": "transactional/projectmanagement/create-task",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "DeleteTask",
+                        "path": "transactional/projectmanagement/delete-task",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "GetProjectTasksPaged",
+                        "path": "transactional/projectmanagement/get-project-tasks-paged",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetTaskByExternalKey",
+                        "path": "transactional/projectmanagement/get-task-by-external-key",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetTaskByID",
+                        "path": "transactional/projectmanagement/get-task-by-id",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetTaskByTaskNo",
+                        "path": "transactional/projectmanagement/get-task-by-task-no",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetTasksAllocatedToEmployee",
+                        "path": "transactional/projectmanagement/get-tasks-allocated-to-employee",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetTasksByProjectId",
+                        "path": "transactional/projectmanagement/get-tasks-by-project-id",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetTasksBySearchText",
+                        "path": "transactional/projectmanagement/get-tasks-by-search-text",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "MoveTaskUnderParentTask",
+                        "path": "transactional/projectmanagement/move-task-under-parent-task",
+                        "icon": "pencil"
+                      }
+                    ]
+                  },
+                  {
+                    "group": "Projects",
+                    "icon": "folder-kanban",
+                    "expandable": true,
+                    "pages": [
+                      {
+                        "title": "CreateProject",
+                        "path": "transactional/projectmanagement/create-project",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "CreateProjectFromTemplate",
+                        "path": "transactional/projectmanagement/create-project-from-template",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "DeleteProject",
+                        "path": "transactional/projectmanagement/delete-project",
+                        "icon": "pencil"
+                      },
+                      {
+                        "title": "GetProjectByExternalKey",
+                        "path": "transactional/projectmanagement/get-project-by-external-key",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetProjectByID",
+                        "path": "transactional/projectmanagement/get-project-by-id",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetProjects",
+                        "path": "transactional/projectmanagement/get-projects",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetProjectsByCustomer",
+                        "path": "transactional/projectmanagement/get-projects-by-customer",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "ProjectChangeStatus",
+                        "path": "transactional/projectmanagement/project-change-status",
+                        "icon": "pencil"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Salary 1.1",
+                "icon": "wallet",
+                "pages": [
+                  {
+                    "group": "Salary settings",
+                    "icon": "wallet",
+                    "expandable": true,
+                    "pages": [
+                      {
+                        "title": "GetAllAbsenceCodes",
+                        "path": "transactional/salary/get-all-absence-codes",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetAllowances",
+                        "path": "transactional/salary/get-allowances",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetAllSalaryCodes",
+                        "path": "transactional/salary/get-all-salary-codes",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetHolidayCalendars",
+                        "path": "transactional/salary/get-holiday-calendars",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetNormalWorkweeks",
+                        "path": "transactional/salary/get-normal-workweeks",
+                        "icon": "file-search"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Transaction 1.0",
+                "icon": "arrow-left-right",
+                "pages": [
+                  {
+                    "group": "Transactions",
+                    "icon": "arrow-left-right",
+                    "expandable": true,
+                    "pages": [
+                      {
+                        "title": "GetLatestTransaction",
+                        "path": "transactional/transaction/get-latest-transaction",
+                        "icon": "file-search"
+                      },
+                      {
+                        "title": "GetTransactions",
+                        "path": "transactional/transaction/get-transactions",
+                        "icon": "file-search"
                       }
                     ]
                   }

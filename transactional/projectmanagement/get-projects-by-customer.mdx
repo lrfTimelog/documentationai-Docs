@@ -1,0 +1,229 @@
+---
+title: "GetProjectsByCustomer"
+description: "Project management service 1.8: Lists the project headers of one customer, filtered by status and active flag."
+---
+
+Lists the project headers of one customer, filtered by status and active flag.
+
+| | |
+|---|---|
+| Service | Project management 1.8 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc` |
+| SOAPAction | `GetProjectsByCustomerRequest` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | No |
+| Safe to retry | Yes |
+
+## How it works
+
+Resolves the customer GUID to its integer ID and runs the same project search as GetProjects with only the customer, status and active filters.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="customerGuid" field-type="guid" required="true">
+GUID of the customer. Unknown -> error.
+
+</ResponseField>
+
+<ResponseField name="projectStatusID" field-type="integer">
+**Optional.** Default 0 = Quote ONLY; -1 = all statuses. Only projects in this status.
+
+</ResponseField>
+
+<ResponseField name="includeInactiveProjects" field-type="boolean">
+**Optional.** Default false = active projects only. true = active and inactive projects.
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<Request uid="trx-projectmanagement-getprojectsbycustomer-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "GetProjectsByCustomerRequest"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:pm="http://www.timelog.com/api/tlp/v1_8"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <pm:GetProjectsByCustomer>
+      <pm:customerGuid>{customerGuid}</pm:customerGuid>
+      <pm:projectStatusID>{projectStatusID}</pm:projectStatusID>
+      <pm:includeInactiveProjects>false</pm:includeInactiveProjects>
+      <pm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </pm:token>
+    </pm:GetProjectsByCustomer>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "GetProjectsByCustomerRequest"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc"
+SOAP_ACTION = '"GetProjectsByCustomerRequest"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:pm="http://www.timelog.com/api/tlp/v1_8"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <pm:GetProjectsByCustomer>
+      <pm:customerGuid>{customerGuid}</pm:customerGuid>
+      <pm:projectStatusID>{projectStatusID}</pm:projectStatusID>
+      <pm:includeInactiveProjects>false</pm:includeInactiveProjects>
+      <pm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </pm:token>
+    </pm:GetProjectsByCustomer>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="ProjectHeader[]">
+Response&lt;ProjectHeader>, one header per project. IsReturnPaged true, TotalPageCount -1. Success with an empty Return.
+
+<Expandable title="ProjectHeader fields">
+
+<ResponseField name="ID" field-type="integer">
+The project's integer ID.
+</ResponseField>
+
+<ResponseField name="ProjectGUID" field-type="guid">
+ 
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+The project's name.
+</ResponseField>
+
+<ResponseField name="No" field-type="string">
+ 
+</ResponseField>
+
+<ResponseField name="IsActive" field-type="boolean">
+true when the project is active.
+</ResponseField>
+
+<ResponseField name="IsGeneralProject" field-type="boolean">
+true for a 'general' project.
+</ResponseField>
+
+<ResponseField name="StartDate" field-type="dateTime">
+Project start date. A project without a start date is returned as 0001-01-01T00:00:00.
+</ResponseField>
+
+<ResponseField name="EndDate" field-type="dateTime">
+The project's CONTRACT end date. Without one it is returned as 9999-12-31T23:59:59.9999999.
+</ResponseField>
+
+<ResponseField name="MainContractID" field-type="integer">
+ 
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<Response uid="trx-projectmanagement-getprojectsbycustomer-res" show-lines="true" tabs={["HTTP 200 - success"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetProjectsByCustomerResponse xmlns="http://www.timelog.com/api/tlp/v1_8">
+      <GetProjectsByCustomerResult xmlns:a="http://api.timelog.com"
+                                   xmlns:b="http://www.timelog.com/api/tlp/v1_7"
+                                   xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:ProjectHeader>
+            <b:ID>1001</b:ID>
+            <b:ProjectGUID>3f2504e0-4f89-41d3-9a0c-305000000001</b:ProjectGUID>
+            <b:Name>Example </b:Name>
+            <b:No>1001</b:No>
+            <b:IsActive>true</b:IsActive>
+            <b:IsGeneralProject>false</b:IsGeneralProject>
+            <b:StartDate>2026-10-01T00:00:00</b:StartDate>
+            <b:EndDate>2026-10-01T00:00:00</b:EndDate>
+            <b:MainContractID>1001</b:MainContractID>
+          </b:ProjectHeader>
+        </a:Return>
+        <a:ReturnTypeDescription>ProjectHeader</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </GetProjectsByCustomerResult>
+    </GetProjectsByCustomerResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+This operation has no errors of its own beyond the shared ones.

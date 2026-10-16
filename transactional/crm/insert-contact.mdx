@@ -1,0 +1,417 @@
+---
+title: "InsertContact"
+description: "CRM service 1.4: Creates a contact person on a customer and returns it as stored."
+---
+
+Creates a contact person on a customer and returns it as stored.
+
+| | |
+|---|---|
+| Service | CRM 1.4 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/CRM/V1_4/CRMServiceSecure.svc` |
+| SOAPAction | `http://api.timelog.com/services/crm/1_4/ICRMService/InsertContact` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Permissions | Customer privilege 'all customers': may create contacts on any customer. |
+| Changes data | Yes |
+| Safe to retry | Depends on the call |
+
+## How it works
+
+Creates a contact on the customer given by Contact.CustomerGUID. Firstname, Lastname, Address.Country and CustomerGUID are required. On success Return[0] is the stored contact and ResponseState is Success. Custom fields and external keys sent with the contact are saved too. Validation and privilege failures come back as ResponseState Invalid with the reason in Messages and - unusually - the contact you sent in Return[0]: check ResponseState, not Return, to know whether anything was created. Retry safety: supply your own GUID.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="contact" field-type="Contact" required="true">
+The Contact to send. Its fields are listed below.
+
+<Expandable title="Contact fields">
+
+<ResponseField name="IsCustomFieldsLoaded" field-type="boolean">
+**Optional.** Set to `true` to save the `CustomFields` you send.
+</ResponseField>
+
+<ResponseField name="CustomFields" field-type="CustomField[]">
+**Optional.** Custom field values. Saved only when `IsCustomFieldsLoaded` is `true`.
+</ResponseField>
+
+<ResponseField name="IsExternalKeysLoaded" field-type="boolean">
+**Optional.** Set to `true` to save the `ExternalKeys` you send.
+</ResponseField>
+
+<ResponseField name="ExternalKeys" field-type="ExternalSystemContext[]">
+**Optional.** The record's IDs in other systems. Saved only when `IsExternalKeysLoaded` is `true`.
+</ResponseField>
+
+<ResponseField name="GUID" field-type="guid">
+**Optional.** The contact's stable identifier - the key every contact operation uses. On insert: leave empty and the server generates one, or supply your own GUID and the contact is created with it. On update: identifies the contact to change.
+</ResponseField>
+
+<ResponseField name="Firstname" field-type="string" required="true">
+First name. Required on every write.
+</ResponseField>
+
+<ResponseField name="Lastname" field-type="string" required="true">
+Last name. Required on every write.
+</ResponseField>
+
+<ResponseField name="Email" field-type="string">
+**Optional.** E-mail address. Not validated for format.
+</ResponseField>
+
+<ResponseField name="Mobile" field-type="string">
+**Optional.** Mobile phone number, free text.
+</ResponseField>
+
+<ResponseField name="Phone" field-type="string">
+**Optional.** Work phone number, free text.
+</ResponseField>
+
+<ResponseField name="Fax" field-type="string">
+**Optional.** Fax number, free text.
+</ResponseField>
+
+<ResponseField name="Address" field-type="Address" required="true">
+Postal address. Required on writes because Address.Country is required.
+</ResponseField>
+
+<ResponseField name="Comment" field-type="string">
+**Optional.** Free-text note on the contact.
+</ResponseField>
+
+<ResponseField name="Title" field-type="string">
+**Optional.** Job title at the customer.
+</ResponseField>
+
+<ResponseField name="CustomerGUID" field-type="guid" required="true">
+The customer the contact belongs to. Required on writes; must be an existing customer. An update with another customer's GUID MOVES the contact to that customer.
+</ResponseField>
+
+<ResponseField name="DefaultInvoiceSettingContactID" field-type="integer">
+**Optional.** Read: the integer ContactID of the CUSTOMER's default invoice contact. Write: a value > 0 that is an existing contact ID makes that contact the customer's default invoice contact; 0 or an unknown ID leaves the setting unchanged.
+</ResponseField>
+
+<ResponseField name="ProfessionalTitle1" field-type="string">
+**Optional.** First professional title. V1_4 only.
+</ResponseField>
+
+<ResponseField name="ProfessionalTitle2" field-type="string">
+**Optional.** Second professional title. V1_4 only.
+</ResponseField>
+
+<ResponseField name="Details" field-type="ContactDetails">
+**Optional.** Owner and CustomerHeader. See ContactDetails.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+<ResponseField name="source" field-type="integer">
+**Optional.** Default `0`. Not used by the insert path.
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<Request uid="trx-crm-insertcontact-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/WebServices/CRM/V1_4/CRMServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://api.timelog.com/services/crm/1_4/ICRMService/InsertContact"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:crm="http://api.timelog.com/services/crm/1_4"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3"
+                  xmlns:api="http://api.timelog.com">
+  <soapenv:Body>
+    <crm:InsertContact>
+      <crm:contact>
+        <crm:Firstname>{Firstname}</crm:Firstname>
+        <crm:Lastname>{Lastname}</crm:Lastname>
+        <crm:Address>
+          <api:Country>{Country}</api:Country>
+          <!-- more fields: see Parameters -->
+        </crm:Address>
+        <crm:CustomerGUID>{CustomerGUID}</crm:CustomerGUID>
+        <!-- more fields: see Parameters -->
+      </crm:contact>
+      <crm:source>0</crm:source>
+      <crm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </crm:token>
+    </crm:InsertContact>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/CRM/V1_4/CRMServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://api.timelog.com/services/crm/1_4/ICRMService/InsertContact"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/CRM/V1_4/CRMServiceSecure.svc"
+SOAP_ACTION = '"http://api.timelog.com/services/crm/1_4/ICRMService/InsertContact"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:crm="http://api.timelog.com/services/crm/1_4"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3"
+                  xmlns:api="http://api.timelog.com">
+  <soapenv:Body>
+    <crm:InsertContact>
+      <crm:contact>
+        <crm:Firstname>{Firstname}</crm:Firstname>
+        <crm:Lastname>{Lastname}</crm:Lastname>
+        <crm:Address>
+          <api:Country>{Country}</api:Country>
+          <!-- more fields: see Parameters -->
+        </crm:Address>
+        <crm:CustomerGUID>{CustomerGUID}</crm:CustomerGUID>
+        <!-- more fields: see Parameters -->
+      </crm:contact>
+      <crm:source>0</crm:source>
+      <crm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </crm:token>
+    </crm:InsertContact>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="Contact[]">
+Response&lt;Contact>: Return[0] = the stored contact; 'Successfully called' message.
+
+<Expandable title="Contact fields">
+
+<ResponseField name="Action" field-type="string">
+Allowed values: `Original`, `Created`, `Updated`, `Deleted`, `Copied`, `Undefined`.
+</ResponseField>
+
+<ResponseField name="IsCustomFieldsLoaded" field-type="boolean">
+`true` when `CustomFields` is filled.
+</ResponseField>
+
+<ResponseField name="CustomFields" field-type="CustomField[]">
+Custom field values.
+</ResponseField>
+
+<ResponseField name="IsExternalKeysLoaded" field-type="boolean">
+`true` when `ExternalKeys` is filled.
+</ResponseField>
+
+<ResponseField name="ExternalKeys" field-type="ExternalSystemContext[]">
+The record's IDs in other systems.
+</ResponseField>
+
+<ResponseField name="GUID" field-type="guid">
+The contact's stable identifier - the key every contact operation uses. On insert: leave empty and the server generates one, or supply your own GUID and the contact is created with it. On update: identifies the contact to change.
+</ResponseField>
+
+<ResponseField name="Firstname" field-type="string">
+First name. Required on every write.
+</ResponseField>
+
+<ResponseField name="Lastname" field-type="string">
+Last name. Required on every write.
+</ResponseField>
+
+<ResponseField name="Email" field-type="string">
+E-mail address. Not validated for format.
+</ResponseField>
+
+<ResponseField name="Mobile" field-type="string">
+Mobile phone number, free text.
+</ResponseField>
+
+<ResponseField name="Phone" field-type="string">
+Work phone number, free text.
+</ResponseField>
+
+<ResponseField name="Fax" field-type="string">
+Fax number, free text.
+</ResponseField>
+
+<ResponseField name="Address" field-type="Address">
+Postal address. Required on writes because Address.Country is required.
+</ResponseField>
+
+<ResponseField name="Comment" field-type="string">
+Free-text note on the contact.
+</ResponseField>
+
+<ResponseField name="Title" field-type="string">
+Job title at the customer.
+</ResponseField>
+
+<ResponseField name="CustomerGUID" field-type="guid">
+The customer the contact belongs to. Required on writes; must be an existing customer. An update with another customer's GUID MOVES the contact to that customer.
+</ResponseField>
+
+<ResponseField name="ContactID" field-type="integer">
+The contact's integer ID.
+</ResponseField>
+
+<ResponseField name="DefaultInvoiceSettingContactID" field-type="integer">
+Read: the integer ContactID of the CUSTOMER's default invoice contact. Write: a value > 0 that is an existing contact ID makes that contact the customer's default invoice contact; 0 or an unknown ID leaves the setting unchanged.
+</ResponseField>
+
+<ResponseField name="IsActive" field-type="boolean">
+Whether the contact is active. Inactive contacts are hidden from most lists.
+</ResponseField>
+
+<ResponseField name="ProfessionalTitle1" field-type="string">
+First professional title. V1_4 only.
+</ResponseField>
+
+<ResponseField name="ProfessionalTitle2" field-type="string">
+Second professional title. V1_4 only.
+</ResponseField>
+
+<ResponseField name="Details" field-type="ContactDetails">
+Owner and CustomerHeader. See ContactDetails.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<Response uid="trx-crm-insertcontact-res" show-lines="true" tabs={["HTTP 200 - success"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <InsertContactResponse xmlns="http://api.timelog.com/services/crm/1_4">
+      <InsertContactResult xmlns:a="http://api.timelog.com"
+                           xmlns:b="http://api.timelog.com/services/crm/1_4"
+                           xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:Contact>
+            <a:Action>Original</a:Action>
+            <a:IsCustomFieldsLoaded>false</a:IsCustomFieldsLoaded>
+            <a:CustomFields i:nil="true"/>
+            <a:IsExternalKeysLoaded>false</a:IsExternalKeysLoaded>
+            <a:ExternalKeys i:nil="true"/>
+            <b:GUID>3f2504e0-4f89-41d3-9a0c-305000000001</b:GUID>
+            <b:Firstname>Example</b:Firstname>
+            <b:Lastname>Example</b:Lastname>
+            <b:Email>info@example.com</b:Email>
+            <b:Mobile>+45 00 00 00 00</b:Mobile>
+            <b:Phone>+45 00 00 00 00</b:Phone>
+            <b:Fax>+45 00 00 00 00</b:Fax>
+            <b:Address>
+              <a:Address1>Example</a:Address1>
+              <a:Address2>Example</a:Address2>
+              <a:Address3>Example</a:Address3>
+              <a:ZipCode>1000</a:ZipCode>
+              <a:City>Copenhagen</a:City>
+              <a:State>Example</a:State>
+              <a:Country>DK</a:Country>
+            </b:Address>
+            <b:Comment>Example</b:Comment>
+            <b:Title>Example</b:Title>
+            <b:CustomerGUID>3f2504e0-4f89-41d3-9a0c-305000000002</b:CustomerGUID>
+            <b:ContactID>1001</b:ContactID>
+            <b:DefaultInvoiceSettingContactID>1001</b:DefaultInvoiceSettingContactID>
+            <b:IsActive>true</b:IsActive>
+            <b:ProfessionalTitle1>Example</b:ProfessionalTitle1>
+            <b:ProfessionalTitle2>Example</b:ProfessionalTitle2>
+            <b:Details>
+              <b:Owner>
+                <a:ID>1001</a:ID>
+                <a:Initials>ABC</a:Initials>
+                <a:FullName>Example full</a:FullName>
+              </b:Owner>
+              <b:CustomerHeader>
+                <b:ID>1001</b:ID>
+                <b:Name>Example </b:Name>
+                <b:No>1001</b:No>
+                <b:GUID>3f2504e0-4f89-41d3-9a0c-305000000003</b:GUID>
+              </b:CustomerHeader>
+            </b:Details>
+          </b:Contact>
+        </a:Return>
+        <a:ReturnTypeDescription>Contact</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </InsertContactResult>
+    </InsertContactResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Invalid | 10002 | \{field\}, was null or empty | Firstname, Lastname or Address.Country empty. | Send the named value. |
+| Invalid | 30017 | Unknown Country ISO Code: \{code\} | Address.Country is not a known ISO code. | — |
+| Invalid | 10005 | \{description\}, should not be a 0-GUID | CustomerGUID all zeros. | Send the object's GUID. |
+| Error | 40001 | Error during call on TimeLog.API, Message 'Unable to retrieve result from … with GUID\{guid\}' | CustomerGUID is not an existing customer. | Check the customer GUID. |
+| Invalid | 20012 | User: \{initials\}, has Insufficient Access. Missing privilege was: \{role\} | — | — |
+| Invalid | 10001 | Insert of Contact with ID (\{id\}) failed! | — | For updates, read the contact first and send its GUID. |

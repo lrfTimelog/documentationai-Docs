@@ -1,0 +1,352 @@
+---
+title: "GetProjectTasksPaged"
+description: "Project management service 1.8: "
+---
+
+| | |
+|---|---|
+| Service | Project management 1.8 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc` |
+| SOAPAction | `http://www.timelog.com/api/tlp/v1_8/ProjectManagementService/GetProjectTasksPaged` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | No |
+| Safe to retry | Yes |
+| Paging | Yes, up to 500 per page |
+
+## How it works
+
+With projectGuid = all zeros, the tasks of EVERY project are returned. No filter on project or task status - completed, cancelled and inactive tasks are included. No privilege is checked.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="projectGuid" field-type="guid">
+**Optional.** Default all zeros = every project. GUID of one project, or all zeros for the tasks of all projects.
+
+</ResponseField>
+
+<ResponseField name="page" field-type="integer" required="true">
+ 
+
+</ResponseField>
+
+<ResponseField name="pageSize" field-type="integer" required="true">
+ 
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<Request uid="trx-projectmanagement-getprojecttaskspaged-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/api/tlp/v1_8/ProjectManagementService/GetProjectTasksPaged"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:pm="http://www.timelog.com/api/tlp/v1_8"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <pm:GetProjectTasksPaged>
+      <pm:projectGuid>{projectGuid}</pm:projectGuid>
+      <pm:page>1</pm:page>
+      <pm:pageSize>100</pm:pageSize>
+      <pm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </pm:token>
+    </pm:GetProjectTasksPaged>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/api/tlp/v1_8/ProjectManagementService/GetProjectTasksPaged"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc"
+SOAP_ACTION = '"http://www.timelog.com/api/tlp/v1_8/ProjectManagementService/GetProjectTasksPaged"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:pm="http://www.timelog.com/api/tlp/v1_8"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <pm:GetProjectTasksPaged>
+      <pm:projectGuid>{projectGuid}</pm:projectGuid>
+      <pm:page>1</pm:page>
+      <pm:pageSize>100</pm:pageSize>
+      <pm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </pm:token>
+    </pm:GetProjectTasksPaged>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="TotalPageCount" field-type="integer">
+Number of pages for the whole result with your `pageSize`. Keep calling with `page` + 1 until you have read them all.
+</ResponseField>
+
+<ResponseField name="Return" field-type="ProjectTaskFlat[]">
+Response&lt;ProjectTaskFlat>: one page; IsReturnPaged = true, TotalPageCount = -1; 'Successfully called' message. ResponseState Success, empty Return - also for an unknown projectGuid.
+
+<Expandable title="ProjectTaskFlat fields">
+
+<ResponseField name="CustomerGuid" field-type="guid">
+GUID of the project's customer; all zeros when the project has none.
+</ResponseField>
+
+<ResponseField name="CustomerName" field-type="string">
+The customer's name.
+</ResponseField>
+
+<ResponseField name="CustomerNo" field-type="string">
+The customer's number.
+</ResponseField>
+
+<ResponseField name="ProjectCategoryName" field-type="string">
+Name of the project's category; empty when none.
+</ResponseField>
+
+<ResponseField name="ProjectDepartmentGuid" field-type="guid">
+GUID of the project's department.
+</ResponseField>
+
+<ResponseField name="ProjectDepartmentName" field-type="string">
+Name of the project's department.
+</ResponseField>
+
+<ResponseField name="ProjectDepartmentNo" field-type="string">
+Number of the project's department.
+</ResponseField>
+
+<ResponseField name="ProjectGuid" field-type="guid">
+GUID of the task's project.
+</ResponseField>
+
+<ResponseField name="ProjectName" field-type="string">
+The project's name.
+</ResponseField>
+
+<ResponseField name="ProjectNo" field-type="string">
+The project's number.
+</ResponseField>
+
+<ResponseField name="ProjectStatusName" field-type="string">
+Name of the project's current order status.
+</ResponseField>
+
+<ResponseField name="ProjectTypeName" field-type="string">
+Name of the project's type.
+</ResponseField>
+
+<ResponseField name="TaskBudgetAmount" field-type="double">
+The task's budget amount in the project currency; 0 when none.
+</ResponseField>
+
+<ResponseField name="TaskBudgetHours" field-type="double">
+The task's budgeted hours; 0 when none.
+</ResponseField>
+
+<ResponseField name="TaskDescription" field-type="string">
+The task's description.
+</ResponseField>
+
+<ResponseField name="TaskEndDate" field-type="dateTime">
+The task's end date; 0001-01-01 when none.
+</ResponseField>
+
+<ResponseField name="TaskGuid" field-type="guid">
+The task's GUID.
+</ResponseField>
+
+<ResponseField name="TaskHourlyRateAmount" field-type="double">
+Amount of the task's default hourly rate; 0 when the task has no task-level default rate - NOT 'free': the employees' own rates then apply.
+</ResponseField>
+
+<ResponseField name="TaskHourlyRateName" field-type="string">
+Name of the task's default hourly rate on its contract; 'Employees Default Hourly Rate' when the task has no task-level default rate.
+</ResponseField>
+
+<ResponseField name="TaskID" field-type="integer">
+The task's integer ID - the value WorkUnit.TaskID takes.
+</ResponseField>
+
+<ResponseField name="TaskInvoicingType" field-type="string">
+How the task is invoiced, as the enum member name.
+</ResponseField>
+
+<ResponseField name="TaskIsBillable" field-type="boolean">
+True unless the task is marked non-billable.
+</ResponseField>
+
+<ResponseField name="TaskIsReadyForInvoicing" field-type="boolean">
+ 
+</ResponseField>
+
+<ResponseField name="TaskLink" field-type="string">
+The link stored on the task.
+</ResponseField>
+
+<ResponseField name="TaskName" field-type="string">
+The task's name.
+</ResponseField>
+
+<ResponseField name="TaskNameChain" field-type="string">
+The task's name including its parent tasks.
+</ResponseField>
+
+<ResponseField name="TaskNo" field-type="string">
+The task's number.
+</ResponseField>
+
+<ResponseField name="TaskNoChain" field-type="string">
+Task numbers from the top parent down to this task.
+</ResponseField>
+
+<ResponseField name="TaskParentGuid" field-type="guid">
+GUID of the parent task; all zeros for a top-level task.
+</ResponseField>
+
+<ResponseField name="TaskStartDate" field-type="dateTime">
+The task's start date; 0001-01-01 when none.
+</ResponseField>
+
+<ResponseField name="TaskStatus" field-type="string">
+The task's status, as the enum member name.
+</ResponseField>
+
+<ResponseField name="TaskTypeName" field-type="string">
+Name of the task's type; empty when none.
+</ResponseField>
+
+<ResponseField name="TaskWBS" field-type="string">
+ 
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<Response uid="trx-projectmanagement-getprojecttaskspaged-res" show-lines="true" tabs={["HTTP 200 - success"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetProjectTasksPagedResponse xmlns="http://www.timelog.com/api/tlp/v1_8">
+      <GetProjectTasksPagedResult xmlns:a="http://api.timelog.com"
+                                  xmlns:b="http://www.timelog.com/api/tlp/v1_7"
+                                  xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:ProjectTaskFlat>
+            <b:CustomerGuid>3f2504e0-4f89-41d3-9a0c-305000000001</b:CustomerGuid>
+            <b:CustomerName>Example customer</b:CustomerName>
+            <b:CustomerNo>1001</b:CustomerNo>
+            <b:ProjectCategoryName>Example project category</b:ProjectCategoryName>
+            <b:ProjectDepartmentGuid>3f2504e0-4f89-41d3-9a0c-305000000002</b:ProjectDepartmentGuid>
+            <b:ProjectDepartmentName>Example project department</b:ProjectDepartmentName>
+            <b:ProjectDepartmentNo>1001</b:ProjectDepartmentNo>
+            <b:ProjectGuid>3f2504e0-4f89-41d3-9a0c-305000000003</b:ProjectGuid>
+            <b:ProjectName>Example project</b:ProjectName>
+            <b:ProjectNo>1001</b:ProjectNo>
+            <b:ProjectStatusName>Example project status</b:ProjectStatusName>
+            <b:ProjectTypeName>Example project type</b:ProjectTypeName>
+            <b:TaskBudgetAmount>0</b:TaskBudgetAmount>
+            <b:TaskBudgetHours>0</b:TaskBudgetHours>
+            <b:TaskDescription>Example</b:TaskDescription>
+            <b:TaskEndDate>2026-10-01T00:00:00</b:TaskEndDate>
+            <b:TaskGuid>3f2504e0-4f89-41d3-9a0c-305000000004</b:TaskGuid>
+            <b:TaskHourlyRateAmount>0</b:TaskHourlyRateAmount>
+            <b:TaskHourlyRateName>https://www.example.com</b:TaskHourlyRateName>
+            <b:TaskID>1001</b:TaskID>
+            <b:TaskInvoicingType>Example</b:TaskInvoicingType>
+            <b:TaskIsBillable>false</b:TaskIsBillable>
+            <b:TaskIsReadyForInvoicing>false</b:TaskIsReadyForInvoicing>
+            <b:TaskLink>Example</b:TaskLink>
+            <b:TaskName>Example task</b:TaskName>
+            <b:TaskNameChain>Example</b:TaskNameChain>
+            <b:TaskNo>1001</b:TaskNo>
+            <b:TaskNoChain>Example</b:TaskNoChain>
+            <b:TaskParentGuid>3f2504e0-4f89-41d3-9a0c-305000000005</b:TaskParentGuid>
+            <b:TaskStartDate>2026-10-01T00:00:00</b:TaskStartDate>
+            <b:TaskStatus>Example</b:TaskStatus>
+            <b:TaskTypeName>Example task type</b:TaskTypeName>
+            <b:TaskWBS>Example</b:TaskWBS>
+          </b:ProjectTaskFlat>
+        </a:Return>
+        <a:ReturnTypeDescription>ProjectTaskFlat</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>true</a:IsReturnPaged>
+        <a:TotalPageCount>1</a:TotalPageCount>
+      </GetProjectTasksPagedResult>
+    </GetProjectTasksPagedResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+This operation has no errors of its own beyond the shared ones.

@@ -1,0 +1,183 @@
+---
+title: "GetEmployeeCostRates"
+description: "Financial service 1.4: Returns every cost price group of the account, ordered by name."
+---
+
+Returns every cost price group of the account, ordered by name.
+
+| | |
+|---|---|
+| Service | Financial 1.4 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc` |
+| SOAPAction | `http://www.timelog.com/api/tlp/v1_4/FinancialService/GetEmployeeCostRates` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | No |
+| Safe to retry | Yes |
+
+## How it works
+
+Groups of ALL legal entities are returned together, and neither the legal entity nor the currency is on the contract, so a Rate cannot be interpreted in a multi-entity account. The REST endpoint GET /cost-price returns the same groups with legal entity and currency.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<Request uid="trx-financial-getemployeecostrates-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/api/tlp/v1_4/FinancialService/GetEmployeeCostRates"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:financial="http://www.timelog.com/api/tlp/v1_4"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <financial:GetEmployeeCostRates>
+      <financial:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </financial:token>
+    </financial:GetEmployeeCostRates>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/api/tlp/v1_4/FinancialService/GetEmployeeCostRates"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc"
+SOAP_ACTION = '"http://www.timelog.com/api/tlp/v1_4/FinancialService/GetEmployeeCostRates"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:financial="http://www.timelog.com/api/tlp/v1_4"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <financial:GetEmployeeCostRates>
+      <financial:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </financial:token>
+    </financial:GetEmployeeCostRates>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="EmployeeCostRate[]">
+account without cost groups: Return empty, ResponseState Success.
+
+<Expandable title="EmployeeCostRate fields">
+
+<ResponseField name="EmployeeCostRateId" field-type="integer">
+ 
+</ResponseField>
+
+<ResponseField name="IsActive" field-type="boolean">
+Whether the cost group is active. Inactive groups are returned too.
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+Display name of the cost group. Groups are returned ordered by this name.
+</ResponseField>
+
+<ResponseField name="Rate" field-type="float">
+The group's cost amount in the currency of the group's legal entity - which is NOT on the wire. Single-precision on the wire and in the domain although stored as FLOAT: large or fine-grained values lose precision.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<Response uid="trx-financial-getemployeecostrates-res" show-lines="true" tabs={["HTTP 200 - success"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetEmployeeCostRatesResponse xmlns="http://www.timelog.com/api/tlp/v1_4">
+      <GetEmployeeCostRatesResult xmlns:a="http://api.timelog.com"
+                                  xmlns:b="http://schemas.datacontract.org/2004/07/TimeLog.TLP.API.Proxy.Financial.V1_4"
+                                  xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:EmployeeCostRate>
+            <b:EmployeeCostRateId>1001</b:EmployeeCostRateId>
+            <b:IsActive>true</b:IsActive>
+            <b:Name>Example </b:Name>
+            <b:Rate>0</b:Rate>
+          </b:EmployeeCostRate>
+        </a:Return>
+        <a:ReturnTypeDescription>EmployeeCostRate</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </GetEmployeeCostRatesResult>
+    </GetEmployeeCostRatesResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+This operation has no errors of its own beyond the shared ones.

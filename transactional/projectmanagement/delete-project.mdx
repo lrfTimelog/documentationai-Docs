@@ -1,0 +1,365 @@
+---
+title: "DeleteProject"
+description: "Project management service 1.8: Permanently deletes a project that has no time, expenses, booked installments or invoices - with its tasks, allocations, contracts and plan."
+---
+
+Permanently deletes a project that has no time, expenses, booked installments or invoices - with its tasks, allocations, contracts and plan.
+
+| | |
+|---|---|
+| Service | Project management 1.8 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc` |
+| SOAPAction | `DeleteProjectRequest` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | Yes |
+| Safe to retry | A retry after a successful delete fails - treat that as 'already deleted' after checking with GetProjectByID / GetProjectsByCustomer. |
+
+## How it works
+
+Loads the project by GUID and deletes it if nothing has been registered or invoiced on it. Refused when the project has time registrations, a running time tracker, expenses, travel expenses, BOOKED installments, invoices or intercompany invoices. There is no undo. Returns the project as it was before the delete.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="projectGuid" field-type="guid" required="true">
+GUID of the project to delete.
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<Request uid="trx-projectmanagement-deleteproject-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "DeleteProjectRequest"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:pm="http://www.timelog.com/api/tlp/v1_8"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <pm:DeleteProject>
+      <pm:projectGuid>{projectGuid}</pm:projectGuid>
+      <pm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </pm:token>
+    </pm:DeleteProject>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "DeleteProjectRequest"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc"
+SOAP_ACTION = '"DeleteProjectRequest"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:pm="http://www.timelog.com/api/tlp/v1_8"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <pm:DeleteProject>
+      <pm:projectGuid>{projectGuid}</pm:projectGuid>
+      <pm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </pm:token>
+    </pm:DeleteProject>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="ProjectApiReadModel[]">
+Response&lt;ProjectApiReadModel> with one item: the project as loaded before the delete. IsReturnPaged true, TotalPageCount -1. Refusal: Error envelope, empty Return, one message per violated rule.
+
+<Expandable title="ProjectApiReadModel fields">
+
+<ResponseField name="Action" field-type="string">
+Allowed values: `Original`, `Created`, `Updated`, `Deleted`, `Copied`, `Undefined`.
+</ResponseField>
+
+<ResponseField name="IsCustomFieldsLoaded" field-type="boolean">
+`true` when `CustomFields` is filled.
+</ResponseField>
+
+<ResponseField name="CustomFields" field-type="CustomField[]">
+Custom field values.
+</ResponseField>
+
+<ResponseField name="IsExternalKeysLoaded" field-type="boolean">
+`true` when `ExternalKeys` is filled.
+</ResponseField>
+
+<ResponseField name="ExternalKeys" field-type="ExternalSystemContext[]">
+The record's IDs in other systems.
+</ResponseField>
+
+<ResponseField name="ID" field-type="guid">
+The project's GUID.
+</ResponseField>
+
+<ResponseField name="ProjectID" field-type="integer">
+The project's integer ID - the key of GetProjectByID and of Task / WorkUnit project references.
+</ResponseField>
+
+<ResponseField name="CustomerID" field-type="integer">
+Integer ID of the project's customer.
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+The project's name.
+</ResponseField>
+
+<ResponseField name="No" field-type="string">
+The project number.
+</ResponseField>
+
+<ResponseField name="Description" field-type="string">
+Project description.
+</ResponseField>
+
+<ResponseField name="Link" field-type="string">
+URL stored on the project.
+</ResponseField>
+
+<ResponseField name="StartDate" field-type="dateTime">
+Project start date.
+</ResponseField>
+
+<ResponseField name="EndDate" field-type="dateTime">
+Project contract end date.
+</ResponseField>
+
+<ResponseField name="IsInternalProject" field-type="boolean">
+ 
+</ResponseField>
+
+<ResponseField name="ProjectManagerID" field-type="integer">
+ 
+</ResponseField>
+
+<ResponseField name="AccountManagerID" field-type="integer">
+ 
+</ResponseField>
+
+<ResponseField name="DepartmentHandledByID" field-type="integer">
+Department ID; 0 when none.
+</ResponseField>
+
+<ResponseField name="DepartmentOrderedByID" field-type="integer">
+Department ID; 0 when none.
+</ResponseField>
+
+<ResponseField name="TypeID" field-type="integer">
+Project type ID; 0 when none.
+</ResponseField>
+
+<ResponseField name="CategoryID" field-type="integer">
+Project category ID; 0 when none.
+</ResponseField>
+
+<ResponseField name="StageID" field-type="integer">
+ID of the project stage; 0 = none.
+</ResponseField>
+
+<ResponseField name="LegalEntityID" field-type="integer">
+Integer ID of the project's legal entity.
+</ResponseField>
+
+<ResponseField name="PriceGroupID" field-type="integer">
+ 
+</ResponseField>
+
+<ResponseField name="ExchangeRate" field-type="double">
+ 
+</ResponseField>
+
+<ResponseField name="CurrencyID" field-type="integer">
+Integer ID of the project currency.
+</ResponseField>
+
+<ResponseField name="MainContractID" field-type="integer">
+ 
+</ResponseField>
+
+<ResponseField name="BudgetWorkHoursFixedPriceProject" field-type="double">
+ 
+</ResponseField>
+
+<ResponseField name="BudgetWorkHoursFixedPriceTasks" field-type="double">
+ 
+</ResponseField>
+
+<ResponseField name="BudgetWorkHoursTimeAndMaterial" field-type="double">
+Should be the time & material budget hours; ACTUALLY carries BudgetWorkHoursFixedPriceProject. The real T&M budget hours are not readable through this API.
+</ResponseField>
+
+<ResponseField name="BudgetWorkAmountFixedPriceProject" field-type="double">
+ 
+</ResponseField>
+
+<ResponseField name="BudgetWorkAmountFixedPriceTasks" field-type="double">
+ 
+</ResponseField>
+
+<ResponseField name="BudgetWorkAmountTimeAndMaterial" field-type="double">
+Project-level budget amount, time & material model.
+</ResponseField>
+
+<ResponseField name="BudgetAmountExpenses" field-type="double">
+Project-level expense budget.
+</ResponseField>
+
+<ResponseField name="BudgetAmountTravelExpenses" field-type="double">
+Project-level travel-expense budget.
+</ResponseField>
+
+<ResponseField name="ProjectContactID" field-type="integer">
+Integer ID of the project's contact person; 0 when none.
+</ResponseField>
+
+<ResponseField name="PurchaseOrderNumber" field-type="string">
+Customer purchase order number.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<Response uid="trx-projectmanagement-deleteproject-res" show-lines="true" tabs={["HTTP 200 - success"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <DeleteProjectResponse xmlns="http://www.timelog.com/api/tlp/v1_8">
+      <DeleteProjectResult xmlns:a="http://api.timelog.com"
+                           xmlns:b="http://www.timelog.com/api/tlp/v1_8"
+                           xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:ProjectApiReadModel>
+            <a:Action>Original</a:Action>
+            <a:IsCustomFieldsLoaded>false</a:IsCustomFieldsLoaded>
+            <a:CustomFields i:nil="true"/>
+            <a:IsExternalKeysLoaded>false</a:IsExternalKeysLoaded>
+            <a:ExternalKeys i:nil="true"/>
+            <b:ID>3f2504e0-4f89-41d3-9a0c-305000000001</b:ID>
+            <b:ProjectID>1001</b:ProjectID>
+            <b:CustomerID>1001</b:CustomerID>
+            <b:Name>Example </b:Name>
+            <b:No>1001</b:No>
+            <b:Description>Example</b:Description>
+            <b:Link>Example</b:Link>
+            <b:StartDate>2026-10-01T00:00:00</b:StartDate>
+            <b:EndDate>2026-10-01T00:00:00</b:EndDate>
+            <b:IsInternalProject>false</b:IsInternalProject>
+            <b:ProjectManagerID>1001</b:ProjectManagerID>
+            <b:AccountManagerID>1001</b:AccountManagerID>
+            <b:DepartmentHandledByID>1001</b:DepartmentHandledByID>
+            <b:DepartmentOrderedByID>1001</b:DepartmentOrderedByID>
+            <b:TypeID>1001</b:TypeID>
+            <b:CategoryID>1001</b:CategoryID>
+            <b:StageID>1001</b:StageID>
+            <b:LegalEntityID>1001</b:LegalEntityID>
+            <b:PriceGroupID>1001</b:PriceGroupID>
+            <b:ExchangeRate>0</b:ExchangeRate>
+            <b:CurrencyID>1001</b:CurrencyID>
+            <b:MainContractID>1001</b:MainContractID>
+            <b:BudgetWorkHoursFixedPriceProject>0</b:BudgetWorkHoursFixedPriceProject>
+            <b:BudgetWorkHoursFixedPriceTasks>0</b:BudgetWorkHoursFixedPriceTasks>
+            <b:BudgetWorkHoursTimeAndMaterial>0</b:BudgetWorkHoursTimeAndMaterial>
+            <b:BudgetWorkAmountFixedPriceProject>0</b:BudgetWorkAmountFixedPriceProject>
+            <b:BudgetWorkAmountFixedPriceTasks>0</b:BudgetWorkAmountFixedPriceTasks>
+            <b:BudgetWorkAmountTimeAndMaterial>0</b:BudgetWorkAmountTimeAndMaterial>
+            <b:BudgetAmountExpenses>0</b:BudgetAmountExpenses>
+            <b:BudgetAmountTravelExpenses>0</b:BudgetAmountTravelExpenses>
+            <b:ProjectContactID>1001</b:ProjectContactID>
+            <b:PurchaseOrderNumber>1001</b:PurchaseOrderNumber>
+          </b:ProjectApiReadModel>
+        </a:Return>
+        <a:ReturnTypeDescription>ProjectApiReadModel</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </DeleteProjectResult>
+    </DeleteProjectResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Error | 30055 | Error during call on TimeLog.API, Message 'Unable to Delete Project with ProjectID ='\{project GUID\}', because it has ...' | DeleteProject refused: the project has time registrations. Nothing is deleted. Every violated rule is one Messages[] entry carrying its own code; the text says ProjectID but shows the GUID. | Close the project instead. |
+| Error | 37705 | Error during call on TimeLog.API, Message 'Unable to Delete Project with ProjectID ='\{project GUID\}', because it has ...' | DeleteProject refused: the project has a running time tracker. Nothing is deleted. Every violated rule is one Messages[] entry carrying its own code; the text says ProjectID but shows the GUID. | Close the project instead. |
+| Error | 30057 | Error during call on TimeLog.API, Message 'Unable to Delete Project with ProjectID ='\{project GUID\}', because it has ...' | DeleteProject refused: the project has expenses. Nothing is deleted. Every violated rule is one Messages[] entry carrying its own code; the text says ProjectID but shows the GUID. | Close the project instead. |
+| Error | 30058 | Error during call on TimeLog.API, Message 'Unable to Delete Project with ProjectID ='\{project GUID\}', because it has ...' | DeleteProject refused: the project has travel expenses / mileage. Nothing is deleted. Every violated rule is one Messages[] entry carrying its own code; the text says ProjectID but shows the GUID. | Close the project instead. |
+| Error | 30059 | Error during call on TimeLog.API, Message 'Unable to Delete Project with ProjectID ='\{project GUID\}', because it has ...' | DeleteProject refused: the project has BOOKED payment-plan installments. Nothing is deleted. Every violated rule is one Messages[] entry carrying its own code; the text says ProjectID but shows the GUID. | Close the project instead. |
+| Error | 30056 | Error during call on TimeLog.API, Message 'Unable to Delete Project with ProjectID ='\{project GUID\}', because it has ...' | DeleteProject refused: the project has invoices or invoice lines. Nothing is deleted. Every violated rule is one Messages[] entry carrying its own code; the text says ProjectID but shows the GUID. | Close the project instead. |
+| Error | 38021 | Error during call on TimeLog.API, Message 'Unable to Delete Project with ProjectID ='\{project GUID\}', because it has ...' | DeleteProject refused: the project has intercompany invoices. Nothing is deleted. Every violated rule is one Messages[] entry carrying its own code; the text says ProjectID but shows the GUID. | Close the project instead. |

@@ -1,0 +1,217 @@
+---
+title: "GetProductNumbers"
+description: "Financial service 1.4: Returns the active product numbers of one legal entity, or of all legal entities."
+---
+
+Returns the active product numbers of one legal entity, or of all legal entities.
+
+| | |
+|---|---|
+| Service | Financial 1.4 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc` |
+| SOAPAction | `http://www.timelog.com/api/tlp/v1_4/FinancialService/GetProductNumbers` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | No |
+| Safe to retry | Yes |
+
+## How it works
+
+Lists the account's accounting product numbers ordered by product number. legalEntityId narrows to one legal entity; 0 returns all legal entities. isActive = true returns only ACTIVE numbers and false only INACTIVE ones - there is no way to get both in one call. An unknown legal entity returns an empty list.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="legalEntityId" field-type="integer" required="true">
+Integer ID of the legal entity; 0 = all legal entities.
+
+</ResponseField>
+
+<ResponseField name="isActive" field-type="boolean" required="true">
+true = only active product numbers, false = only inactive ones.
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<Request uid="trx-financial-getproductnumbers-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/api/tlp/v1_4/FinancialService/GetProductNumbers"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:financial="http://www.timelog.com/api/tlp/v1_4"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <financial:GetProductNumbers>
+      <financial:legalEntityId>0</financial:legalEntityId>
+      <financial:isActive>false</financial:isActive>
+      <financial:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </financial:token>
+    </financial:GetProductNumbers>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/api/tlp/v1_4/FinancialService/GetProductNumbers"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc"
+SOAP_ACTION = '"http://www.timelog.com/api/tlp/v1_4/FinancialService/GetProductNumbers"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:financial="http://www.timelog.com/api/tlp/v1_4"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <financial:GetProductNumbers>
+      <financial:legalEntityId>0</financial:legalEntityId>
+      <financial:isActive>false</financial:isActive>
+      <financial:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </financial:token>
+    </financial:GetProductNumbers>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="ProductNo[]">
+Response&lt;ProductNo>: Return = matching product numbers ordered by ProductNumber. No match: Return empty, ResponseState Success.
+
+<Expandable title="ProductNo fields">
+
+<ResponseField name="Description" field-type="string">
+Free-text description; '' when not set.
+</ResponseField>
+
+<ResponseField name="IsActive" field-type="boolean">
+Whether the product number is active. GetProductNumbers returns either only active or only inactive records.
+</ResponseField>
+
+<ResponseField name="LegalEntityID" field-type="integer">
+Integer ID of the legal entity the product number belongs to.
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+Product name; '' when not set.
+</ResponseField>
+
+<ResponseField name="ProductNumber" field-type="string">
+The product number itself, as sent to the finance system. '' when not set. The list is ordered by this value.
+</ResponseField>
+
+<ResponseField name="ProductNumberID" field-type="integer">
+Integer ID of the product-number record.
+</ResponseField>
+
+<ResponseField name="UseVAT" field-type="boolean">
+Whether VAT applies to lines with this product number.
+</ResponseField>
+
+<ResponseField name="VAT" field-type="double">
+VAT rate of the product number, as a percentage. 0 when not set.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<Response uid="trx-financial-getproductnumbers-res" show-lines="true" tabs={["HTTP 200 - success"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetProductNumbersResponse xmlns="http://www.timelog.com/api/tlp/v1_4">
+      <GetProductNumbersResult xmlns:a="http://api.timelog.com"
+                               xmlns:b="http://schemas.datacontract.org/2004/07/TimeLog.TLP.API.Proxy.Financial.V1_4"
+                               xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:ProductNo>
+            <b:Description>Example</b:Description>
+            <b:IsActive>true</b:IsActive>
+            <b:LegalEntityID>1001</b:LegalEntityID>
+            <b:Name>Example </b:Name>
+            <b:ProductNumber>1001</b:ProductNumber>
+            <b:ProductNumberID>1001</b:ProductNumberID>
+            <b:UseVAT>false</b:UseVAT>
+            <b:VAT>0</b:VAT>
+          </b:ProductNo>
+        </a:Return>
+        <a:ReturnTypeDescription>ProductNo</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </GetProductNumbersResult>
+    </GetProductNumbersResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+This operation has no errors of its own beyond the shared ones.

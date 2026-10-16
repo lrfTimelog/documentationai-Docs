@@ -1,0 +1,204 @@
+---
+title: "GetInvoiceSpecificationPDF"
+description: "Invoicing service 1.1: Generates and returns, as base64 PDF bytes, the specification pages of an invoice, credit note, voucher or reminder by its integer ID."
+---
+
+Generates and returns, as base64 PDF bytes, the specification pages of an invoice, credit note, voucher or reminder by its integer ID.
+
+| | |
+|---|---|
+| Service | Invoicing 1.1 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/Invoicing/V1_1/InvoicingServiceSecure.svc` |
+| SOAPAction | `GetInvoiceSpecificationPDFRequest` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | No |
+| Safe to retry | Yes |
+
+## How it works
+
+It does not return the invoice page itself. Despite the name, invoiceID can be the ID of ANY invoicing document: invoice, credit note, voucher or reminder. The specification template is the one linked to the document's own print template; the document is rendered as it is now. The PDF is generated on every call and the whole document is buffered into the response - there is no streaming or MTOM. Large specifications therefore produce large SOAP messages; raise your client's maximum received message size accordingly. An unknown ID returns a misleading null-reference error.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="invoiceID" field-type="integer" required="true">
+Integer ID of the invoicing document - not a GUID.
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<Request uid="trx-invoicing-getinvoicespecificationpdf-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/WebServices/Invoicing/V1_1/InvoicingServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "GetInvoiceSpecificationPDFRequest"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:invoicing="http://www.timelog.com/api/tlp/v1"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <invoicing:GetInvoiceSpecificationPDF>
+      <invoicing:invoiceID>{invoiceID}</invoicing:invoiceID>
+      <invoicing:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </invoicing:token>
+    </invoicing:GetInvoiceSpecificationPDF>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/Invoicing/V1_1/InvoicingServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "GetInvoiceSpecificationPDFRequest"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/Invoicing/V1_1/InvoicingServiceSecure.svc"
+SOAP_ACTION = '"GetInvoiceSpecificationPDFRequest"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:invoicing="http://www.timelog.com/api/tlp/v1"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <invoicing:GetInvoiceSpecificationPDF>
+      <invoicing:invoiceID>{invoiceID}</invoicing:invoiceID>
+      <invoicing:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </invoicing:token>
+    </invoicing:GetInvoiceSpecificationPDF>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="InvoiceSpecification[]">
+Response&lt;InvoiceSpecification>: Return[0].specification = the PDF bytes. No 'Successfully called' message. Never empty on success.
+
+<Expandable title="InvoiceSpecification fields">
+
+<ResponseField name="Action" field-type="string">
+Allowed values: `Original`, `Created`, `Updated`, `Deleted`, `Copied`, `Undefined`.
+</ResponseField>
+
+<ResponseField name="IsCustomFieldsLoaded" field-type="boolean">
+`true` when `CustomFields` is filled.
+</ResponseField>
+
+<ResponseField name="CustomFields" field-type="CustomField[]">
+Custom field values.
+</ResponseField>
+
+<ResponseField name="IsExternalKeysLoaded" field-type="boolean">
+`true` when `ExternalKeys` is filled.
+</ResponseField>
+
+<ResponseField name="ExternalKeys" field-type="ExternalSystemContext[]">
+The record's IDs in other systems.
+</ResponseField>
+
+<ResponseField name="specification" field-type="base64Binary">
+The PDF file of the document's SPECIFICATION pages, as bytes. SOAP carries a byte[] as xs:base64Binary text inside the XML. Decode the base64 and save as.pdf.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<Response uid="trx-invoicing-getinvoicespecificationpdf-res" show-lines="true" tabs={["HTTP 200 - success"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetInvoiceSpecificationPDFResponse xmlns="http://www.timelog.com/api/tlp/v1">
+      <GetInvoiceSpecificationPDFResult xmlns:a="http://api.timelog.com"
+                                        xmlns:b="http://www.timelog.com/api/tlp/v1"
+                                        xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:InvoiceSpecification>
+            <a:Action>Original</a:Action>
+            <a:IsCustomFieldsLoaded>false</a:IsCustomFieldsLoaded>
+            <a:CustomFields i:nil="true"/>
+            <a:IsExternalKeysLoaded>false</a:IsExternalKeysLoaded>
+            <a:ExternalKeys i:nil="true"/>
+            <b:specification>AAAAAAAAAAA=</b:specification>
+          </b:InvoiceSpecification>
+        </a:Return>
+        <a:ReturnTypeDescription>InvoiceSpecification</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </GetInvoiceSpecificationPDFResult>
+    </GetInvoiceSpecificationPDFResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Error | 40001 | Error during call on TimeLog.API, Message 'Object reference not set to an instance of an object.' | No invoicing document has this ID. | Check the invoice ID. |

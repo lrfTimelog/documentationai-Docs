@@ -1,0 +1,267 @@
+---
+title: "UpdatePaymentQuantity"
+description: "Financial service 1.4: Sets the Quantity of one payment and recalculates its amount and the contract's plan."
+---
+
+Sets the Quantity of one payment and recalculates its amount and the contract's plan.
+
+| | |
+|---|---|
+| Service | Financial 1.4 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc` |
+| SOAPAction | `http://www.timelog.com/api/tlp/v1_4/FinancialService/UpdatePaymentQuantity` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | Yes |
+| Safe to retry | Yes |
+
+## How it works
+
+Every other member of the sent Payment is ignored. The amount is recalculated from the payment's rate and discount; on fixed-price recurring contracts the contract's payment-plan figures are recalculated, and invoicing potential, currency data and booking status are refreshed. A payment that already has an invoice line is refused. Returns the saved payment.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="payment" field-type="Payment" required="true">
+The Payment to send. Its fields are listed below.
+
+<Expandable title="Payment fields">
+
+<ResponseField name="Amount" field-type="double">
+**Optional.** The currency itself is not on the contract.
+</ResponseField>
+
+<ResponseField name="InvoiceDate" field-type="dateTime">
+**Optional.** Date the payment is due to be invoiced. GetPaymentList filters on it.
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+**Optional.** The installment's name - the text that becomes the invoice line text. Tags in it are replaced when the payment is saved.
+</ResponseField>
+
+<ResponseField name="PaymentID" field-type="integer">
+**Optional.** Integer ID of the installment. UpdatePaymentQuantity looks the payment up by this value.
+</ResponseField>
+
+<ResponseField name="ProjectID" field-type="integer">
+**Optional.** Integer ID of the project the payment belongs to.
+</ResponseField>
+
+<ResponseField name="ProjectSubContractID" field-type="integer">
+**Optional.** Integer ID of the contract whose payment plan holds the payment - the contractID of GetPaymentList.
+</ResponseField>
+
+<ResponseField name="Quantity" field-type="double">
+**Optional.** Number of units invoiced by this payment. The only member UpdatePaymentQuantity writes: changing it recalculates the payment's amount from its rate and discount, and on fixed-price recurring contracts also the contract's payment-plan figures.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+<ResponseField name="source" field-type="integer" required="true">
+'Interface source number, in most cases use 0'.
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<Request uid="trx-financial-updatepaymentquantity-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/api/tlp/v1_4/FinancialService/UpdatePaymentQuantity"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:financial="http://www.timelog.com/api/tlp/v1_4"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3"
+                  xmlns:financial2="http://schemas.datacontract.org/2004/07/TimeLog.TLP.API.Proxy.Financial.V1_4">
+  <soapenv:Body>
+    <financial:UpdatePaymentQuantity>
+      <financial:payment>
+        <financial2:Amount>{Amount}</financial2:Amount>
+        <financial2:InvoiceDate>{InvoiceDate}</financial2:InvoiceDate>
+        <financial2:Name>{Name}</financial2:Name>
+        <financial2:PaymentID>{PaymentID}</financial2:PaymentID>
+        <financial2:ProjectID>{ProjectID}</financial2:ProjectID>
+        <financial2:ProjectSubContractID>{ProjectSubContractID}</financial2:ProjectSubContractID>
+        <!-- more fields: see Parameters -->
+      </financial:payment>
+      <financial:source>{source}</financial:source>
+      <financial:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </financial:token>
+    </financial:UpdatePaymentQuantity>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/api/tlp/v1_4/FinancialService/UpdatePaymentQuantity"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc"
+SOAP_ACTION = '"http://www.timelog.com/api/tlp/v1_4/FinancialService/UpdatePaymentQuantity"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:financial="http://www.timelog.com/api/tlp/v1_4"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3"
+                  xmlns:financial2="http://schemas.datacontract.org/2004/07/TimeLog.TLP.API.Proxy.Financial.V1_4">
+  <soapenv:Body>
+    <financial:UpdatePaymentQuantity>
+      <financial:payment>
+        <financial2:Amount>{Amount}</financial2:Amount>
+        <financial2:InvoiceDate>{InvoiceDate}</financial2:InvoiceDate>
+        <financial2:Name>{Name}</financial2:Name>
+        <financial2:PaymentID>{PaymentID}</financial2:PaymentID>
+        <financial2:ProjectID>{ProjectID}</financial2:ProjectID>
+        <financial2:ProjectSubContractID>{ProjectSubContractID}</financial2:ProjectSubContractID>
+        <!-- more fields: see Parameters -->
+      </financial:payment>
+      <financial:source>{source}</financial:source>
+      <financial:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </financial:token>
+    </financial:UpdatePaymentQuantity>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="Payment[]">
+Response&lt;Payment>: Return = the saved payment - but ProjectID is the value the caller sent. No success message is added; ResponseState stays Success.
+
+<Expandable title="Payment fields">
+
+<ResponseField name="Amount" field-type="double">
+The currency itself is not on the contract.
+</ResponseField>
+
+<ResponseField name="InvoiceDate" field-type="dateTime">
+Date the payment is due to be invoiced. GetPaymentList filters on it.
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+The installment's name - the text that becomes the invoice line text. Tags in it are replaced when the payment is saved.
+</ResponseField>
+
+<ResponseField name="PaymentID" field-type="integer">
+Integer ID of the installment. UpdatePaymentQuantity looks the payment up by this value.
+</ResponseField>
+
+<ResponseField name="ProjectID" field-type="integer">
+Integer ID of the project the payment belongs to.
+</ResponseField>
+
+<ResponseField name="ProjectSubContractID" field-type="integer">
+Integer ID of the contract whose payment plan holds the payment - the contractID of GetPaymentList.
+</ResponseField>
+
+<ResponseField name="Quantity" field-type="double">
+Number of units invoiced by this payment. The only member UpdatePaymentQuantity writes: changing it recalculates the payment's amount from its rate and discount, and on fixed-price recurring contracts also the contract's payment-plan figures.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<Response uid="trx-financial-updatepaymentquantity-res" show-lines="true" tabs={["HTTP 200 - success"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <UpdatePaymentQuantityResponse xmlns="http://www.timelog.com/api/tlp/v1_4">
+      <UpdatePaymentQuantityResult xmlns:a="http://api.timelog.com"
+                                   xmlns:b="http://schemas.datacontract.org/2004/07/TimeLog.TLP.API.Proxy.Financial.V1_4"
+                                   xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:Payment>
+            <b:Amount>0</b:Amount>
+            <b:InvoiceDate>2026-10-01T00:00:00</b:InvoiceDate>
+            <b:Name>Example </b:Name>
+            <b:PaymentID>1001</b:PaymentID>
+            <b:ProjectID>1001</b:ProjectID>
+            <b:ProjectSubContractID>1001</b:ProjectSubContractID>
+            <b:Quantity>0</b:Quantity>
+          </b:Payment>
+        </a:Return>
+        <a:ReturnTypeDescription>Payment</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </UpdatePaymentQuantityResult>
+    </UpdatePaymentQuantityResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Error | 40001 | Error during call on TimeLog.API, Message 'Unable to retrieve result from …' | No payment has PaymentID. | Take PaymentID from GetPaymentList. |
+| Error | 40001 | Error during call on TimeLog.API, Message 'The InvoiceableInstallment violates the Business Rules for saving an InvoiceableInstallment' | The payment has an invoice line, or another save rule failed - the rule is not named. | Only change payments that are not yet on an invoice. |

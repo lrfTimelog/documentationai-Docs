@@ -1,0 +1,412 @@
+---
+title: "GetWorkPagedWithExternalIds"
+description: "Project management service 1.8: Returns time registrations at one approval level on projects linked to a named external system, with that system's keys for customer, project and task, a page at a time."
+---
+
+Returns time registrations at one approval level on projects linked to a named external system, with that system's keys for customer, project and task, a page at a time.
+
+| | |
+|---|---|
+| Service | Project management 1.8 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc` |
+| SOAPAction | `http://www.timelog.com/api/tlp/v1_8/ProjectManagementService/GetWorkPagedWithExternalIds` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | No |
+| Safe to retry | Yes |
+| Paging | Yes, up to 500 per page |
+
+## How it works
+
+Like GetWorkPaged, restricted to registrations whose PROJECT has an external-system mapping for `systemName` and whose ApprovedStatus equals `approvalLevel` exactly. Absence registrations are never returned.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="systemName" field-type="string" required="true">
+Name of the external system.
+
+</ResponseField>
+
+<ResponseField name="approvalLevel" field-type="integer" required="true">
+Exact approval level to return.
+
+</ResponseField>
+
+<ResponseField name="initials" field-type="string">
+**Optional.** Default empty = all employees. Initials of one employee, or empty for all.
+
+</ResponseField>
+
+<ResponseField name="startDate" field-type="dateTime" required="true">
+First work date.
+
+</ResponseField>
+
+<ResponseField name="endDate" field-type="dateTime" required="true">
+Last work date.
+
+</ResponseField>
+
+<ResponseField name="page" field-type="integer" required="true">
+ 
+
+</ResponseField>
+
+<ResponseField name="pageSize" field-type="integer" required="true">
+ 
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<Request uid="trx-projectmanagement-getworkpagedwithexternalids-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/api/tlp/v1_8/ProjectManagementService/GetWorkPagedWithExternalIds"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:pm="http://www.timelog.com/api/tlp/v1_8"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <pm:GetWorkPagedWithExternalIds>
+      <pm:systemName>{systemName}</pm:systemName>
+      <pm:approvalLevel>{approvalLevel}</pm:approvalLevel>
+      <pm:initials>{initials}</pm:initials>
+      <pm:startDate>{startDate}</pm:startDate>
+      <pm:endDate>{endDate}</pm:endDate>
+      <pm:page>1</pm:page>
+      <pm:pageSize>100</pm:pageSize>
+      <pm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </pm:token>
+    </pm:GetWorkPagedWithExternalIds>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/api/tlp/v1_8/ProjectManagementService/GetWorkPagedWithExternalIds"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc"
+SOAP_ACTION = '"http://www.timelog.com/api/tlp/v1_8/ProjectManagementService/GetWorkPagedWithExternalIds"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:pm="http://www.timelog.com/api/tlp/v1_8"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <pm:GetWorkPagedWithExternalIds>
+      <pm:systemName>{systemName}</pm:systemName>
+      <pm:approvalLevel>{approvalLevel}</pm:approvalLevel>
+      <pm:initials>{initials}</pm:initials>
+      <pm:startDate>{startDate}</pm:startDate>
+      <pm:endDate>{endDate}</pm:endDate>
+      <pm:page>1</pm:page>
+      <pm:pageSize>100</pm:pageSize>
+      <pm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </pm:token>
+    </pm:GetWorkPagedWithExternalIds>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="TotalPageCount" field-type="integer">
+Number of pages for the whole result with your `pageSize`. Keep calling with `page` + 1 until you have read them all.
+</ResponseField>
+
+<ResponseField name="Return" field-type="WorkUnitFlatExternal[]">
+Response&lt;WorkUnitFlatExternal>: one page; IsReturnPaged = true, TotalPageCount = -1; 'Successfully called' message. ResponseState Success, empty Return - also for an unknown systemName or an approvalLevel other than 0 / 10 / 20 / 30.
+
+<Expandable title="WorkUnitFlatExternal fields">
+
+<ResponseField name="Action" field-type="string">
+Kind of change in the change feeds; 'Original' in the plain lists.
+</ResponseField>
+
+<ResponseField name="ActionDate" field-type="dateTime">
+Change feeds: when the change was logged. Plain lists: 0001-01-01.
+</ResponseField>
+
+<ResponseField name="ApprovedStatus" field-type="integer">
+Timesheet / approval state of the registration, as a legacy code.
+</ResponseField>
+
+<ResponseField name="CustomerExternalId" field-type="string">
+The customer's key in the external system named by `systemName`; empty when not mapped.
+</ResponseField>
+
+<ResponseField name="CustomerGuid" field-type="guid">
+GUID of the project's customer; all zeros for absence and for projects without a customer.
+</ResponseField>
+
+<ResponseField name="CustomerName" field-type="string">
+The customer's name.
+</ResponseField>
+
+<ResponseField name="CustomerNo" field-type="string">
+The customer's number.
+</ResponseField>
+
+<ResponseField name="Date" field-type="dateTime">
+The registration's work date.
+</ResponseField>
+
+<ResponseField name="EmployeeDepartmentGuid" field-type="guid">
+GUID of the employee's department - which one depends on the operation.
+</ResponseField>
+
+<ResponseField name="EmployeeDepartmentName" field-type="string">
+Name of that department.
+</ResponseField>
+
+<ResponseField name="EmployeeDepartmentNo" field-type="string">
+Number of that department.
+</ResponseField>
+
+<ResponseField name="EmployeeGuid" field-type="guid">
+GUID of the employee who owns the registration.
+</ResponseField>
+
+<ResponseField name="EmployeeInitials" field-type="string">
+Initials of the employee who owns the registration.
+</ResponseField>
+
+<ResponseField name="EmployeeInternalId" field-type="string">
+ 
+</ResponseField>
+
+<ResponseField name="Hours" field-type="double">
+Registered time in decimal hours.
+</ResponseField>
+
+<ResponseField name="ProjectCategoryName" field-type="string">
+Name of the project's category.
+</ResponseField>
+
+<ResponseField name="ProjectDepartmentGuid" field-type="guid">
+GUID of the project's department.
+</ResponseField>
+
+<ResponseField name="ProjectDepartmentName" field-type="string">
+Name of the project's department.
+</ResponseField>
+
+<ResponseField name="ProjectDepartmentNo" field-type="string">
+Number of the project's department.
+</ResponseField>
+
+<ResponseField name="ProjectExternalId" field-type="string">
+The project's key in the external system.
+</ResponseField>
+
+<ResponseField name="ProjectGuid" field-type="guid">
+GUID of the task's project; all zeros for absence.
+</ResponseField>
+
+<ResponseField name="ProjectName" field-type="string">
+The project's name.
+</ResponseField>
+
+<ResponseField name="ProjectNo" field-type="string">
+The project's number.
+</ResponseField>
+
+<ResponseField name="ProjectStatusName" field-type="string">
+Name of the project's current order status.
+</ResponseField>
+
+<ResponseField name="ProjectTypeName" field-type="string">
+Name of the project's type.
+</ResponseField>
+
+<ResponseField name="SalaryCode" field-type="string">
+Absence registrations: the absence code. Project time: the code of the account's system salary code of type 2.
+</ResponseField>
+
+<ResponseField name="SalaryCodeGuid" field-type="guid">
+GUID of the absence code, or of the system salary code for project time.
+</ResponseField>
+
+<ResponseField name="SalaryCodeName" field-type="string">
+Name of the absence code, or of the system salary code for project time.
+</ResponseField>
+
+<ResponseField name="TaskExternalId" field-type="string">
+The task's key in the external system; empty when not mapped.
+</ResponseField>
+
+<ResponseField name="TaskGuid" field-type="guid">
+GUID of the task; all zeros for absence.
+</ResponseField>
+
+<ResponseField name="TaskName" field-type="string">
+The task's name.
+</ResponseField>
+
+<ResponseField name="TaskNameChain" field-type="string">
+The task's name including its parent tasks.
+</ResponseField>
+
+<ResponseField name="TaskNo" field-type="string">
+The task's number.
+</ResponseField>
+
+<ResponseField name="TaskNoChain" field-type="string">
+Task numbers from the top parent task down to this task.
+</ResponseField>
+
+<ResponseField name="TaskParentGuid" field-type="guid">
+GUID of the parent task; all zeros for a top-level task.
+</ResponseField>
+
+<ResponseField name="TaskTypeName" field-type="string">
+Name of the task's type.
+</ResponseField>
+
+<ResponseField name="TaskWBS" field-type="string">
+ 
+</ResponseField>
+
+<ResponseField name="WorkUnitGuid" field-type="guid">
+GUID of the time registration.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<Response uid="trx-projectmanagement-getworkpagedwithexternalids-res" show-lines="true" tabs={["HTTP 200 - success"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetWorkPagedWithExternalIdsResponse xmlns="http://www.timelog.com/api/tlp/v1_8">
+      <GetWorkPagedWithExternalIdsResult xmlns:a="http://api.timelog.com"
+                                         xmlns:b="http://www.timelog.com/api/tlp/v1_7"
+                                         xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:WorkUnitFlatExternal>
+            <b:Action>Example</b:Action>
+            <b:ActionDate>2026-10-01T00:00:00</b:ActionDate>
+            <b:ApprovedStatus>0</b:ApprovedStatus>
+            <b:CustomerExternalId>Example</b:CustomerExternalId>
+            <b:CustomerGuid>3f2504e0-4f89-41d3-9a0c-305000000001</b:CustomerGuid>
+            <b:CustomerName>Example customer</b:CustomerName>
+            <b:CustomerNo>1001</b:CustomerNo>
+            <b:Date>2026-10-01T00:00:00</b:Date>
+            <b:EmployeeDepartmentGuid>3f2504e0-4f89-41d3-9a0c-305000000002</b:EmployeeDepartmentGuid>
+            <b:EmployeeDepartmentName>Example employee department</b:EmployeeDepartmentName>
+            <b:EmployeeDepartmentNo>1001</b:EmployeeDepartmentNo>
+            <b:EmployeeGuid>3f2504e0-4f89-41d3-9a0c-305000000003</b:EmployeeGuid>
+            <b:EmployeeInitials>Example</b:EmployeeInitials>
+            <b:EmployeeInternalId>Example</b:EmployeeInternalId>
+            <b:Hours>0</b:Hours>
+            <b:ProjectCategoryName>Example project category</b:ProjectCategoryName>
+            <b:ProjectDepartmentGuid>3f2504e0-4f89-41d3-9a0c-305000000004</b:ProjectDepartmentGuid>
+            <b:ProjectDepartmentName>Example project department</b:ProjectDepartmentName>
+            <b:ProjectDepartmentNo>1001</b:ProjectDepartmentNo>
+            <b:ProjectExternalId>Example</b:ProjectExternalId>
+            <b:ProjectGuid>3f2504e0-4f89-41d3-9a0c-305000000005</b:ProjectGuid>
+            <b:ProjectName>Example project</b:ProjectName>
+            <b:ProjectNo>1001</b:ProjectNo>
+            <b:ProjectStatusName>Example project status</b:ProjectStatusName>
+            <b:ProjectTypeName>Example project type</b:ProjectTypeName>
+            <b:SalaryCode>Example</b:SalaryCode>
+            <b:SalaryCodeGuid>3f2504e0-4f89-41d3-9a0c-305000000006</b:SalaryCodeGuid>
+            <b:SalaryCodeName>Example salary code</b:SalaryCodeName>
+            <b:TaskExternalId>Example</b:TaskExternalId>
+            <b:TaskGuid>3f2504e0-4f89-41d3-9a0c-305000000007</b:TaskGuid>
+            <b:TaskName>Example task</b:TaskName>
+            <b:TaskNameChain>Example</b:TaskNameChain>
+            <b:TaskNo>1001</b:TaskNo>
+            <b:TaskNoChain>Example</b:TaskNoChain>
+            <b:TaskParentGuid>3f2504e0-4f89-41d3-9a0c-305000000008</b:TaskParentGuid>
+            <b:TaskTypeName>Example task type</b:TaskTypeName>
+            <b:TaskWBS>Example</b:TaskWBS>
+            <b:WorkUnitGuid>3f2504e0-4f89-41d3-9a0c-305000000009</b:WorkUnitGuid>
+          </b:WorkUnitFlatExternal>
+        </a:Return>
+        <a:ReturnTypeDescription>WorkUnitFlatExternal</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>true</a:IsReturnPaged>
+        <a:TotalPageCount>1</a:TotalPageCount>
+      </GetWorkPagedWithExternalIdsResult>
+    </GetWorkPagedWithExternalIdsResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Error | 40001 | Error during call on TimeLog.API, Message 'The current user is not allowed to fetch registrations from other users' | Return is empty, IsReturnPaged true, TotalPageCount -1. | — |
+| Invalid | 40004 | V1_\{n\} is deprecated. Please upgrade to V1_\{m\} or later. | Nothing is read or written and the token is NOT checked. | Call the same operation on the current version. |

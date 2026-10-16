@@ -1,0 +1,178 @@
+---
+title: "GetCustomerStatuses"
+description: "CRM service 1.4: Returns the account's active customer statuses with their group flags."
+---
+
+Returns the account's active customer statuses with their group flags.
+
+| | |
+|---|---|
+| Service | CRM 1.4 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/CRM/V1_4/CRMServiceSecure.svc` |
+| SOAPAction | `http://api.timelog.com/services/crm/1_4/ICRMService/GetCustomerStatuses` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | No |
+| Safe to retry | Yes |
+
+## How it works
+
+The value set for a customer's status: every ACTIVE, non-system customer status configured on the account, with its integer ID, name and Type flags. Inactive statuses and system statuses are left out - unlike REST GET /v1/customerstatus, which also returns inactive ones.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<Request uid="trx-crm-getcustomerstatuses-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/WebServices/CRM/V1_4/CRMServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://api.timelog.com/services/crm/1_4/ICRMService/GetCustomerStatuses"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:crm="http://api.timelog.com/services/crm/1_4"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <crm:GetCustomerStatuses>
+      <crm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </crm:token>
+    </crm:GetCustomerStatuses>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/CRM/V1_4/CRMServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://api.timelog.com/services/crm/1_4/ICRMService/GetCustomerStatuses"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/CRM/V1_4/CRMServiceSecure.svc"
+SOAP_ACTION = '"http://api.timelog.com/services/crm/1_4/ICRMService/GetCustomerStatuses"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:crm="http://api.timelog.com/services/crm/1_4"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <crm:GetCustomerStatuses>
+      <crm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </crm:token>
+    </crm:GetCustomerStatuses>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="CustomerStatus[]">
+Response&lt;CustomerStatus>: all active non-system statuses, unpaged. No 'Successfully called' message. ResponseState Success with an empty Return when no active status exists.
+
+<Expandable title="CustomerStatus fields">
+
+<ResponseField name="ID" field-type="integer">
+Integer ID of the status - the value used as a customer's status.
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+Display name of the status, as configured by the account.
+</ResponseField>
+
+<ResponseField name="Type" field-type="string">
+Which customer groups the status belongs to. Allowed values: `None`, `IsShownInCustomers`, `IsShownInSuppliers`, `IsShownInLeads`, `IsMultiCustomerProjects`, `All`.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<Response uid="trx-crm-getcustomerstatuses-res" show-lines="true" tabs={["HTTP 200 - success"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetCustomerStatusesResponse xmlns="http://api.timelog.com/services/crm/1_4">
+      <GetCustomerStatusesResult xmlns:a="http://api.timelog.com"
+                                 xmlns:b="http://api.timelog.com/services/crm/1_4"
+                                 xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:CustomerStatus>
+            <b:ID>1001</b:ID>
+            <b:Name>Example </b:Name>
+            <b:Type>IsShownInCustomers</b:Type>
+          </b:CustomerStatus>
+        </a:Return>
+        <a:ReturnTypeDescription>CustomerStatus</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </GetCustomerStatusesResult>
+    </GetCustomerStatusesResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+This operation has no errors of its own beyond the shared ones.

@@ -1,0 +1,177 @@
+---
+title: "GetHolidayCalendars"
+description: "Salary service 1.1: Returns the account's holiday calendars."
+---
+
+Returns the account's holiday calendars.
+
+| | |
+|---|---|
+| Service | Salary 1.1 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/Salary/V1_1/SalaryServiceSecure.svc` |
+| SOAPAction | `http://www.timelog.com/api/tlp/v1_1/SalaryService/GetHolidayCalendars` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | No |
+| Safe to retry | Yes |
+
+## How it works
+
+Every holiday calendar of the account - a named set of public holidays that employees are assigned to - as ID and name only, ordered by ID. The holiday dates and the description are not returned. The value set for an employee's holiday calendar.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<Request uid="trx-salary-getholidaycalendars-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/WebServices/Salary/V1_1/SalaryServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/api/tlp/v1_1/SalaryService/GetHolidayCalendars"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:salary="http://www.timelog.com/api/tlp/v1_1"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <salary:GetHolidayCalendars>
+      <salary:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </salary:token>
+    </salary:GetHolidayCalendars>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/Salary/V1_1/SalaryServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/api/tlp/v1_1/SalaryService/GetHolidayCalendars"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/Salary/V1_1/SalaryServiceSecure.svc"
+SOAP_ACTION = '"http://www.timelog.com/api/tlp/v1_1/SalaryService/GetHolidayCalendars"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:salary="http://www.timelog.com/api/tlp/v1_1"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <salary:GetHolidayCalendars>
+      <salary:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </salary:token>
+    </salary:GetHolidayCalendars>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="HolidayCalendar[]">
+Response&lt;HolidayCalendar>: every calendar, unpaged; 'Successfully called' message added; ResponseState Success. ResponseState Success with an empty Return when the account has no holiday calendars.
+
+<Expandable title="HolidayCalendar fields">
+
+<ResponseField name="Id" field-type="integer">
+ 
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+Display name of the calendar.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<Response uid="trx-salary-getholidaycalendars-res" show-lines="true" tabs={["HTTP 200 - success"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetHolidayCalendarsResponse xmlns="http://www.timelog.com/api/tlp/v1_1">
+      <GetHolidayCalendarsResult xmlns:a="http://api.timelog.com"
+                                 xmlns:b="http://schemas.datacontract.org/2004/07/TimeLog.TLP.API.Proxy.Salary.V1_1"
+                                 xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:HolidayCalendar>
+            <b:Id>1001</b:Id>
+            <b:Name>Example </b:Name>
+          </b:HolidayCalendar>
+        </a:Return>
+        <a:ReturnTypeDescription>HolidayCalendar</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </GetHolidayCalendarsResult>
+    </GetHolidayCalendarsResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Invalid | 40004 | V1_\{n\} is deprecated. Please upgrade to V1_\{m\} or later. | Please upgrade to V1_1 or later.'). | Call the same operation on the current version. |

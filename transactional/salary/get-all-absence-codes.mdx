@@ -1,0 +1,248 @@
+---
+title: "GetAllAbsenceCodes"
+description: "Salary service 1.1: Returns every absence code of the account with its payroll mapping."
+---
+
+Returns every absence code of the account with its payroll mapping.
+
+| | |
+|---|---|
+| Service | Salary 1.1 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/Salary/V1_1/SalaryServiceSecure.svc` |
+| SOAPAction | `http://www.timelog.com/api/tlp/v1_1/SalaryService/GetAllAbsenceCodes` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | No |
+| Safe to retry | Yes |
+
+## How it works
+
+The account's absence codes: the reasons absence time is registered on. Each entry carries its code and name, the payroll mapping, the salary account it posts to with factor and sign, how absence is entered, and the approval, capacity and visibility flags. REST's absence-code list returns only the caller's salary group. Configuration only: no employee data.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<Request uid="trx-salary-getallabsencecodes-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/WebServices/Salary/V1_1/SalaryServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/api/tlp/v1_1/SalaryService/GetAllAbsenceCodes"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:salary="http://www.timelog.com/api/tlp/v1_1"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <salary:GetAllAbsenceCodes>
+      <salary:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </salary:token>
+    </salary:GetAllAbsenceCodes>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/Salary/V1_1/SalaryServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/api/tlp/v1_1/SalaryService/GetAllAbsenceCodes"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/Salary/V1_1/SalaryServiceSecure.svc"
+SOAP_ACTION = '"http://www.timelog.com/api/tlp/v1_1/SalaryService/GetAllAbsenceCodes"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:salary="http://www.timelog.com/api/tlp/v1_1"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <salary:GetAllAbsenceCodes>
+      <salary:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </salary:token>
+    </salary:GetAllAbsenceCodes>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="AbsenceCode[]">
+Response&lt;AbsenceCode>: every absence code, unpaged. No 'Successfully called' message is added; ResponseState Success. ResponseState Success with an empty Return when the account has no absence codes.
+
+<Expandable title="AbsenceCode fields">
+
+<ResponseField name="AbsenceCodeGuid" field-type="guid">
+GUID of the absence code.
+</ResponseField>
+
+<ResponseField name="Code" field-type="string">
+"30").
+</ResponseField>
+
+<ResponseField name="CodeForSalaryIntegration" field-type="string">
+The code a salary integration uses for this absence.
+</ResponseField>
+
+<ResponseField name="Description" field-type="string">
+Free-text description; NULL in the table is returned as an empty string.
+</ResponseField>
+
+<ResponseField name="FlexPositiveFactor" field-type="double">
+ 
+</ResponseField>
+
+<ResponseField name="IsActive" field-type="boolean">
+Whether the code is active. GetAllAbsenceCodes returns inactive codes too.
+</ResponseField>
+
+<ResponseField name="IsTransferredToSalaryIntegration" field-type="boolean">
+Whether absence on this code is to be transferred to a salary integration.
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+"Vacation"). The list is ordered by it.
+</ResponseField>
+
+<ResponseField name="SalaryAccountFactor" field-type="double">
+Multiplier applied when absence on this code posts to the salary account: posting = duration x SalaryAccountFactor x SalaryAccountFactorEffect. A factor, not an amount.
+</ResponseField>
+
+<ResponseField name="SalaryAccountFactorEffect" field-type="string">
+Sign of the posting to the salary account. Allowed values: `Substract`, `Add`.
+</ResponseField>
+
+<ResponseField name="SalaryAccountID" field-type="integer">
+The salary account absence on this code posts to.
+</ResponseField>
+
+<ResponseField name="TimeTrackingFormat" field-type="string">
+How absence on this code is entered. Allowed values: `Hours`, `FullDay`, `HalfDay`, `YesNo`, `Count`.
+</ResponseField>
+
+<ResponseField name="AbsenceCodeID" field-type="integer">
+Integer identifier - the ID absence registrations and REST absence operations use.
+</ResponseField>
+
+<ResponseField name="AbsenceCodeTypeID" field-type="integer">
+ 
+</ResponseField>
+
+<ResponseField name="DeductCapacity" field-type="boolean">
+NULL in the table is returned as false.
+</ResponseField>
+
+<ResponseField name="IsPublicVisible" field-type="boolean">
+ 
+</ResponseField>
+
+<ResponseField name="RequireApproval" field-type="boolean">
+Absence on this code goes through approval.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<Response uid="trx-salary-getallabsencecodes-res" show-lines="true" tabs={["HTTP 200 - success"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetAllAbsenceCodesResponse xmlns="http://www.timelog.com/api/tlp/v1_1">
+      <GetAllAbsenceCodesResult xmlns:a="http://api.timelog.com"
+                                xmlns:b="http://api.timelog.com/services/salary/1_1"
+                                xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:AbsenceCode>
+            <b:AbsenceCodeGuid>3f2504e0-4f89-41d3-9a0c-305000000001</b:AbsenceCodeGuid>
+            <b:Code>Example</b:Code>
+            <b:CodeForSalaryIntegration>Example</b:CodeForSalaryIntegration>
+            <b:Description>Example</b:Description>
+            <b:FlexPositiveFactor>0</b:FlexPositiveFactor>
+            <b:IsActive>true</b:IsActive>
+            <b:IsTransferredToSalaryIntegration>false</b:IsTransferredToSalaryIntegration>
+            <b:Name>Example </b:Name>
+            <b:SalaryAccountFactor>0</b:SalaryAccountFactor>
+            <b:SalaryAccountFactorEffect>Substract</b:SalaryAccountFactorEffect>
+            <b:SalaryAccountID>1001</b:SalaryAccountID>
+            <b:TimeTrackingFormat>Hours</b:TimeTrackingFormat>
+            <b:AbsenceCodeID>1001</b:AbsenceCodeID>
+            <b:AbsenceCodeTypeID>1001</b:AbsenceCodeTypeID>
+            <b:DeductCapacity>false</b:DeductCapacity>
+            <b:IsPublicVisible>false</b:IsPublicVisible>
+            <b:RequireApproval>false</b:RequireApproval>
+          </b:AbsenceCode>
+        </a:Return>
+        <a:ReturnTypeDescription>AbsenceCode</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </GetAllAbsenceCodesResult>
+    </GetAllAbsenceCodesResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+This operation has no errors of its own beyond the shared ones.
