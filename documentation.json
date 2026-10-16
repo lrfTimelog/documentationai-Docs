@@ -361,6 +361,11 @@
                     "title": "Responses and errors",
                     "path": "transactional/guides/responses-and-errors",
                     "icon": "triangle-alert"
+                  },
+                  {
+                    "title": "Try it with Bruno",
+                    "path": "transactional/guides/try-it-with-bruno",
+                    "icon": "flask-conical"
                   }
                 ]
               }
@@ -1114,6 +1119,11 @@
                     "title": "Responses and errors",
                     "path": "reporting/guides/responses-and-errors",
                     "icon": "triangle-alert"
+                  },
+                  {
+                    "title": "Try it with Bruno",
+                    "path": "reporting/guides/try-it-with-bruno",
+                    "icon": "flask-conical"
                   }
                 ]
               }
