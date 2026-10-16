@@ -1,0 +1,157 @@
+---
+title: "Responses and errors"
+description: "Every Transactional API call returns HTTP 200 with a response envelope. How to tell success from failure, and what each error means."
+---
+
+<Callout kind="alert">**HTTP 200 does not mean success.** The Transactional API answers almost every call with HTTP 200,
+including failed ones. Whether the call worked is in the response body: always check `ResponseState`.</Callout>
+
+## The response envelope
+
+Every operation returns the same envelope, named `{Operation}Result` (for example `GetCustomersModifiedSincePagedResult`):
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+The outcome of the call. **Check this first.**
+
+| Value | Meaning |
+|---|---|
+| `Success` | The call worked. The result is in `Return`. |
+| `Invalid` | The request was understood but rejected by a business rule (for example a required field is missing). The reasons are in `Messages`. |
+| `Error` | The call failed (for example the token expired, or an unexpected error occurred). The reason is in `ErrorCode` and `Messages`. |
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+The error code when `ResponseState` is not `Success`. `0` on success. See [Error codes](#error-codes).
+</ResponseField>
+
+<ResponseField name="Messages" field-type="APIMessage[]">
+Messages about the call. Each has a `Message` (text), a `Severity` and an `ErrorCode`.
+
+<Expandable title="Severity values">
+| Value | Meaning |
+|---|---|
+| `Error` | The reason the call failed. |
+| `Invalid` | A validation problem with the request. |
+| `Message` | Information only, not an error. Every response includes one: `Duration of call was … sec.` |
+</Expandable>
+</ResponseField>
+
+<ResponseField name="Return" field-type="array">
+The result. **Always a list**, also for operations that return one object: read the first item. Empty when the call
+failed, and also when it succeeded but found nothing.
+</ResponseField>
+
+<ResponseField name="ReturnTypeDescription" field-type="string">
+The type of the objects in `Return`, for example `Customer`.
+</ResponseField>
+
+<ResponseField name="IsReturnPaged" field-type="boolean">
+`true` for paged operations.
+</ResponseField>
+
+<ResponseField name="TotalPageCount" field-type="integer">
+Paged operations only: the number of pages for the whole result, with the `pageSize` you sent.
+</ResponseField>
+
+<ResponseField name="Request" field-type="object">
+The operation and parameters as the server received them. Useful for debugging; you do not need to read it.
+</ResponseField>
+
+## Checking the result in code
+
+Check in this order: the HTTP status (a SOAP fault, see below), then `ResponseState`, then `Return`.
+
+```python
+import xml.etree.ElementTree as ET
+
+API = "{http://api.timelog.com}"
+
+def parse_result(response):
+    """Return the items of `Return`, or raise with the API's own error code and message."""
+    if response.status_code != 200:
+        # SOAP fault: the request itself was wrong (SOAPAction, namespace, malformed XML)
+        raise RuntimeError(f"SOAP fault (HTTP {response.status_code}): {response.text[:500]}")
+
+    root = ET.fromstring(response.content)
+    state = root.find(f".//{API}ResponseState").text
+    if state != "Success":
+        code = root.find(f".//{API}ErrorCode").text
+        messages = [m.find(f"{API}Message").text
+                    for m in root.iter(f"{API}APIMessage")
+                    if m.find(f"{API}Severity").text != "Message"]
+        raise RuntimeError(f"{state} ({code}): {'; '.join(messages)}")
+
+    returned = root.find(f".//{API}Return")
+    return list(returned) if returned is not None else []
+```
+
+## Example: a failed call
+
+This response was recorded from a real call to `GetCustomersModifiedSincePaged` with an expired token. Note that the
+HTTP status is **200**, but `ResponseState` is `Error` and `ErrorCode` is `20004`.
+
+<Response uid="trx-errors-expired-token" show-lines="true" tabs={["HTTP 200 - expired token"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetCustomersModifiedSincePagedResponse xmlns="http://api.timelog.com/services/crm/1_4">
+      <GetCustomersModifiedSincePagedResult xmlns:a="http://api.timelog.com" xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return/>
+        <a:ReturnTypeDescription>Customer</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Error</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Token has Expired!</a:Message>
+            <a:Severity>Error</a:Severity>
+            <a:ErrorCode>20004</a:ErrorCode>
+          </a:APIMessage>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0010687 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>20004</a:ErrorCode>
+        <a:IsReturnPaged>true</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </GetCustomersModifiedSincePagedResult>
+    </GetCustomersModifiedSincePagedResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</Response>
+
+The `Request` block is shortened here.
+
+## Error codes
+
+These codes can come back from **any** operation. Each operation page lists the errors specific to it.
+
+| ErrorCode | ResponseState | Message | What it means | What to do |
+|---|---|---|---|---|
+| 20004 | Error | Token has Expired! | The token is more than 12 hours old. | Call [GetToken](/transactional/guides/authentication) again and repeat the call. |
+| 20003 | Error | Token could not be validated! | The token was issued for another account, or one of its values was changed. | Send the token's three values back unchanged. |
+| 20008 | Error | API is not Activated: Please Enable | The Transactional API is not enabled for this account. | Ask your TimeLog administrator. Retrying does not help. |
+| 20009 | Error | Only secure access is allow in TLP. API must be called via secure endpoint(https). | The call did not use the secure endpoint. | Call the `…ServiceSecure.svc` URL over HTTPS. |
+| 40001 | Error | Error during call on TimeLog.API, Message '…' | A general error. **The real reason is the text inside `Message '…'`**: for example a missing token, a missing permission, or invalid data. | Read the embedded message. The operation page lists the messages it can produce. |
+
+<Callout kind="tip">40001 is a catch-all. Do not branch on the code alone: read the text after `Message '`.</Callout>
+
+## SOAP faults: when it is not a 200
+
+A few errors happen before the request reaches TimeLog's code. They come back as a **SOAP fault** with an HTTP error
+status (typically **500**) instead of a response envelope:
+
+- The `SOAPAction` header does not match an operation of the endpoint you called. Each service version has its own
+  SOAPAction values: copy them from the operation page.
+- The XML is malformed, or an element is in the wrong namespace.
+
+<Callout kind="info">The WSDL of each service defines the **order** and namespace of every element. If a value you
+sent seems to have no effect, compare your XML with the example on the operation page: same element names, same
+order, same namespaces.</Callout>

@@ -345,27 +345,44 @@
         "icon": "arrow-left-right",
         "dropdowns": [
           {
-            "dropdown": "Prototype",
-            "icon": "flask-conical",
+            "dropdown": "Guides",
+            "icon": "book-open",
             "groups": [
               {
-                "group": "MDX pages",
-                "icon": "file-code",
+                "group": "Get started",
+                "icon": "rocket",
                 "pages": [
                   {
-                    "group": "Salary V1_1",
-                    "icon": "wallet",
+                    "title": "Authentication",
+                    "path": "transactional/guides/authentication",
+                    "icon": "key-round"
+                  },
+                  {
+                    "title": "Responses and errors",
+                    "path": "transactional/guides/responses-and-errors",
+                    "icon": "triangle-alert"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "dropdown": "Services",
+            "icon": "boxes",
+            "groups": [
+              {
+                "group": "CRM 1.4",
+                "icon": "users",
+                "pages": [
+                  {
+                    "group": "Customers",
+                    "icon": "building-2",
                     "expandable": true,
                     "pages": [
                       {
-                        "title": "GetAllowances",
-                        "path": "transactional/prototype/get-allowances",
-                        "icon": "list"
-                      },
-                      {
-                        "title": "GetAllSalaryCodes",
-                        "path": "transactional/prototype/get-all-salary-codes",
-                        "icon": "list"
+                        "title": "GetCustomersModifiedSincePaged",
+                        "path": "transactional/crm/get-customers-modified-since-paged",
+                        "icon": "refresh-cw"
                       }
                     ]
                   }
