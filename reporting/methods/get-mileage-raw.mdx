@@ -1,0 +1,375 @@
+---
+title: "GetMileageRaw"
+description: "Reporting API: Returns the account's mileage registrations with route, distance, vehicle, rate and amounts."
+---
+
+Returns the account's mileage registrations with route, distance, vehicle, rate and amounts.
+
+| | |
+|---|---|
+| API | Reporting API (raw extracts) |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/Service.asmx` |
+| SOAPAction | `http://www.timelog.com/ws/tlp/v4_4/GetMileageRaw` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | `siteCode`, `apiID` and `apiPassword` as the first three parameters. See [Authentication](/reporting/guides/authentication) |
+| Changes data | No. Safe to retry. |
+| Paging | No: the whole result comes in one response. Narrow it with the filters. |
+
+## How it works
+
+Filters: customer, project, employee, employee department, date range, self-paid flag, vehicle and rate.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="siteCode" field-type="string" required="true">
+Your account's site code, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiID" field-type="string" required="true">
+The Reporting API ID, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiPassword" field-type="string" required="true">
+The Reporting API password, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="customerID" field-type="integer" required="true">
+Customer of the trip's project. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="projectID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+<ResponseField name="employeeID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+<ResponseField name="departmentID" field-type="integer" required="true">
+The employee's current department INCLUDING sub-departments. Employees without a department never match. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="startDate" field-type="string">
+**Optional.** Send yyyy-MM-dd.
+</ResponseField>
+
+<ResponseField name="endDate" field-type="string">
+**Optional.** Travel date &lt;= value.
+</ResponseField>
+
+<ResponseField name="selfPayment" field-type="integer" required="true">
+Use `-1` for no filter.
+</ResponseField>
+
+<ResponseField name="travelCarID" field-type="integer" required="true">
+Vehicle ID. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="transportRateID" field-type="integer" required="true">
+Mileage rate ID. 0 = no filter.
+</ResponseField>
+
+## Request
+
+<Request uid="rep-getmileageraw-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/Service.asmx HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetMileageRaw"
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetMileageRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:customerID>0</tlp:customerID>
+      <tlp:projectID>0</tlp:projectID>
+      <tlp:employeeID>0</tlp:employeeID>
+      <tlp:departmentID>0</tlp:departmentID>
+      <tlp:startDate>{startDate}</tlp:startDate>
+      <tlp:endDate>{endDate}</tlp:endDate>
+      <tlp:selfPayment>-1</tlp:selfPayment>
+      <tlp:travelCarID>0</tlp:travelCarID>
+      <tlp:transportRateID>0</tlp:transportRateID>
+    </tlp:GetMileageRaw>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/Service.asmx" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetMileageRaw"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/Service.asmx"
+SOAP_ACTION = '"http://www.timelog.com/ws/tlp/v4_4/GetMileageRaw"'
+
+envelope = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetMileageRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:customerID>0</tlp:customerID>
+      <tlp:projectID>0</tlp:projectID>
+      <tlp:employeeID>0</tlp:employeeID>
+      <tlp:departmentID>0</tlp:departmentID>
+      <tlp:startDate>{startDate}</tlp:startDate>
+      <tlp:endDate>{endDate}</tlp:endDate>
+      <tlp:selfPayment>-1</tlp:selfPayment>
+      <tlp:travelCarID>0</tlp:travelCarID>
+      <tlp:transportRateID>0</tlp:transportRateID>
+    </tlp:GetMileageRaw>
+  </soap:Body>
+</soap:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=300,
+)
+rows = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The result is an XML document inside `GetMileageRawResult`: a `tlp:Mileage` root with one `tlp:Mileage` element per record. Check the [response format](/reporting/guides/responses-and-errors) first: the same slot also carries the empty result and errors.
+
+Order: Travel date, then employee initials, then customer name.
+
+<ResponseField name="tlp:Mileage" field-type="MileageRaw[]">
+One element per record. Fields without a value are left out of the element, so treat every field as optional.
+
+<Expandable title="Mileage fields">
+
+<ResponseField name="ID" field-type="integer (attribute)">
+**Mileage registration ID.**
+</ResponseField>
+
+<ResponseField name="CustomerName" field-type="string">
+**Customer name.** Company name of the project's customer.
+</ResponseField>
+
+<ResponseField name="CustomerNo" field-type="string">
+**Customer number.** Customer number of the project's customer.
+</ResponseField>
+
+<ResponseField name="CustomerID" field-type="integer">
+**Customer ID.** The project's customer; customerID filters on it.
+</ResponseField>
+
+<ResponseField name="ProjectName" field-type="string">
+**Project name.** Name of the project the trip is registered on.
+</ResponseField>
+
+<ResponseField name="ProjectNo" field-type="string">
+**Project number.**
+</ResponseField>
+
+<ResponseField name="ProjectID" field-type="integer">
+**Project ID.** Project of the mileage registration.
+</ResponseField>
+
+<ResponseField name="EmployeeFirstName" field-type="string">
+**Employee first name.**
+</ResponseField>
+
+<ResponseField name="EmployeeLastName" field-type="string">
+**Employee last name.**
+</ResponseField>
+
+<ResponseField name="EmployeeFullName" field-type="string">
+**Employee full name.** First name + ' ' + last name; omitted if either part is NULL.
+</ResponseField>
+
+<ResponseField name="EmployeeInitials" field-type="string">
+**Employee initials.**
+</ResponseField>
+
+<ResponseField name="EmployeeID" field-type="integer">
+**Employee ID.** The travelling employee.
+</ResponseField>
+
+<ResponseField name="EmployeeUserID" field-type="integer">
+**Employee user ID.**
+</ResponseField>
+
+<ResponseField name="TravelStartDate" field-type="string">
+**Travel date.** Date of the trip.
+</ResponseField>
+
+<ResponseField name="TravelEndDate" field-type="string">
+**Travel date (duplicate).**
+</ResponseField>
+
+<ResponseField name="TravelPurpose" field-type="string">
+**Purpose.** Purpose of the trip, cleaned of XML-forbidden characters. Personal travel data.
+</ResponseField>
+
+<ResponseField name="TravelDeparture" field-type="string">
+**Departure address.** Start address of the trip. Personal travel data.
+</ResponseField>
+
+<ResponseField name="TravelDestination" field-type="string">
+**Destination address.** End address of the trip. Personal travel data.
+</ResponseField>
+
+<ResponseField name="TravelCostAmount" field-type="decimal">
+**Cost amount.**
+</ResponseField>
+
+<ResponseField name="TravelRegAmount" field-type="decimal">
+**Registered amount.**
+</ResponseField>
+
+<ResponseField name="TravelInvoicedAmount" field-type="decimal">
+**Invoiced amount.** InvoicedAmount, 0 when NULL.
+</ResponseField>
+
+<ResponseField name="TravelTripStart" field-type="integer">
+**Odometer start.** Odometer reading at the start of the trip, 0 when not recorded. Personal travel data.
+</ResponseField>
+
+<ResponseField name="TravelTripEnd" field-type="integer">
+**Odometer end.** Odometer reading at the end of the trip, 0 when not recorded.
+</ResponseField>
+
+<ResponseField name="TravelKM" field-type="decimal">
+**Distance.** Total distance of the trip.
+</ResponseField>
+
+<ResponseField name="TravelForm" field-type="string">
+**Vehicle.** Name of the car / vehicle.
+</ResponseField>
+
+<ResponseField name="TravelSelfPayment" field-type="boolean">
+**Self-paid (reimbursed).** The selfPayment parameter filters on it. Omitted when the rate's flag is NULL. `1` = yes, `0` = no.
+</ResponseField>
+
+<ResponseField name="TransportRateAmount" field-type="decimal">
+**Rate amount.**
+</ResponseField>
+
+<ResponseField name="TransportRate" field-type="string">
+**Rate name.** Name of the mileage rate.
+</ResponseField>
+
+<ResponseField name="IsBillable" field-type="boolean">
+**Is billable.** `1` = yes, `0` = no.
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+### Example responses
+
+<Response uid="rep-getmileageraw-res" show-lines="true" tabs={["HTTP 200 - data","HTTP 200 - no rows","HTTP 401 - access denied"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetMileageRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetMileageRawResult>
+        <tlp:Mileage xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Mileage ID="1001">
+            <tlp:CustomerName>Example Customer A/S</tlp:CustomerName>
+            <tlp:CustomerNo>1001</tlp:CustomerNo>
+            <tlp:CustomerID>12</tlp:CustomerID>
+            <tlp:ProjectName>Example project</tlp:ProjectName>
+            <tlp:ProjectNo>1001</tlp:ProjectNo>
+            <tlp:ProjectID>12</tlp:ProjectID>
+            <tlp:EmployeeFirstName>Anna</tlp:EmployeeFirstName>
+            <tlp:EmployeeLastName>Example</tlp:EmployeeLastName>
+            <tlp:EmployeeFullName>Anna Example</tlp:EmployeeFullName>
+            <tlp:EmployeeInitials>ABC</tlp:EmployeeInitials>
+            <tlp:EmployeeID>12</tlp:EmployeeID>
+            <tlp:EmployeeUserID>12</tlp:EmployeeUserID>
+            <tlp:TravelStartDate>2026-10-01T00:00:00</tlp:TravelStartDate>
+            <tlp:TravelEndDate>2026-12-31T00:00:00</tlp:TravelEndDate>
+            <tlp:TravelPurpose>Example text</tlp:TravelPurpose>
+            <tlp:TravelDeparture>Example text</tlp:TravelDeparture>
+            <tlp:TravelDestination>Example text</tlp:TravelDestination>
+            <tlp:TravelCostAmount>950.0000</tlp:TravelCostAmount>
+            <tlp:TravelRegAmount>950.0000</tlp:TravelRegAmount>
+            <tlp:TravelInvoicedAmount>950.0000</tlp:TravelInvoicedAmount>
+            <tlp:TravelTripStart>0</tlp:TravelTripStart>
+            <tlp:TravelTripEnd>0</tlp:TravelTripEnd>
+            <tlp:TravelKM>0.0000</tlp:TravelKM>
+            <tlp:TravelForm>Example text</tlp:TravelForm>
+            <tlp:TravelSelfPayment>1</tlp:TravelSelfPayment>
+            <tlp:TransportRateAmount>950.0000</tlp:TransportRateAmount>
+            <tlp:TransportRate>Example text</tlp:TransportRate>
+            <tlp:IsBillable>1</tlp:IsBillable>
+          </tlp:Mileage>
+        </tlp:Mileage>
+      </GetMileageRawResult>
+    </GetMileageRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetMileageRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetMileageRawResult>
+        <tlp:Mileage resultEmpty="true" xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4"></tlp:Mileage>
+      </GetMileageRawResult>
+    </GetMileageRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 401 Unauthorized
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetMileageRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetMileageRawResult>
+        <tlp:Errors xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Error>Access denied. Check siteCode, apiID, apiPassword and SSL settings</tlp:Error>
+        </tlp:Errors>
+      </GetMileageRawResult>
+    </GetMileageRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
+
+## Errors
+
+The errors every method can return (access denied, operation failed, invalid request) are listed once in [Responses and errors](/reporting/guides/responses-and-errors#errors).
+
+This method has no errors of its own beyond the shared ones.

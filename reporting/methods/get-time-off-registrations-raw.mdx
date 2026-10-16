@@ -1,0 +1,294 @@
+---
+title: "GetTimeOffRegistrationsRaw"
+description: "Reporting API: Returns absence registrations per employee per day, incl. sick leave."
+---
+
+Returns absence registrations per employee per day, incl. sick leave.
+
+| | |
+|---|---|
+| API | Reporting API (raw extracts) |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/Service.asmx` |
+| SOAPAction | `http://www.timelog.com/ws/tlp/v4_4/GetTimeOffRegistrationsRaw` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | `siteCode`, `apiID` and `apiPassword` as the first three parameters. See [Authentication](/reporting/guides/authentication) |
+| Changes data | No. Safe to retry. |
+| Paging | No: the whole result comes in one response. Narrow it with the filters. |
+
+## How it works
+
+Filters: employee, department and a date range on the registration day. GDPR ART. Approval state is not returned.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="siteCode" field-type="string" required="true">
+Your account's site code, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiID" field-type="string" required="true">
+The Reporting API ID, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiPassword" field-type="string" required="true">
+The Reporting API password, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="employeeID" field-type="integer" required="true">
+Employee id. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="departmentID" field-type="integer" required="true">
+Employee's CURRENT department INCLUDING sub-departments. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="fromDate" field-type="dateTime" required="true">
+Registration day >= value. An unparseable value -> ASMX fault.
+</ResponseField>
+
+<ResponseField name="toDate" field-type="dateTime" required="true">
+Registration day &lt;= value. An unparseable value -> ASMX fault.
+</ResponseField>
+
+## Request
+
+<Request uid="rep-gettimeoffregistrationsraw-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/Service.asmx HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetTimeOffRegistrationsRaw"
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetTimeOffRegistrationsRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:employeeID>0</tlp:employeeID>
+      <tlp:departmentID>0</tlp:departmentID>
+      <tlp:fromDate>{fromDate}</tlp:fromDate>
+      <tlp:toDate>{toDate}</tlp:toDate>
+    </tlp:GetTimeOffRegistrationsRaw>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/Service.asmx" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetTimeOffRegistrationsRaw"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/Service.asmx"
+SOAP_ACTION = '"http://www.timelog.com/ws/tlp/v4_4/GetTimeOffRegistrationsRaw"'
+
+envelope = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetTimeOffRegistrationsRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:employeeID>0</tlp:employeeID>
+      <tlp:departmentID>0</tlp:departmentID>
+      <tlp:fromDate>{fromDate}</tlp:fromDate>
+      <tlp:toDate>{toDate}</tlp:toDate>
+    </tlp:GetTimeOffRegistrationsRaw>
+  </soap:Body>
+</soap:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=300,
+)
+rows = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The result is an XML document inside `GetTimeOffRegistrationsRawResult`: a `tlp:TimeOffRegistrations` root with one `tlp:TimeOffRegistration` element per record. Check the [response format](/reporting/guides/responses-and-errors) first: the same slot also carries the empty result and errors.
+
+Order: Registration date, then registration id.
+
+<ResponseField name="tlp:TimeOffRegistration" field-type="TimeOffRegistration[]">
+One element per record. Fields without a value are left out of the element, so treat every field as optional.
+
+<Expandable title="TimeOffRegistration fields">
+
+<ResponseField name="ID" field-type="integer (attribute)">
+**Time registration ID.**
+</ResponseField>
+
+<ResponseField name="GUID" field-type="string (attribute)">
+**Time registration GUID.**
+</ResponseField>
+
+<ResponseField name="EmployeeID" field-type="integer">
+**Employee ID.** Employee of the registration.
+</ResponseField>
+
+<ResponseField name="EmployeeInitials" field-type="string">
+**Employee initials.**
+</ResponseField>
+
+<ResponseField name="EmployeeFirstName" field-type="string">
+**Employee first name.**
+</ResponseField>
+
+<ResponseField name="EmployeeLastName" field-type="string">
+**Employee last name.**
+</ResponseField>
+
+<ResponseField name="Note" field-type="string">
+**Note.** The registration's comment, cleaned of XML-invalid characters. Free text written by the employee - may state the reason for the absence.
+</ResponseField>
+
+<ResponseField name="TimeOffCode" field-type="string">
+**Absence code.**
+</ResponseField>
+
+<ResponseField name="TimeOffName" field-type="string">
+**Absence code name.**
+</ResponseField>
+
+<ResponseField name="AbsenceCodeType" field-type="integer">
+**System absence type.**
+</ResponseField>
+
+<ResponseField name="AbsenceCodeTypeName" field-type="string">
+**Absence type name.**
+</ResponseField>
+
+<ResponseField name="Date" field-type="string">
+**Date.**
+</ResponseField>
+
+<ResponseField name="RegHours" field-type="decimal">
+**Hours.** Registered hours, CONVERT(MONEY, ISNULL): four decimals, 0 when unset.
+</ResponseField>
+
+<ResponseField name="CreatedAt" field-type="string">
+**Created at.**
+</ResponseField>
+
+<ResponseField name="CreatedByEmployeeId" field-type="integer">
+**Created by (employee ID).** Creator's employee id; omitted when it matches no employee.
+</ResponseField>
+
+<ResponseField name="CreatedBy" field-type="string">
+**Created by (initials).** Creator's initials.
+</ResponseField>
+
+<ResponseField name="LastModifiedAt" field-type="string">
+**Last modified at.**
+</ResponseField>
+
+<ResponseField name="LastModifiedByEmployeeId" field-type="integer">
+**Last modified by (employee ID).** Last modifier's employee id.
+</ResponseField>
+
+<ResponseField name="LastModifiedBy" field-type="string">
+**Last modified by (initials).** Last modifier's initials.
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+### Example responses
+
+<Response uid="rep-gettimeoffregistrationsraw-res" show-lines="true" tabs={["HTTP 200 - data","HTTP 200 - no rows","HTTP 401 - access denied"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetTimeOffRegistrationsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetTimeOffRegistrationsRawResult>
+        <tlp:TimeOffRegistrations xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:TimeOffRegistration ID="1001" GUID="3F2504E0-4F89-41D3-9A0C-0305E82C3320">
+            <tlp:EmployeeID>12</tlp:EmployeeID>
+            <tlp:EmployeeInitials>ABC</tlp:EmployeeInitials>
+            <tlp:EmployeeFirstName>Anna</tlp:EmployeeFirstName>
+            <tlp:EmployeeLastName>Example</tlp:EmployeeLastName>
+            <tlp:Note>Example text</tlp:Note>
+            <tlp:TimeOffCode>Example text</tlp:TimeOffCode>
+            <tlp:TimeOffName>Example time off</tlp:TimeOffName>
+            <tlp:AbsenceCodeType>0</tlp:AbsenceCodeType>
+            <tlp:AbsenceCodeTypeName>Example absence code type</tlp:AbsenceCodeTypeName>
+            <tlp:Date>2026-10-01T00:00:00</tlp:Date>
+            <tlp:RegHours>7.5000</tlp:RegHours>
+            <tlp:CreatedAt>2026-10-01T00:00:00</tlp:CreatedAt>
+            <tlp:CreatedByEmployeeId>12</tlp:CreatedByEmployeeId>
+            <tlp:CreatedBy>ABC</tlp:CreatedBy>
+            <tlp:LastModifiedAt>2026-10-01T00:00:00</tlp:LastModifiedAt>
+            <tlp:LastModifiedByEmployeeId>12</tlp:LastModifiedByEmployeeId>
+            <tlp:LastModifiedBy>ABC</tlp:LastModifiedBy>
+          </tlp:TimeOffRegistration>
+        </tlp:TimeOffRegistrations>
+      </GetTimeOffRegistrationsRawResult>
+    </GetTimeOffRegistrationsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetTimeOffRegistrationsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetTimeOffRegistrationsRawResult>
+        <tlp:TimeOffRegistrations resultEmpty="true" xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4"></tlp:TimeOffRegistrations>
+      </GetTimeOffRegistrationsRawResult>
+    </GetTimeOffRegistrationsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 401 Unauthorized
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetTimeOffRegistrationsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetTimeOffRegistrationsRawResult>
+        <tlp:Errors xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Error>Access denied. Check siteCode, apiID, apiPassword and SSL settings</tlp:Error>
+        </tlp:Errors>
+      </GetTimeOffRegistrationsRawResult>
+    </GetTimeOffRegistrationsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
+
+## Errors
+
+The errors every method can return (access denied, operation failed, invalid request) are listed once in [Responses and errors](/reporting/guides/responses-and-errors#errors).
+
+This method has no errors of its own beyond the shared ones.

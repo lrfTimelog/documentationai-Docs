@@ -1,0 +1,542 @@
+---
+title: "GetWorkUnitsRawPaged"
+description: "Reporting API: Returns one page of the account's project time registrations with total counts on the root."
+---
+
+Returns one page of the account's project time registrations with total counts on the root.
+
+| | |
+|---|---|
+| API | Reporting API (raw extracts) |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/Service.asmx` |
+| SOAPAction | `http://www.timelog.com/ws/tlp/v4_4/GetWorkUnitsRawPaged` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | `siteCode`, `apiID` and `apiPassword` as the first three parameters. See [Authentication](/reporting/guides/authentication) |
+| Changes data | No. Safe to retry. |
+| Paging | Yes |
+
+## How it works
+
+Otherwise the call silently returns EVERYTHING, exactly like GetWorkUnitsRaw. pageSize has no upper bound.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="siteCode" field-type="string" required="true">
+Your account's site code, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiID" field-type="string" required="true">
+The Reporting API ID, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiPassword" field-type="string" required="true">
+The Reporting API password, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="workUnitID" field-type="integer" required="true">
+Time registration ID. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="employeeID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+<ResponseField name="allocationID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+<ResponseField name="taskID" field-type="integer" required="true">
+Task. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="projectID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+<ResponseField name="departmentID" field-type="integer" required="true">
+Department stored on the registration. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="startDate" field-type="string">
+**Optional.** Send yyyy-MM-dd.
+</ResponseField>
+
+<ResponseField name="endDate" field-type="string">
+**Optional.** Registration date &lt;= value.
+</ResponseField>
+
+<ResponseField name="page" field-type="string">
+**Optional.** 1-based page number, sent as a STRING. A page beyond the last returns an empty page whose root reports TotalRecords=0 / TotalPages=0.
+</ResponseField>
+
+<ResponseField name="pageSize" field-type="string">
+**Optional.** No server maximum.
+</ResponseField>
+
+## Request
+
+<Request uid="rep-getworkunitsrawpaged-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/Service.asmx HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetWorkUnitsRawPaged"
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetWorkUnitsRawPaged>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:workUnitID>0</tlp:workUnitID>
+      <tlp:employeeID>0</tlp:employeeID>
+      <tlp:allocationID>0</tlp:allocationID>
+      <tlp:taskID>0</tlp:taskID>
+      <tlp:projectID>0</tlp:projectID>
+      <tlp:departmentID>0</tlp:departmentID>
+      <tlp:startDate>{startDate}</tlp:startDate>
+      <tlp:endDate>{endDate}</tlp:endDate>
+      <tlp:page>{page}</tlp:page>
+      <tlp:pageSize>{pageSize}</tlp:pageSize>
+    </tlp:GetWorkUnitsRawPaged>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/Service.asmx" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetWorkUnitsRawPaged"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/Service.asmx"
+SOAP_ACTION = '"http://www.timelog.com/ws/tlp/v4_4/GetWorkUnitsRawPaged"'
+
+envelope = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetWorkUnitsRawPaged>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:workUnitID>0</tlp:workUnitID>
+      <tlp:employeeID>0</tlp:employeeID>
+      <tlp:allocationID>0</tlp:allocationID>
+      <tlp:taskID>0</tlp:taskID>
+      <tlp:projectID>0</tlp:projectID>
+      <tlp:departmentID>0</tlp:departmentID>
+      <tlp:startDate>{startDate}</tlp:startDate>
+      <tlp:endDate>{endDate}</tlp:endDate>
+      <tlp:page>{page}</tlp:page>
+      <tlp:pageSize>{pageSize}</tlp:pageSize>
+    </tlp:GetWorkUnitsRawPaged>
+  </soap:Body>
+</soap:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=300,
+)
+rows = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The result is an XML document inside `GetWorkUnitsRawPagedResult`: a `tlp:WorkUnits` root with one `tlp:WorkUnit` element per record. Check the [response format](/reporting/guides/responses-and-errors) first: the same slot also carries the empty result and errors.
+
+<ResponseField name="tlp:WorkUnit" field-type="WorkUnitRaw[]">
+One element per record. Fields without a value are left out of the element, so treat every field as optional.
+
+<Expandable title="WorkUnit fields">
+
+<ResponseField name="ID" field-type="integer (attribute)">
+**Time registration ID.**
+</ResponseField>
+
+<ResponseField name="OldID" field-type="integer (attribute)">
+**Legacy work unit ID.** Kept for integrations built before time registrations got their own table.; the streaming writer always writes it.
+</ResponseField>
+
+<ResponseField name="TimeRegistrationGuid" field-type="string">
+**Time registration GUID.** GUID of the time registration, upper-case.
+</ResponseField>
+
+<ResponseField name="WorkUnitGuid" field-type="string">
+**Legacy work unit GUID.**
+</ResponseField>
+
+<ResponseField name="OvertimeFactor" field-type="integer">
+**Overtime factor.**
+</ResponseField>
+
+<ResponseField name="EmployeeID" field-type="integer">
+**Employee ID.** Employee who owns the registration.
+</ResponseField>
+
+<ResponseField name="EmployeeInitials" field-type="string">
+**Employee initials.** Initials from the employee's user profile.
+</ResponseField>
+
+<ResponseField name="EmployeeFirstName" field-type="string">
+**Employee first name.** First name from the employee's user profile.
+</ResponseField>
+
+<ResponseField name="EmployeeLastName" field-type="string">
+**Employee last name.** Last name from the employee's user profile.
+</ResponseField>
+
+<ResponseField name="AllocationID" field-type="integer">
+**Allocation ID.** Only registrations on allocations are extracted.
+</ResponseField>
+
+<ResponseField name="TaskID" field-type="integer">
+**Task ID.** Task of the allocation.
+</ResponseField>
+
+<ResponseField name="TaskName" field-type="string">
+**Task name.** Name of the task.
+</ResponseField>
+
+<ResponseField name="ProjectID" field-type="integer">
+**Project ID.** Project the task belongs to.
+</ResponseField>
+
+<ResponseField name="ProjectName" field-type="string">
+**Project name.** Name of the project.
+</ResponseField>
+
+<ResponseField name="CustomerId" field-type="integer">
+**Customer ID.** Customer of the project. Wire name is 'CustomerId', unlike the other extracts' 'CustomerID'.
+</ResponseField>
+
+<ResponseField name="CustomerName" field-type="string">
+**Customer name.** Company name of the project's customer.
+</ResponseField>
+
+<ResponseField name="Date" field-type="string">
+**Registration date.** The day the time is registered on. The startDate/endDate parameters filter on this value.
+</ResponseField>
+
+<ResponseField name="StartTime" field-type="string">
+**Start time.** Clock start time of the registration when one was recorded.
+</ResponseField>
+
+<ResponseField name="EndTime" field-type="string">
+**End time.** Clock end time of the registration when one was recorded.
+</ResponseField>
+
+<ResponseField name="Note" field-type="string">
+**Comment.** The registration's comment. Free text written by the employee; may contain personal data.
+</ResponseField>
+
+<ResponseField name="DepartmentID" field-type="integer">
+**Department ID.** Department stored on the registration. The departmentID parameter filters on the stored value regardless of the feature.
+</ResponseField>
+
+<ResponseField name="DepartmentName" field-type="string">
+**Department name.**
+</ResponseField>
+
+<ResponseField name="AdditionalTextField" field-type="string">
+**Additional text.**
+</ResponseField>
+
+<ResponseField name="ActualExchangeRate" field-type="decimal">
+**Exchange rate.** Written with 4 decimals.
+</ResponseField>
+
+<ResponseField name="RegHours" field-type="decimal">
+**Registered hours.** 4 decimals.
+</ResponseField>
+
+<ResponseField name="RegHourlyRate" field-type="decimal">
+**Registered hourly rate.** Hourly sales rate at registration, 0 when NULL.
+</ResponseField>
+
+<ResponseField name="RegHourlyRateProjectCurrency" field-type="decimal">
+**Registered hourly rate (project currency).**
+</ResponseField>
+
+<ResponseField name="RegAmount" field-type="decimal">
+**Registered amount.** Registered sales amount, 0 when NULL.
+</ResponseField>
+
+<ResponseField name="RegAmountProjectCurrency" field-type="decimal">
+**Registered amount (project currency).**
+</ResponseField>
+
+<ResponseField name="EstimatedHours" field-type="decimal">
+**Billable (adjusted) hours.** Despite the wire name, the BILLABLE hours - the hours after adjustment/write-off; 0 when NULL.
+</ResponseField>
+
+<ResponseField name="EstimatedHourlyRate" field-type="decimal">
+**Billable hourly rate.**
+</ResponseField>
+
+<ResponseField name="EstimatedHourlyRateProjectCurrency" field-type="decimal">
+**Billable hourly rate (project currency).**
+</ResponseField>
+
+<ResponseField name="EstimatedAmount" field-type="decimal">
+**Billable amount.**
+</ResponseField>
+
+<ResponseField name="EstimatedAmountProjectCurrency" field-type="decimal">
+**Billable amount (project currency).**
+</ResponseField>
+
+<ResponseField name="BARHours" field-type="decimal">
+**BAR hours.** What 'BAR' stands for is not stated in source.
+</ResponseField>
+
+<ResponseField name="BARHourlyRate" field-type="decimal">
+**BAR hourly rate.** BARHourlyRate, 0 when NULL.
+</ResponseField>
+
+<ResponseField name="BARHourlyRateProjectCurrency" field-type="decimal">
+**BAR hourly rate (project currency).**
+</ResponseField>
+
+<ResponseField name="BARAmount" field-type="decimal">
+**BAR amount.** BARAmount, 0 when NULL.
+</ResponseField>
+
+<ResponseField name="BARAmountProjectCurrency" field-type="decimal">
+**BAR amount (project currency).**
+</ResponseField>
+
+<ResponseField name="InvoicedHours" field-type="decimal">
+**Invoiced hours.** Hours invoiced, 0 when NULL.
+</ResponseField>
+
+<ResponseField name="InvoicedHourlyRate" field-type="decimal">
+**Invoiced hourly rate.** InvoicedHourlyRate, 0 when NULL.
+</ResponseField>
+
+<ResponseField name="InvoicedHourlyRateProjectCurrency" field-type="decimal">
+**Invoiced hourly rate (project currency).**
+</ResponseField>
+
+<ResponseField name="InvoicedAmount" field-type="decimal">
+**Invoiced amount.** InvoicedAmount, 0 when NULL.
+</ResponseField>
+
+<ResponseField name="InvoicedAmountProjectCurrency" field-type="decimal">
+**Invoiced amount (project currency).**
+</ResponseField>
+
+<ResponseField name="InvHours" field-type="decimal">
+**Deprecated: copy of BARHours.** We cannot change it.'): carries BARHours, NOT invoiced hours. Use InvoicedHours.
+</ResponseField>
+
+<ResponseField name="InvAmount" field-type="decimal">
+**Deprecated: copy of BARAmount.** DEPRECATED: carries BARAmount, NOT the invoiced amount. Use InvoicedAmount.
+</ResponseField>
+
+<ResponseField name="CostAmount" field-type="decimal">
+**Cost amount.** Sensitive: reveals employee cost.
+</ResponseField>
+
+<ResponseField name="CostAmountCurrency" field-type="decimal">
+**Cost amount (other currency).**
+</ResponseField>
+
+<ResponseField name="HourlyRateId" field-type="integer">
+**Hourly rate ID.** Hourly rate applied to the registration.
+</ResponseField>
+
+<ResponseField name="InvoiceStatus" field-type="integer">
+**Invoice status.** Invoicing state of the registration.
+</ResponseField>
+
+<ResponseField name="BillableStatus" field-type="integer">
+**Billable status.**
+</ResponseField>
+
+<ResponseField name="IsBillable" field-type="boolean">
+**Is billable.** `1` = yes, `0` = no.
+</ResponseField>
+
+<ResponseField name="ApprovedStatus" field-type="integer">
+**Approval status (legacy scale).**
+</ResponseField>
+
+<ResponseField name="MonthlyPeriod" field-type="string">
+**Monthly period.** Accounting month the registration belongs to as 'YYYY-MM'; omitted when the registration has no monthly period.
+</ResponseField>
+
+<ResponseField name="CreatedAt" field-type="string">
+**Created at.** NOTE: overwritten on every non-agent update, so it is the time of the last save, not of creation.
+</ResponseField>
+
+<ResponseField name="CreatedByEmployeeId" field-type="integer">
+**Created by (employee ID).** Overwritten on every update. Omitted when that employee no longer exists.
+</ResponseField>
+
+<ResponseField name="CreatedBy" field-type="string">
+**Created by (initials).** Initials of the CreatedBy employee.
+</ResponseField>
+
+<ResponseField name="LastModifiedAt" field-type="string">
+**Last modified at.**
+</ResponseField>
+
+<ResponseField name="LastModifiedByEmployeeId" field-type="integer">
+**Last modified by (employee ID).**
+</ResponseField>
+
+<ResponseField name="LastModifiedBy" field-type="string">
+**Last modified by (initials).** Initials of the LastModifiedBy employee.
+</ResponseField>
+
+<ResponseField name="UserID" field-type="integer">
+**User ID.**
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+### Example responses
+
+<Response uid="rep-getworkunitsrawpaged-res" show-lines="true" tabs={["HTTP 200 - data","HTTP 200 - no rows","HTTP 401 - access denied"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetWorkUnitsRawPagedResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetWorkUnitsRawPagedResult>
+        <tlp:WorkUnits xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:WorkUnit ID="1001" OldID="12">
+            <tlp:TimeRegistrationGuid>3F2504E0-4F89-41D3-9A0C-0305E82C3323</tlp:TimeRegistrationGuid>
+            <tlp:WorkUnitGuid>3F2504E0-4F89-41D3-9A0C-0305E82C3324</tlp:WorkUnitGuid>
+            <tlp:OvertimeFactor>0</tlp:OvertimeFactor>
+            <tlp:EmployeeID>12</tlp:EmployeeID>
+            <tlp:EmployeeInitials>ABC</tlp:EmployeeInitials>
+            <tlp:EmployeeFirstName>Anna</tlp:EmployeeFirstName>
+            <tlp:EmployeeLastName>Example</tlp:EmployeeLastName>
+            <tlp:AllocationID>12</tlp:AllocationID>
+            <tlp:TaskID>12</tlp:TaskID>
+            <tlp:TaskName>Example task</tlp:TaskName>
+            <tlp:ProjectID>12</tlp:ProjectID>
+            <tlp:ProjectName>Example project</tlp:ProjectName>
+            <tlp:CustomerId>12</tlp:CustomerId>
+            <tlp:CustomerName>Example Customer A/S</tlp:CustomerName>
+            <tlp:Date>2026-10-01T00:00:00</tlp:Date>
+            <tlp:StartTime>2026-10-01T00:00:00</tlp:StartTime>
+            <tlp:EndTime>2026-12-31T00:00:00</tlp:EndTime>
+            <tlp:Note>Example text</tlp:Note>
+            <tlp:DepartmentID>12</tlp:DepartmentID>
+            <tlp:DepartmentName>Example department</tlp:DepartmentName>
+            <tlp:AdditionalTextField>Example text</tlp:AdditionalTextField>
+            <tlp:ActualExchangeRate>950.0000</tlp:ActualExchangeRate>
+            <tlp:RegHours>7.5000</tlp:RegHours>
+            <tlp:RegHourlyRate>950.0000</tlp:RegHourlyRate>
+            <tlp:RegHourlyRateProjectCurrency>950.0000</tlp:RegHourlyRateProjectCurrency>
+            <tlp:RegAmount>950.0000</tlp:RegAmount>
+            <tlp:RegAmountProjectCurrency>950.0000</tlp:RegAmountProjectCurrency>
+            <tlp:EstimatedHours>7.5000</tlp:EstimatedHours>
+            <tlp:EstimatedHourlyRate>950.0000</tlp:EstimatedHourlyRate>
+            <tlp:EstimatedHourlyRateProjectCurrency>950.0000</tlp:EstimatedHourlyRateProjectCurrency>
+            <tlp:EstimatedAmount>950.0000</tlp:EstimatedAmount>
+            <tlp:EstimatedAmountProjectCurrency>950.0000</tlp:EstimatedAmountProjectCurrency>
+            <tlp:BARHours>7.5000</tlp:BARHours>
+            <tlp:BARHourlyRate>950.0000</tlp:BARHourlyRate>
+            <tlp:BARHourlyRateProjectCurrency>950.0000</tlp:BARHourlyRateProjectCurrency>
+            <tlp:BARAmount>950.0000</tlp:BARAmount>
+            <tlp:BARAmountProjectCurrency>950.0000</tlp:BARAmountProjectCurrency>
+            <tlp:InvoicedHours>7.5000</tlp:InvoicedHours>
+            <tlp:InvoicedHourlyRate>950.0000</tlp:InvoicedHourlyRate>
+            <tlp:InvoicedHourlyRateProjectCurrency>950.0000</tlp:InvoicedHourlyRateProjectCurrency>
+            <tlp:InvoicedAmount>950.0000</tlp:InvoicedAmount>
+            <tlp:InvoicedAmountProjectCurrency>950.0000</tlp:InvoicedAmountProjectCurrency>
+            <tlp:InvHours>7.5000</tlp:InvHours>
+            <tlp:InvAmount>950.0000</tlp:InvAmount>
+            <tlp:CostAmount>950.0000</tlp:CostAmount>
+            <tlp:CostAmountCurrency>950.0000</tlp:CostAmountCurrency>
+            <tlp:HourlyRateId>12</tlp:HourlyRateId>
+            <tlp:InvoiceStatus>1</tlp:InvoiceStatus>
+            <tlp:BillableStatus>1</tlp:BillableStatus>
+            <tlp:IsBillable>1</tlp:IsBillable>
+            <tlp:ApprovedStatus>1</tlp:ApprovedStatus>
+            <tlp:MonthlyPeriod>2026-10</tlp:MonthlyPeriod>
+            <tlp:CreatedAt>2026-10-01T00:00:00</tlp:CreatedAt>
+            <tlp:CreatedByEmployeeId>12</tlp:CreatedByEmployeeId>
+            <tlp:CreatedBy>ABC</tlp:CreatedBy>
+            <tlp:LastModifiedAt>2026-10-01T00:00:00</tlp:LastModifiedAt>
+            <tlp:LastModifiedByEmployeeId>12</tlp:LastModifiedByEmployeeId>
+            <tlp:LastModifiedBy>ABC</tlp:LastModifiedBy>
+            <tlp:UserID>12</tlp:UserID>
+          </tlp:WorkUnit>
+        </tlp:WorkUnits>
+      </GetWorkUnitsRawPagedResult>
+    </GetWorkUnitsRawPagedResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetWorkUnitsRawPagedResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetWorkUnitsRawPagedResult>
+        <tlp:WorkUnits resultEmpty="true" xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4"></tlp:WorkUnits>
+      </GetWorkUnitsRawPagedResult>
+    </GetWorkUnitsRawPagedResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 401 Unauthorized
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetWorkUnitsRawPagedResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetWorkUnitsRawPagedResult>
+        <tlp:Errors xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Error>Access denied. Check siteCode, apiID, apiPassword and SSL settings</tlp:Error>
+        </tlp:Errors>
+      </GetWorkUnitsRawPagedResult>
+    </GetWorkUnitsRawPagedResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
+
+## Errors
+
+The errors every method can return (access denied, operation failed, invalid request) are listed once in [Responses and errors](/reporting/guides/responses-and-errors#errors).
+
+Errors specific to this method:
+
+| HTTP status | What you get | What it means | What to do |
+|---|---|---|---|
+| 200 | A document that stops in the middle (does not parse to the end) | The extract is sent row by row; a failure after the first rows were sent cuts the document off. | Treat a document that does not parse as failed and repeat the call with a shorter date range. |

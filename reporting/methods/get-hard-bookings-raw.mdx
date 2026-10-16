@@ -1,0 +1,272 @@
+---
+title: "GetHardBookingsRaw"
+description: "Reporting API: Returns booked hours per employee, allocation and day in a date range - manual, Outlook and favourite bookings."
+---
+
+Returns booked hours per employee, allocation and day in a date range - manual, Outlook and favourite bookings.
+
+| | |
+|---|---|
+| API | Reporting API (raw extracts) |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/Service.asmx` |
+| SOAPAction | `http://www.timelog.com/ws/tlp/v4_4/GetHardBookingsRaw` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | `siteCode`, `apiID` and `apiPassword` as the first three parameters. See [Authentication](/reporting/guides/authentication) |
+| Changes data | No. Safe to retry. |
+| Paging | No: the whole result comes in one response. Narrow it with the filters. |
+
+## How it works
+
+Filters: the employee's USER id, a mandatory date range on the booked day, and the booking type. CAUTION: hardbookingType = 0 does NOT filter - it returns every type. There is no way to request manual bookings only; filter HardBookingType = 0 on the client. Planning data of every employee.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="siteCode" field-type="string" required="true">
+Your account's site code, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiID" field-type="string" required="true">
+The Reporting API ID, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiPassword" field-type="string" required="true">
+The Reporting API password, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="employeeUserId" field-type="integer" required="true">
+USER id of the employee - not the employee id. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="startDate" field-type="dateTime" required="true">
+ 
+</ResponseField>
+
+<ResponseField name="endDate" field-type="dateTime" required="true">
+Booked day &lt;= value.
+</ResponseField>
+
+<ResponseField name="hardbookingType" field-type="integer" required="true">
+Use `0` for no filter.
+</ResponseField>
+
+## Request
+
+<Request uid="rep-gethardbookingsraw-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/Service.asmx HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetHardBookingsRaw"
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetHardBookingsRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:employeeUserId>0</tlp:employeeUserId>
+      <tlp:startDate>{startDate}</tlp:startDate>
+      <tlp:endDate>{endDate}</tlp:endDate>
+      <tlp:hardbookingType>0</tlp:hardbookingType>
+    </tlp:GetHardBookingsRaw>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/Service.asmx" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetHardBookingsRaw"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/Service.asmx"
+SOAP_ACTION = '"http://www.timelog.com/ws/tlp/v4_4/GetHardBookingsRaw"'
+
+envelope = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetHardBookingsRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:employeeUserId>0</tlp:employeeUserId>
+      <tlp:startDate>{startDate}</tlp:startDate>
+      <tlp:endDate>{endDate}</tlp:endDate>
+      <tlp:hardbookingType>0</tlp:hardbookingType>
+    </tlp:GetHardBookingsRaw>
+  </soap:Body>
+</soap:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=300,
+)
+rows = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The result is an XML document inside `GetHardBookingsRawResult`: a `tlp:Hardbookings` root with one `tlp:Hardbooking` element per record. Check the [response format](/reporting/guides/responses-and-errors) first: the same slot also carries the empty result and errors.
+
+<ResponseField name="tlp:Hardbooking" field-type="Hardbooking[]">
+One element per record. Fields without a value are left out of the element, so treat every field as optional.
+
+<Expandable title="Hardbooking fields">
+
+<ResponseField name="GUID" field-type="string (attribute)">
+**Booking detail GUID.**
+</ResponseField>
+
+<ResponseField name="ID" field-type="integer (attribute)">
+**Booking detail ID.**
+</ResponseField>
+
+<ResponseField name="UserID" field-type="integer">
+**User ID.**
+</ResponseField>
+
+<ResponseField name="AllocationID" field-type="integer">
+**Allocation ID.** Allocation the booking draws on.
+</ResponseField>
+
+<ResponseField name="TaskID" field-type="integer">
+**Task ID.** Task of that allocation.
+</ResponseField>
+
+<ResponseField name="TaskName" field-type="string">
+**Task name.** Task name.
+</ResponseField>
+
+<ResponseField name="TaskWBS" field-type="string">
+**Task WBS.** Task WBS number.
+</ResponseField>
+
+<ResponseField name="ProjectID" field-type="integer">
+**Project ID.** Project of the task.
+</ResponseField>
+
+<ResponseField name="ProjectNo" field-type="string">
+**Project number.** Project number.
+</ResponseField>
+
+<ResponseField name="ProjectName" field-type="string">
+**Project name.** Project name.
+</ResponseField>
+
+<ResponseField name="Date" field-type="string">
+**Booking date.** The booked day. startDate/endDate filter on it.
+</ResponseField>
+
+<ResponseField name="Hours" field-type="decimal">
+**Booked hours.** Hours of this booking detail.
+</ResponseField>
+
+<ResponseField name="HardBookingType" field-type="integer">
+**Booking type.**
+</ResponseField>
+
+<ResponseField name="UID" field-type="string">
+**Calendar event UID.** UID of the Outlook calendar event behind an Outlook booking; EMPTY STRING for manual and favourite bookings.
+</ResponseField>
+
+<ResponseField name="ReccurenceID" field-type="string">
+**Calendar recurrence ID.** Wire name is misspelled - keep it when parsing.
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+### Example responses
+
+<Response uid="rep-gethardbookingsraw-res" show-lines="true" tabs={["HTTP 200 - data","HTTP 200 - no rows","HTTP 401 - access denied"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetHardBookingsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetHardBookingsRawResult>
+        <tlp:Hardbookings xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Hardbooking GUID="3F2504E0-4F89-41D3-9A0C-0305E82C3310" ID="1001">
+            <tlp:UserID>12</tlp:UserID>
+            <tlp:AllocationID>12</tlp:AllocationID>
+            <tlp:TaskID>12</tlp:TaskID>
+            <tlp:TaskName>Example task</tlp:TaskName>
+            <tlp:TaskWBS>Example text</tlp:TaskWBS>
+            <tlp:ProjectID>12</tlp:ProjectID>
+            <tlp:ProjectNo>1001</tlp:ProjectNo>
+            <tlp:ProjectName>Example project</tlp:ProjectName>
+            <tlp:Date>2026-10-01T00:00:00</tlp:Date>
+            <tlp:Hours>7.5000</tlp:Hours>
+            <tlp:HardBookingType>0</tlp:HardBookingType>
+            <tlp:UID>Example text</tlp:UID>
+            <tlp:ReccurenceID>Example text</tlp:ReccurenceID>
+          </tlp:Hardbooking>
+        </tlp:Hardbookings>
+      </GetHardBookingsRawResult>
+    </GetHardBookingsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetHardBookingsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetHardBookingsRawResult>
+        <tlp:Hardbookings resultEmpty="true" xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4"></tlp:Hardbookings>
+      </GetHardBookingsRawResult>
+    </GetHardBookingsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 401 Unauthorized
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetHardBookingsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetHardBookingsRawResult>
+        <tlp:Errors xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Error>Access denied. Check siteCode, apiID, apiPassword and SSL settings</tlp:Error>
+        </tlp:Errors>
+      </GetHardBookingsRawResult>
+    </GetHardBookingsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
+
+## Errors
+
+The errors every method can return (access denied, operation failed, invalid request) are listed once in [Responses and errors](/reporting/guides/responses-and-errors#errors).
+
+This method has no errors of its own beyond the shared ones.

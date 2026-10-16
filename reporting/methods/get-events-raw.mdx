@@ -1,0 +1,271 @@
+---
+title: "GetEventsRaw"
+description: "Reporting API: Returns the account's CRM events with status, date, contact and linked opportunity."
+---
+
+Returns the account's CRM events with status, date, contact and linked opportunity.
+
+| | |
+|---|---|
+| API | Reporting API (raw extracts) |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/Service.asmx` |
+| SOAPAction | `http://www.timelog.com/ws/tlp/v4_4/GetEventsRaw` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | `siteCode`, `apiID` and `apiPassword` as the first three parameters. See [Authentication](/reporting/guides/authentication) |
+| Changes data | No. Safe to retry. |
+| Paging | No: the whole result comes in one response. Narrow it with the filters. |
+
+## How it works
+
+Filters: event, event type, customer, responsible employee, status and a date range.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="siteCode" field-type="string" required="true">
+Your account's site code, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiID" field-type="string" required="true">
+The Reporting API ID, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiPassword" field-type="string" required="true">
+The Reporting API password, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="eventID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+<ResponseField name="eventTypeID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+<ResponseField name="customerID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+<ResponseField name="employeeID" field-type="integer" required="true">
+Employee in charge of the event. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="status" field-type="integer" required="true">
+Use `0` for no filter. Event status. Values > 4 are passed through and match nothing.
+</ResponseField>
+
+<ResponseField name="startDate" field-type="string">
+**Optional.** Send yyyy-MM-dd.
+</ResponseField>
+
+<ResponseField name="endDate" field-type="string">
+**Optional.** Event date &lt;= value.
+</ResponseField>
+
+## Request
+
+<Request uid="rep-geteventsraw-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/Service.asmx HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetEventsRaw"
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetEventsRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:eventID>0</tlp:eventID>
+      <tlp:eventTypeID>0</tlp:eventTypeID>
+      <tlp:customerID>0</tlp:customerID>
+      <tlp:employeeID>0</tlp:employeeID>
+      <tlp:status>0</tlp:status>
+      <tlp:startDate>{startDate}</tlp:startDate>
+      <tlp:endDate>{endDate}</tlp:endDate>
+    </tlp:GetEventsRaw>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/Service.asmx" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetEventsRaw"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/Service.asmx"
+SOAP_ACTION = '"http://www.timelog.com/ws/tlp/v4_4/GetEventsRaw"'
+
+envelope = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetEventsRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:eventID>0</tlp:eventID>
+      <tlp:eventTypeID>0</tlp:eventTypeID>
+      <tlp:customerID>0</tlp:customerID>
+      <tlp:employeeID>0</tlp:employeeID>
+      <tlp:status>0</tlp:status>
+      <tlp:startDate>{startDate}</tlp:startDate>
+      <tlp:endDate>{endDate}</tlp:endDate>
+    </tlp:GetEventsRaw>
+  </soap:Body>
+</soap:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=300,
+)
+rows = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The result is an XML document inside `GetEventsRawResult`: a `tlp:Events` root with one `tlp:Event` element per record. Check the [response format](/reporting/guides/responses-and-errors) first: the same slot also carries the empty result and errors.
+
+<ResponseField name="tlp:Event" field-type="EventsRaw[]">
+One element per record. Fields without a value are left out of the element, so treat every field as optional.
+
+<Expandable title="Event fields">
+
+<ResponseField name="ID" field-type="integer (attribute)">
+**Event ID.** CRM event ID.
+</ResponseField>
+
+<ResponseField name="EmployeeID" field-type="integer">
+**Responsible employee ID.** Employee in charge of the event; omitted when NULL.
+</ResponseField>
+
+<ResponseField name="CustomerID" field-type="integer">
+**Customer ID.** Customer the event belongs to.
+</ResponseField>
+
+<ResponseField name="EventTypeID" field-type="integer">
+**Event type ID.** Event type.
+</ResponseField>
+
+<ResponseField name="ContactID" field-type="integer">
+**Contact ID.** Customer contact person of the event; omitted when none.
+</ResponseField>
+
+<ResponseField name="OpportunityID" field-type="integer">
+**Opportunity ID.** Linked sales opportunity; omitted when none.
+</ResponseField>
+
+<ResponseField name="OpportunitySubject" field-type="string">
+**Opportunity subject.** Subject of the linked opportunity.
+</ResponseField>
+
+<ResponseField name="Subject" field-type="string">
+**Subject.** Event subject. Not cleaned of XML-forbidden characters.
+</ResponseField>
+
+<ResponseField name="Description" field-type="string">
+**Description.** Event description - free-text CRM notes, may contain personal data about contacts. Not cleaned of XML-forbidden characters.
+</ResponseField>
+
+<ResponseField name="Date" field-type="string">
+**Event date.**
+</ResponseField>
+
+<ResponseField name="Status" field-type="integer">
+**Event status.** The status parameter filters on it.
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+### Example responses
+
+<Response uid="rep-geteventsraw-res" show-lines="true" tabs={["HTTP 200 - data","HTTP 200 - no rows","HTTP 401 - access denied"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetEventsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetEventsRawResult>
+        <tlp:Events xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Event ID="1001">
+            <tlp:EmployeeID>12</tlp:EmployeeID>
+            <tlp:CustomerID>12</tlp:CustomerID>
+            <tlp:EventTypeID>12</tlp:EventTypeID>
+            <tlp:ContactID>12</tlp:ContactID>
+            <tlp:OpportunityID>12</tlp:OpportunityID>
+            <tlp:OpportunitySubject>Example text</tlp:OpportunitySubject>
+            <tlp:Subject>Example text</tlp:Subject>
+            <tlp:Description>Example text</tlp:Description>
+            <tlp:Date>2026-10-01T00:00:00</tlp:Date>
+            <tlp:Status>1</tlp:Status>
+          </tlp:Event>
+        </tlp:Events>
+      </GetEventsRawResult>
+    </GetEventsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetEventsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetEventsRawResult>
+        <tlp:Events resultEmpty="true" xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4"></tlp:Events>
+      </GetEventsRawResult>
+    </GetEventsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 401 Unauthorized
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetEventsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetEventsRawResult>
+        <tlp:Errors xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Error>Access denied. Check siteCode, apiID, apiPassword and SSL settings</tlp:Error>
+        </tlp:Errors>
+      </GetEventsRawResult>
+    </GetEventsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
+
+## Errors
+
+The errors every method can return (access denied, operation failed, invalid request) are listed once in [Responses and errors](/reporting/guides/responses-and-errors#errors).
+
+This method has no errors of its own beyond the shared ones.

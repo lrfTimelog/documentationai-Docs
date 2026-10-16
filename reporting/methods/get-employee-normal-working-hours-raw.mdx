@@ -1,0 +1,227 @@
+---
+title: "GetEmployeeNormalWorkingHoursRaw"
+description: "Reporting API: "
+---
+
+| | |
+|---|---|
+| API | Reporting API (raw extracts) |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/Service.asmx` |
+| SOAPAction | `http://www.timelog.com/ws/tlp/v4_4/GetEmployeeNormalWorkingHoursRaw` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | `siteCode`, `apiID` and `apiPassword` as the first three parameters. See [Authentication](/reporting/guides/authentication) |
+| Changes data | No. Safe to retry. |
+| Paging | No: the whole result comes in one response. Narrow it with the filters. |
+
+## How it works
+
+Only the CURRENT assignment is reflected - history is in GetEmployeeNormalWorkingTimeHistoriesRaw. status 0 does NOT return inactive employees.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="siteCode" field-type="string" required="true">
+Your account's site code, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiID" field-type="string" required="true">
+The Reporting API ID, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiPassword" field-type="string" required="true">
+The Reporting API password, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="employeeID" field-type="integer" required="true">
+Employee id. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="departmentID" field-type="integer" required="true">
+Current profile department, exact. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="status" field-type="integer" required="true">
+As GetWorkingHoursRaw: only > 0 is sent; 1 = active only; 0 / negative = ALL.
+</ResponseField>
+
+## Request
+
+<Request uid="rep-getemployeenormalworkinghoursraw-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/Service.asmx HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetEmployeeNormalWorkingHoursRaw"
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetEmployeeNormalWorkingHoursRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:employeeID>0</tlp:employeeID>
+      <tlp:departmentID>0</tlp:departmentID>
+      <tlp:status>-1</tlp:status>
+    </tlp:GetEmployeeNormalWorkingHoursRaw>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/Service.asmx" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetEmployeeNormalWorkingHoursRaw"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/Service.asmx"
+SOAP_ACTION = '"http://www.timelog.com/ws/tlp/v4_4/GetEmployeeNormalWorkingHoursRaw"'
+
+envelope = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetEmployeeNormalWorkingHoursRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:employeeID>0</tlp:employeeID>
+      <tlp:departmentID>0</tlp:departmentID>
+      <tlp:status>-1</tlp:status>
+    </tlp:GetEmployeeNormalWorkingHoursRaw>
+  </soap:Body>
+</soap:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=300,
+)
+rows = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The result is an XML document inside `GetEmployeeNormalWorkingHoursRawResult`: a `tlp:EmployeeNormalWorkingTimes` root with one `tlp:EmployeeNormalWorkingTime` element per record. Check the [response format](/reporting/guides/responses-and-errors) first: the same slot also carries the empty result and errors.
+
+Order: Employee id only; weekday order within an employee NOT guaranteed.
+
+<ResponseField name="tlp:EmployeeNormalWorkingTime" field-type="EmployeeNormalWorkingTimeRaw[]">
+One element per record. Fields without a value are left out of the element, so treat every field as optional.
+
+<Expandable title="EmployeeNormalWorkingTime fields">
+
+<ResponseField name="ID" field-type="integer (attribute)">
+**Normal working time ID.** NOT unique in the document.
+</ResponseField>
+
+<ResponseField name="Weekday" field-type="integer">
+**Weekday.**
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+**Scheme name.**
+</ResponseField>
+
+<ResponseField name="WorkingHours" field-type="decimal">
+**Hours.**
+</ResponseField>
+
+<ResponseField name="EmployeeID" field-type="integer">
+**Employee ID.** Assigned employee; omitted for a scheme without users.
+</ResponseField>
+
+<ResponseField name="EmployeeFirstName" field-type="string">
+**Employee first name.**
+</ResponseField>
+
+<ResponseField name="EmployeeLastName" field-type="string">
+**Employee last name.**
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+### Example responses
+
+<Response uid="rep-getemployeenormalworkinghoursraw-res" show-lines="true" tabs={["HTTP 200 - data","HTTP 200 - no rows","HTTP 401 - access denied"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetEmployeeNormalWorkingHoursRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetEmployeeNormalWorkingHoursRawResult>
+        <tlp:EmployeeNormalWorkingTimes xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:EmployeeNormalWorkingTime ID="1001">
+            <tlp:Weekday>0</tlp:Weekday>
+            <tlp:Name>Example </tlp:Name>
+            <tlp:WorkingHours>7.5000</tlp:WorkingHours>
+            <tlp:EmployeeID>12</tlp:EmployeeID>
+            <tlp:EmployeeFirstName>Anna</tlp:EmployeeFirstName>
+            <tlp:EmployeeLastName>Example</tlp:EmployeeLastName>
+          </tlp:EmployeeNormalWorkingTime>
+        </tlp:EmployeeNormalWorkingTimes>
+      </GetEmployeeNormalWorkingHoursRawResult>
+    </GetEmployeeNormalWorkingHoursRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetEmployeeNormalWorkingHoursRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetEmployeeNormalWorkingHoursRawResult>
+        <tlp:EmployeeNormalWorkingTimes resultEmpty="true" xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4"></tlp:EmployeeNormalWorkingTimes>
+      </GetEmployeeNormalWorkingHoursRawResult>
+    </GetEmployeeNormalWorkingHoursRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 401 Unauthorized
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetEmployeeNormalWorkingHoursRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetEmployeeNormalWorkingHoursRawResult>
+        <tlp:Errors xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Error>Access denied. Check siteCode, apiID, apiPassword and SSL settings</tlp:Error>
+        </tlp:Errors>
+      </GetEmployeeNormalWorkingHoursRawResult>
+    </GetEmployeeNormalWorkingHoursRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
+
+## Errors
+
+The errors every method can return (access denied, operation failed, invalid request) are listed once in [Responses and errors](/reporting/guides/responses-and-errors#errors).
+
+This method has no errors of its own beyond the shared ones.

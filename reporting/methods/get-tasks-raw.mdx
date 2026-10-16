@@ -1,0 +1,364 @@
+---
+title: "GetTasksRaw"
+description: "Reporting API: Returns the account's tasks of non-template projects with hierarchy, status, type, budget and invoicing type."
+---
+
+Returns the account's tasks of non-template projects with hierarchy, status, type, budget and invoicing type.
+
+| | |
+|---|---|
+| API | Reporting API (raw extracts) |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/Service.asmx` |
+| SOAPAction | `http://www.timelog.com/ws/tlp/v4_4/GetTasksRaw` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | `siteCode`, `apiID` and `apiPassword` as the first three parameters. See [Authentication](/reporting/guides/authentication) |
+| Changes data | No. Safe to retry. |
+| Paging | No: the whole result comes in one response. Narrow it with the filters. |
+
+## How it works
+
+Filters: task, project, active status, task type. Project-template tasks are excluded. Runs with the 300 s Reporting command timeout and OPTION. Carries task budgets and allocated revenue.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="siteCode" field-type="string" required="true">
+Your account's site code, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiID" field-type="string" required="true">
+The Reporting API ID, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiPassword" field-type="string" required="true">
+The Reporting API password, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="taskID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+<ResponseField name="projectID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+<ResponseField name="status" field-type="integer" required="true">
+Use `-1` for no filter.
+</ResponseField>
+
+<ResponseField name="taskTypeID" field-type="integer" required="true">
+Task type. 0 = no filter.
+</ResponseField>
+
+## Request
+
+<Request uid="rep-gettasksraw-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/Service.asmx HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetTasksRaw"
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetTasksRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:taskID>0</tlp:taskID>
+      <tlp:projectID>0</tlp:projectID>
+      <tlp:status>-1</tlp:status>
+      <tlp:taskTypeID>0</tlp:taskTypeID>
+    </tlp:GetTasksRaw>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/Service.asmx" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetTasksRaw"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/Service.asmx"
+SOAP_ACTION = '"http://www.timelog.com/ws/tlp/v4_4/GetTasksRaw"'
+
+envelope = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetTasksRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:taskID>0</tlp:taskID>
+      <tlp:projectID>0</tlp:projectID>
+      <tlp:status>-1</tlp:status>
+      <tlp:taskTypeID>0</tlp:taskTypeID>
+    </tlp:GetTasksRaw>
+  </soap:Body>
+</soap:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=300,
+)
+rows = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The result is an XML document inside `GetTasksRawResult`: a `tlp:Tasks` root with one `tlp:Task` element per record. Check the [response format](/reporting/guides/responses-and-errors) first: the same slot also carries the empty result and errors.
+
+Order: Project ID, then the task's SortOrder, then task name.
+
+<ResponseField name="tlp:Task" field-type="TaskRaw[]">
+One element per record. Fields without a value are left out of the element, so treat every field as optional.
+
+<Expandable title="Task fields">
+
+<ResponseField name="ID" field-type="integer (attribute)">
+**Task ID.**
+</ResponseField>
+
+<ResponseField name="GUID" field-type="string (attribute)">
+**Task GUID.**
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+**Task name.** Task name, cleaned of XML-forbidden characters.
+</ResponseField>
+
+<ResponseField name="TaskNo" field-type="string">
+**Task number.**
+</ResponseField>
+
+<ResponseField name="WBS" field-type="string">
+**WBS.** WBS number.
+</ResponseField>
+
+<ResponseField name="ProjectID" field-type="integer">
+**Project ID.** Project of the task.
+</ResponseField>
+
+<ResponseField name="ProjectNo" field-type="string">
+**Project number.** Project number.
+</ResponseField>
+
+<ResponseField name="Status" field-type="integer">
+**Active status.** The status parameter filters on it.
+</ResponseField>
+
+<ResponseField name="Link" field-type="string">
+**Link.** Task link. Not in the published XSD.
+</ResponseField>
+
+<ResponseField name="StatusDetailed" field-type="integer">
+**Task status.**
+</ResponseField>
+
+<ResponseField name="ContractID" field-type="integer">
+**Contract ID.** Project sub-contract the task belongs to. The published XSD names this element ProjectSubContractID.
+</ResponseField>
+
+<ResponseField name="ParentID" field-type="integer">
+**Parent task ID.** Parent task; 0 for a top-level task.
+</ResponseField>
+
+<ResponseField name="IsParent" field-type="integer">
+**Is parent.** 1 when the task has sub-tasks; 0 when NULL.
+</ResponseField>
+
+<ResponseField name="TaskTypeID" field-type="integer">
+**Task type ID.** Task type.
+</ResponseField>
+
+<ResponseField name="TaskType" field-type="string">
+**Task type.** Task type name.
+</ResponseField>
+
+<ResponseField name="TaskCategoryID" field-type="integer">
+**Task category ID.** Task category.
+</ResponseField>
+
+<ResponseField name="TaskCategory" field-type="string">
+**Task category.** Task category name.
+</ResponseField>
+
+<ResponseField name="BudgetHours" field-type="decimal">
+**Budget hours.**
+</ResponseField>
+
+<ResponseField name="BudgetAmount" field-type="decimal">
+**Budget amount.** SENSITIVE: budget.
+</ResponseField>
+
+<ResponseField name="BudgetAmountCurrency" field-type="decimal">
+**Budget amount (currency).** BudgetAmountCurrency, 0 when NULL.
+</ResponseField>
+
+<ResponseField name="IsFixedPrice" field-type="integer">
+**Is fixed price.**
+</ResponseField>
+
+<ResponseField name="StartDate" field-type="string">
+**Start date.** Task start.
+</ResponseField>
+
+<ResponseField name="EndDate" field-type="string">
+**End date.** Task end.
+</ResponseField>
+
+<ResponseField name="InvoicingType" field-type="string">
+**Invoicing type.**
+</ResponseField>
+
+<ResponseField name="CreatedAt" field-type="string">
+**Created at.** Created.
+</ResponseField>
+
+<ResponseField name="CreatedByEmployeeId" field-type="integer">
+**Created by (ID).** Creating employee.
+</ResponseField>
+
+<ResponseField name="CreatedBy" field-type="string">
+**Created by (initials).** Initials.
+</ResponseField>
+
+<ResponseField name="LastModifiedAt" field-type="string">
+**Last modified at.** LastModified.
+</ResponseField>
+
+<ResponseField name="LastModifiedByEmployeeId" field-type="integer">
+**Last modified by (ID).** Last modifying employee.
+</ResponseField>
+
+<ResponseField name="LastModifiedBy" field-type="string">
+**Last modified by (initials).** Initials.
+</ResponseField>
+
+<ResponseField name="IsBillable" field-type="integer">
+**Is billable.**
+</ResponseField>
+
+<ResponseField name="AllocatedRevenueAmount" field-type="decimal">
+**Allocated revenue.** AllocatedRevenueAmount, 0 when NULL.
+</ResponseField>
+
+<ResponseField name="AllocatedRevenueAmountCurrency" field-type="decimal">
+**Allocated revenue (currency).** AllocatedRevenueAmountCurrency, 0 when NULL.
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+### Example responses
+
+<Response uid="rep-gettasksraw-res" show-lines="true" tabs={["HTTP 200 - data","HTTP 200 - no rows","HTTP 401 - access denied"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetTasksRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetTasksRawResult>
+        <tlp:Tasks xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Task ID="1001" GUID="3F2504E0-4F89-41D3-9A0C-0305E82C3319">
+            <tlp:Name>Example </tlp:Name>
+            <tlp:TaskNo>1001</tlp:TaskNo>
+            <tlp:WBS>Example text</tlp:WBS>
+            <tlp:ProjectID>12</tlp:ProjectID>
+            <tlp:ProjectNo>1001</tlp:ProjectNo>
+            <tlp:Status>1</tlp:Status>
+            <tlp:Link>Example text</tlp:Link>
+            <tlp:StatusDetailed>1</tlp:StatusDetailed>
+            <tlp:ContractID>12</tlp:ContractID>
+            <tlp:ParentID>12</tlp:ParentID>
+            <tlp:IsParent>0</tlp:IsParent>
+            <tlp:TaskTypeID>12</tlp:TaskTypeID>
+            <tlp:TaskType>Example text</tlp:TaskType>
+            <tlp:TaskCategoryID>12</tlp:TaskCategoryID>
+            <tlp:TaskCategory>Example text</tlp:TaskCategory>
+            <tlp:BudgetHours>7.5000</tlp:BudgetHours>
+            <tlp:BudgetAmount>950.0000</tlp:BudgetAmount>
+            <tlp:BudgetAmountCurrency>950.0000</tlp:BudgetAmountCurrency>
+            <tlp:IsFixedPrice>0</tlp:IsFixedPrice>
+            <tlp:StartDate>2026-10-01T00:00:00</tlp:StartDate>
+            <tlp:EndDate>2026-12-31T00:00:00</tlp:EndDate>
+            <tlp:InvoicingType>Example text</tlp:InvoicingType>
+            <tlp:CreatedAt>2026-10-01T00:00:00</tlp:CreatedAt>
+            <tlp:CreatedByEmployeeId>12</tlp:CreatedByEmployeeId>
+            <tlp:CreatedBy>ABC</tlp:CreatedBy>
+            <tlp:LastModifiedAt>2026-10-01T00:00:00</tlp:LastModifiedAt>
+            <tlp:LastModifiedByEmployeeId>12</tlp:LastModifiedByEmployeeId>
+            <tlp:LastModifiedBy>ABC</tlp:LastModifiedBy>
+            <tlp:IsBillable>0</tlp:IsBillable>
+            <tlp:AllocatedRevenueAmount>950.0000</tlp:AllocatedRevenueAmount>
+            <tlp:AllocatedRevenueAmountCurrency>950.0000</tlp:AllocatedRevenueAmountCurrency>
+          </tlp:Task>
+        </tlp:Tasks>
+      </GetTasksRawResult>
+    </GetTasksRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetTasksRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetTasksRawResult>
+        <tlp:Tasks resultEmpty="true" xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4"></tlp:Tasks>
+      </GetTasksRawResult>
+    </GetTasksRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 401 Unauthorized
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetTasksRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetTasksRawResult>
+        <tlp:Errors xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Error>Access denied. Check siteCode, apiID, apiPassword and SSL settings</tlp:Error>
+        </tlp:Errors>
+      </GetTasksRawResult>
+    </GetTasksRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
+
+## Errors
+
+The errors every method can return (access denied, operation failed, invalid request) are listed once in [Responses and errors](/reporting/guides/responses-and-errors#errors).
+
+This method has no errors of its own beyond the shared ones.

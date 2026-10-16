@@ -1,0 +1,247 @@
+---
+title: "GetHourlyRatesRaw"
+description: "Reporting API: Returns contract hourly rates with price group, contract, project and customer, filtered by customer and active state."
+---
+
+Returns contract hourly rates with price group, contract, project and customer, filtered by customer and active state.
+
+| | |
+|---|---|
+| API | Reporting API (raw extracts) |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/Service.asmx` |
+| SOAPAction | `http://www.timelog.com/ws/tlp/v4_4/GetHourlyRatesRaw` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | `siteCode`, `apiID` and `apiPassword` as the first three parameters. See [Authentication](/reporting/guides/authentication) |
+| Changes data | No. Safe to retry. |
+| Paging | No: the whole result comes in one response. Narrow it with the filters. |
+
+## How it works
+
+NOT the price-list rates behind GetEmployeesRaw.DefaultHourlyRateID. Filters: CustomerID, Status. CurrencyISO is the PROJECT currency. BILLING RATES.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="siteCode" field-type="string" required="true">
+Your account's site code, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiID" field-type="string" required="true">
+The Reporting API ID, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiPassword" field-type="string" required="true">
+The Reporting API password, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="CustomerID" field-type="integer" required="true">
+The rate's project's customer. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="Status" field-type="integer" required="true">
+Active flag: 0 = inactive; ANY positive value = active; negative = all.
+</ResponseField>
+
+## Request
+
+<Request uid="rep-gethourlyratesraw-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/Service.asmx HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetHourlyRatesRaw"
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetHourlyRatesRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:CustomerID>0</tlp:CustomerID>
+      <tlp:Status>-1</tlp:Status>
+    </tlp:GetHourlyRatesRaw>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/Service.asmx" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetHourlyRatesRaw"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/Service.asmx"
+SOAP_ACTION = '"http://www.timelog.com/ws/tlp/v4_4/GetHourlyRatesRaw"'
+
+envelope = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetHourlyRatesRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:CustomerID>0</tlp:CustomerID>
+      <tlp:Status>-1</tlp:Status>
+    </tlp:GetHourlyRatesRaw>
+  </soap:Body>
+</soap:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=300,
+)
+rows = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The result is an XML document inside `GetHourlyRatesRawResult`: a `tlp:HourlyRates` root with one `tlp:HourlyRate` element per record. Check the [response format](/reporting/guides/responses-and-errors) first: the same slot also carries the empty result and errors.
+
+Order: None.
+
+<ResponseField name="tlp:HourlyRate" field-type="HourlyRateRaw[]">
+One element per record. Fields without a value are left out of the element, so treat every field as optional.
+
+<Expandable title="HourlyRate fields">
+
+<ResponseField name="ID" field-type="integer (attribute)">
+**Hourly rate ID.** NOT the price-list rate id that GetEmployeesRaw.DefaultHourlyRateID carries.
+</ResponseField>
+
+<ResponseField name="GUID" field-type="string (attribute)">
+**Hourly rate GUID.**
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+**Name.** Rate name; not cleaned of XML-forbidden characters.
+</ResponseField>
+
+<ResponseField name="Amount" field-type="decimal">
+**Amount.** Rate per hour, DECIMAL unconverted. HIGH sensitivity: billing rate.
+</ResponseField>
+
+<ResponseField name="CurrencyISO" field-type="string">
+**Currency.** The PROJECT's currency code.
+</ResponseField>
+
+<ResponseField name="IsActive" field-type="integer">
+**Active.** bit.
+</ResponseField>
+
+<ResponseField name="PriceGroupID" field-type="integer">
+**Price group ID.**
+</ResponseField>
+
+<ResponseField name="PriceGroupName" field-type="string">
+**Price group name.**
+</ResponseField>
+
+<ResponseField name="ProjectID" field-type="integer">
+**Project ID.** The rate's contract's project. Not in the published XSD.
+</ResponseField>
+
+<ResponseField name="ContractID" field-type="integer">
+**Contract ID.** The contract the rate belongs to. Not in the published XSD.
+</ResponseField>
+
+<ResponseField name="CustomerID" field-type="integer">
+**Customer ID.** The project's customer.
+</ResponseField>
+
+<ResponseField name="CustomerName" field-type="string">
+**Customer name.** Current company name.
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+### Example responses
+
+<Response uid="rep-gethourlyratesraw-res" show-lines="true" tabs={["HTTP 200 - data","HTTP 200 - no rows","HTTP 401 - access denied"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetHourlyRatesRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetHourlyRatesRawResult>
+        <tlp:HourlyRates xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:HourlyRate ID="1001" GUID="3F2504E0-4F89-41D3-9A0C-0305E82C3311">
+            <tlp:Name>Example </tlp:Name>
+            <tlp:Amount>950.0000</tlp:Amount>
+            <tlp:CurrencyISO>DKK</tlp:CurrencyISO>
+            <tlp:IsActive>0</tlp:IsActive>
+            <tlp:PriceGroupID>12</tlp:PriceGroupID>
+            <tlp:PriceGroupName>Example price group</tlp:PriceGroupName>
+            <tlp:ProjectID>12</tlp:ProjectID>
+            <tlp:ContractID>12</tlp:ContractID>
+            <tlp:CustomerID>12</tlp:CustomerID>
+            <tlp:CustomerName>Example Customer A/S</tlp:CustomerName>
+          </tlp:HourlyRate>
+        </tlp:HourlyRates>
+      </GetHourlyRatesRawResult>
+    </GetHourlyRatesRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetHourlyRatesRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetHourlyRatesRawResult>
+        <tlp:HourlyRates resultEmpty="true" xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4"></tlp:HourlyRates>
+      </GetHourlyRatesRawResult>
+    </GetHourlyRatesRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 401 Unauthorized
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetHourlyRatesRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetHourlyRatesRawResult>
+        <tlp:Errors xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Error>Access denied. Check siteCode, apiID, apiPassword and SSL settings</tlp:Error>
+        </tlp:Errors>
+      </GetHourlyRatesRawResult>
+    </GetHourlyRatesRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
+
+## Errors
+
+The errors every method can return (access denied, operation failed, invalid request) are listed once in [Responses and errors](/reporting/guides/responses-and-errors#errors).
+
+This method has no errors of its own beyond the shared ones.

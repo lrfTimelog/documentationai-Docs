@@ -1,0 +1,218 @@
+---
+title: "GetEmployeesShortList"
+description: "Reporting API: Returns the account's users with employee id, user id, names and initials."
+---
+
+Returns the account's users with employee id, user id, names and initials.
+
+| | |
+|---|---|
+| API | Reporting API (short lists) |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/Service.asmx` |
+| SOAPAction | `http://www.timelog.com/ws/tlp/v4_4/GetEmployeesShortList` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | `siteCode`, `apiID` and `apiPassword` as the first three parameters. See [Authentication](/reporting/guides/authentication) |
+| Changes data | No. Safe to retry. |
+| Paging | No: the whole result comes in one response. Narrow it with the filters. |
+
+## How it works
+
+Filters: department and active flag. A departmentID above 255 fails the call with HTTP 500.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="siteCode" field-type="string" required="true">
+Your account's site code, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiID" field-type="string" required="true">
+The Reporting API ID, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiPassword" field-type="string" required="true">
+The Reporting API password, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="departmentID" field-type="integer" required="true">
+Department id, exact - sub-departments are NOT included. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="status" field-type="integer" required="true">
+Use `-1` for no filter. Default -1 recommended.
+</ResponseField>
+
+## Request
+
+<Request uid="rep-getemployeesshortlist-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/Service.asmx HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetEmployeesShortList"
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetEmployeesShortList>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:departmentID>0</tlp:departmentID>
+      <tlp:status>-1</tlp:status>
+    </tlp:GetEmployeesShortList>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/Service.asmx" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetEmployeesShortList"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/Service.asmx"
+SOAP_ACTION = '"http://www.timelog.com/ws/tlp/v4_4/GetEmployeesShortList"'
+
+envelope = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetEmployeesShortList>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:departmentID>0</tlp:departmentID>
+      <tlp:status>-1</tlp:status>
+    </tlp:GetEmployeesShortList>
+  </soap:Body>
+</soap:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=300,
+)
+rows = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The result is an XML document inside `GetEmployeesShortListResult`: a `tlp:Employees` root with one `tlp:Employee` element per record. Check the [response format](/reporting/guides/responses-and-errors) first: the same slot also carries the empty result and errors.
+
+Order: First name, then last name, ascending.
+
+<ResponseField name="tlp:Employee" field-type="EmployeeShort[]">
+One element per record. Fields without a value are left out of the element, so treat every field as optional.
+
+<Expandable title="Employee fields">
+
+<ResponseField name="ID" field-type="integer (attribute)">
+**Employee ID.** API users - is not established; gap).
+</ResponseField>
+
+<ResponseField name="EmployeeUserID" field-type="integer">
+**User ID.** The published XSD spells it EmployeeUserId.
+</ResponseField>
+
+<ResponseField name="FirstName" field-type="string">
+**First name.** '-' for the anonymized system employee. Not cleaned of XML-forbidden characters.
+</ResponseField>
+
+<ResponseField name="LastName" field-type="string">
+**Last name.**
+</ResponseField>
+
+<ResponseField name="FullName" field-type="string">
+**Full name.** FirstName + ' ' + LastName. The '+' concatenation yields NULL when EITHER part is NULL, so the element is then omitted.
+</ResponseField>
+
+<ResponseField name="Initials" field-type="string">
+**Initials.** Not guaranteed unique.
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+### Example responses
+
+<Response uid="rep-getemployeesshortlist-res" show-lines="true" tabs={["HTTP 200 - data","HTTP 200 - no rows","HTTP 401 - access denied"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetEmployeesShortListResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetEmployeesShortListResult>
+        <tlp:Employees xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Employee ID="1001">
+            <tlp:EmployeeUserID>12</tlp:EmployeeUserID>
+            <tlp:FirstName>Anna</tlp:FirstName>
+            <tlp:LastName>Example</tlp:LastName>
+            <tlp:FullName>Anna Example</tlp:FullName>
+            <tlp:Initials>ABC</tlp:Initials>
+          </tlp:Employee>
+        </tlp:Employees>
+      </GetEmployeesShortListResult>
+    </GetEmployeesShortListResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetEmployeesShortListResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetEmployeesShortListResult>
+        <tlp:Employees resultEmpty="true" xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4"></tlp:Employees>
+      </GetEmployeesShortListResult>
+    </GetEmployeesShortListResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 401 Unauthorized
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetEmployeesShortListResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetEmployeesShortListResult>
+        <tlp:Errors xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Error>Access denied. Check siteCode, apiID, apiPassword and SSL settings</tlp:Error>
+        </tlp:Errors>
+      </GetEmployeesShortListResult>
+    </GetEmployeesShortListResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
+
+## Errors
+
+The errors every method can return (access denied, operation failed, invalid request) are listed once in [Responses and errors](/reporting/guides/responses-and-errors#errors).
+
+This method has no errors of its own beyond the shared ones.

@@ -1,0 +1,336 @@
+---
+title: "GetOpportunitiesRaw"
+description: "Reporting API: Returns CRM opportunities with customer, contact, owner, type, barriers, status, potential value, quotation and currency."
+---
+
+Returns CRM opportunities with customer, contact, owner, type, barriers, status, potential value, quotation and currency.
+
+| | |
+|---|---|
+| API | Reporting API (raw extracts) |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/Service.asmx` |
+| SOAPAction | `http://www.timelog.com/ws/tlp/v4_4/GetOpportunitiesRaw` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | `siteCode`, `apiID` and `apiPassword` as the first three parameters. See [Authentication](/reporting/guides/authentication) |
+| Changes data | No. Safe to retry. |
+| Paging | No: the whole result comes in one response. Narrow it with the filters. |
+
+## How it works
+
+Filters: opportunity, customer, owner, opportunity type, barrier and a date window. The date window uses the QUOTATION date and falls back to the creation date when no quotation date is set. Dates are STRINGS: an unparseable value is silently ignored. BarrierID is a ';'-delimited list, not one ID; the barrierID filter can miss opportunities. Opportunities whose customer no longer exists are dropped.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="siteCode" field-type="string" required="true">
+Your account's site code, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiID" field-type="string" required="true">
+The Reporting API ID, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiPassword" field-type="string" required="true">
+The Reporting API password, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="opportunityID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+<ResponseField name="customerID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+<ResponseField name="ownerID" field-type="integer" required="true">
+Employee in charge of the opportunity. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="opportunityTypeID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+<ResponseField name="barrierID" field-type="integer" required="true">
+Barrier ID; matches opportunities whose barrier list contains ';&lt;id>;'. 0 = no filter. Can MISS opportunities whose list was saved with a space after ';'.
+</ResponseField>
+
+<ResponseField name="startDate" field-type="string">
+**Optional.** Send yyyy-MM-dd.
+</ResponseField>
+
+<ResponseField name="endDate" field-type="string">
+**Optional.** Same date, &lt;= value.
+</ResponseField>
+
+## Request
+
+<Request uid="rep-getopportunitiesraw-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/Service.asmx HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetOpportunitiesRaw"
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetOpportunitiesRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:opportunityID>0</tlp:opportunityID>
+      <tlp:customerID>0</tlp:customerID>
+      <tlp:ownerID>0</tlp:ownerID>
+      <tlp:opportunityTypeID>0</tlp:opportunityTypeID>
+      <tlp:barrierID>0</tlp:barrierID>
+      <tlp:startDate>{startDate}</tlp:startDate>
+      <tlp:endDate>{endDate}</tlp:endDate>
+    </tlp:GetOpportunitiesRaw>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/Service.asmx" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetOpportunitiesRaw"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/Service.asmx"
+SOAP_ACTION = '"http://www.timelog.com/ws/tlp/v4_4/GetOpportunitiesRaw"'
+
+envelope = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetOpportunitiesRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:opportunityID>0</tlp:opportunityID>
+      <tlp:customerID>0</tlp:customerID>
+      <tlp:ownerID>0</tlp:ownerID>
+      <tlp:opportunityTypeID>0</tlp:opportunityTypeID>
+      <tlp:barrierID>0</tlp:barrierID>
+      <tlp:startDate>{startDate}</tlp:startDate>
+      <tlp:endDate>{endDate}</tlp:endDate>
+    </tlp:GetOpportunitiesRaw>
+  </soap:Body>
+</soap:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=300,
+)
+rows = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The result is an XML document inside `GetOpportunitiesRawResult`: a `tlp:Opportunities` root with one `tlp:Opportunity` element per record. Check the [response format](/reporting/guides/responses-and-errors) first: the same slot also carries the empty result and errors.
+
+<ResponseField name="tlp:Opportunity" field-type="OpportunitiesRaw[]">
+One element per record. Fields without a value are left out of the element, so treat every field as optional.
+
+<Expandable title="Opportunity fields">
+
+<ResponseField name="ID" field-type="integer (attribute)">
+**Opportunity ID.**
+</ResponseField>
+
+<ResponseField name="CustomerID" field-type="integer">
+**Customer ID.**
+</ResponseField>
+
+<ResponseField name="CustomerName" field-type="string">
+**Customer name.** Customer company name.
+</ResponseField>
+
+<ResponseField name="ContactID" field-type="integer">
+**Contact ID.** Customer contact; omitted when none.
+</ResponseField>
+
+<ResponseField name="ContactName" field-type="string">
+**Contact name.** First + last name; omitted when either part is NULL.
+</ResponseField>
+
+<ResponseField name="Subject" field-type="string">
+**Subject.** Opportunity subject.
+</ResponseField>
+
+<ResponseField name="OpportunityTypeID" field-type="integer">
+**Opportunity type ID.**
+</ResponseField>
+
+<ResponseField name="OpportunityTypeName" field-type="string">
+**Opportunity type.** Type name.
+</ResponseField>
+
+<ResponseField name="EmployeeID" field-type="integer">
+**Owner ID.** Employee in charge of the opportunity.
+</ResponseField>
+
+<ResponseField name="EmployeeName" field-type="string">
+**Owner name.** First + last name.
+</ResponseField>
+
+<ResponseField name="BarrierID" field-type="string">
+**Barrier IDs.** ';1;3;'; pages that save it may leave a space after each ';' - ';1; 3;'). Parse on the client. The barrierID filter matches ';&lt;id>;' inside it. Each id resolves via GetBarriersShortlist.
+</ResponseField>
+
+<ResponseField name="OpportunityStatusID" field-type="integer">
+**Status ID.** The name is not returned.
+</ResponseField>
+
+<ResponseField name="Potential" field-type="decimal">
+**Potential.** Potential value.
+</ResponseField>
+
+<ResponseField name="ForecastRate" field-type="integer">
+**Forecast rate.** Win probability in percent.
+</ResponseField>
+
+<ResponseField name="Description" field-type="string">
+**Description.** Free text.
+</ResponseField>
+
+<ResponseField name="Created" field-type="string">
+**Created at.** Creation timestamp.
+</ResponseField>
+
+<ResponseField name="Createdby" field-type="integer">
+**Created by (ID).** Creating employee ID.
+</ResponseField>
+
+<ResponseField name="LastModified" field-type="string">
+**Last modified at.** Last-modification timestamp.
+</ResponseField>
+
+<ResponseField name="LastModifiedBy" field-type="integer">
+**Last modified by (ID).** Last modifying employee ID.
+</ResponseField>
+
+<ResponseField name="QuotationSent" field-type="string">
+**Quotation date.** The startDate / endDate filter applies to this date, falling back to Created when it is NULL.
+</ResponseField>
+
+<ResponseField name="Quotation" field-type="string">
+**Quotation.** Quotation text.
+</ResponseField>
+
+<ResponseField name="CurrencyID" field-type="integer">
+**Currency ID.** Opportunity currency.
+</ResponseField>
+
+<ResponseField name="CurrencyISOCode" field-type="string">
+**Currency code.**
+</ResponseField>
+
+<ResponseField name="CurrencyRate" field-type="decimal">
+**Currency rate (current).** The currency's CURRENT rate at call time - not the rate when the opportunity was made. CONVERT: four decimals.
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+### Example responses
+
+<Response uid="rep-getopportunitiesraw-res" show-lines="true" tabs={["HTTP 200 - data","HTTP 200 - no rows","HTTP 401 - access denied"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetOpportunitiesRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetOpportunitiesRawResult>
+        <tlp:Opportunities xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Opportunity ID="1001">
+            <tlp:CustomerID>12</tlp:CustomerID>
+            <tlp:CustomerName>Example Customer A/S</tlp:CustomerName>
+            <tlp:ContactID>12</tlp:ContactID>
+            <tlp:ContactName>Example contact</tlp:ContactName>
+            <tlp:Subject>Example text</tlp:Subject>
+            <tlp:OpportunityTypeID>12</tlp:OpportunityTypeID>
+            <tlp:OpportunityTypeName>Example opportunity type</tlp:OpportunityTypeName>
+            <tlp:EmployeeID>12</tlp:EmployeeID>
+            <tlp:EmployeeName>Example employee</tlp:EmployeeName>
+            <tlp:BarrierID>Example text</tlp:BarrierID>
+            <tlp:OpportunityStatusID>12</tlp:OpportunityStatusID>
+            <tlp:Potential>0.0000</tlp:Potential>
+            <tlp:ForecastRate>0</tlp:ForecastRate>
+            <tlp:Description>Example text</tlp:Description>
+            <tlp:Created>2026-10-01T00:00:00</tlp:Created>
+            <tlp:Createdby>0</tlp:Createdby>
+            <tlp:LastModified>2026-10-01T00:00:00</tlp:LastModified>
+            <tlp:LastModifiedBy>0</tlp:LastModifiedBy>
+            <tlp:QuotationSent>2026-10-01T00:00:00</tlp:QuotationSent>
+            <tlp:Quotation>Example text</tlp:Quotation>
+            <tlp:CurrencyID>12</tlp:CurrencyID>
+            <tlp:CurrencyISOCode>DKK</tlp:CurrencyISOCode>
+            <tlp:CurrencyRate>950.0000</tlp:CurrencyRate>
+          </tlp:Opportunity>
+        </tlp:Opportunities>
+      </GetOpportunitiesRawResult>
+    </GetOpportunitiesRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetOpportunitiesRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetOpportunitiesRawResult>
+        <tlp:Opportunities resultEmpty="true" xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4"></tlp:Opportunities>
+      </GetOpportunitiesRawResult>
+    </GetOpportunitiesRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 401 Unauthorized
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetOpportunitiesRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetOpportunitiesRawResult>
+        <tlp:Errors xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Error>Access denied. Check siteCode, apiID, apiPassword and SSL settings</tlp:Error>
+        </tlp:Errors>
+      </GetOpportunitiesRawResult>
+    </GetOpportunitiesRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
+
+## Errors
+
+The errors every method can return (access denied, operation failed, invalid request) are listed once in [Responses and errors](/reporting/guides/responses-and-errors#errors).
+
+This method has no errors of its own beyond the shared ones.

@@ -1,0 +1,236 @@
+---
+title: "GetCustomerCommentsRaw"
+description: "Reporting API: Returns CRM notes on customers, with note date and employee."
+---
+
+Returns CRM notes on customers, with note date and employee.
+
+| | |
+|---|---|
+| API | Reporting API (raw extracts) |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/Service.asmx` |
+| SOAPAction | `http://www.timelog.com/ws/tlp/v4_4/GetCustomerCommentsRaw` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | `siteCode`, `apiID` and `apiPassword` as the first three parameters. See [Authentication](/reporting/guides/authentication) |
+| Changes data | No. Safe to retry. |
+| Paging | No: the whole result comes in one response. Narrow it with the filters. |
+
+## How it works
+
+'All' is 0 for every ID filter, including status. The date window applies to the note's own, user-entered date - not its creation time. Notes include automatic copies of e-mails sent from the CRM: FREE TEXT that may hold personal data of anyone.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="siteCode" field-type="string" required="true">
+Your account's site code, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiID" field-type="string" required="true">
+The Reporting API ID, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiPassword" field-type="string" required="true">
+The Reporting API password, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="customerID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+<ResponseField name="customerStatusID" field-type="integer" required="true">
+Customer status ID. 0 = no filter; applied when > 0.
+</ResponseField>
+
+<ResponseField name="accountManagerID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+<ResponseField name="fromDate" field-type="dateTime" required="true">
+Note date >= value. An invalid value -> ASMX fault.
+</ResponseField>
+
+<ResponseField name="toDate" field-type="dateTime" required="true">
+Note date &lt;= value, compared as datetime: a date without time excludes notes stamped later that day.
+</ResponseField>
+
+## Request
+
+<Request uid="rep-getcustomercommentsraw-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/Service.asmx HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetCustomerCommentsRaw"
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetCustomerCommentsRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:customerID>0</tlp:customerID>
+      <tlp:customerStatusID>0</tlp:customerStatusID>
+      <tlp:accountManagerID>0</tlp:accountManagerID>
+      <tlp:fromDate>{fromDate}</tlp:fromDate>
+      <tlp:toDate>{toDate}</tlp:toDate>
+    </tlp:GetCustomerCommentsRaw>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/Service.asmx" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetCustomerCommentsRaw"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/Service.asmx"
+SOAP_ACTION = '"http://www.timelog.com/ws/tlp/v4_4/GetCustomerCommentsRaw"'
+
+envelope = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetCustomerCommentsRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:customerID>0</tlp:customerID>
+      <tlp:customerStatusID>0</tlp:customerStatusID>
+      <tlp:accountManagerID>0</tlp:accountManagerID>
+      <tlp:fromDate>{fromDate}</tlp:fromDate>
+      <tlp:toDate>{toDate}</tlp:toDate>
+    </tlp:GetCustomerCommentsRaw>
+  </soap:Body>
+</soap:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=300,
+)
+rows = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The result is an XML document inside `GetCustomerCommentsRawResult`: a `tlp:Comments` root with one `tlp:Comment` element per record. Check the [response format](/reporting/guides/responses-and-errors) first: the same slot also carries the empty result and errors.
+
+Order: Customer name, then note ID DESCENDING.
+
+<ResponseField name="tlp:Comment" field-type="Comment[]">
+One element per record. Fields without a value are left out of the element, so treat every field as optional.
+
+<Expandable title="Comment fields">
+
+<ResponseField name="ID" field-type="integer (attribute)">
+**Note ID.**
+</ResponseField>
+
+<ResponseField name="CustomerName" field-type="string">
+**Customer name.** Customer company name.
+</ResponseField>
+
+<ResponseField name="CustomerID" field-type="integer">
+**Customer ID.** The note's customer.
+</ResponseField>
+
+<ResponseField name="CommentText" field-type="string">
+**Text.** Note text. Free text; copies of sent e-mails hold recipient, subject and body.
+</ResponseField>
+
+<ResponseField name="Date" field-type="string">
+**Note date.** The fromDate / toDate filter applies here.
+</ResponseField>
+
+<ResponseField name="Employee" field-type="integer">
+**Employee ID.** Employee ID chosen on the note. Integer ID, not a name.
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+### Example responses
+
+<Response uid="rep-getcustomercommentsraw-res" show-lines="true" tabs={["HTTP 200 - data","HTTP 200 - no rows","HTTP 401 - access denied"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetCustomerCommentsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetCustomerCommentsRawResult>
+        <tlp:Comments xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Comment ID="1001">
+            <tlp:CustomerName>Example Customer A/S</tlp:CustomerName>
+            <tlp:CustomerID>12</tlp:CustomerID>
+            <tlp:CommentText>Example text</tlp:CommentText>
+            <tlp:Date>2026-10-01T00:00:00</tlp:Date>
+            <tlp:Employee>0</tlp:Employee>
+          </tlp:Comment>
+        </tlp:Comments>
+      </GetCustomerCommentsRawResult>
+    </GetCustomerCommentsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetCustomerCommentsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetCustomerCommentsRawResult>
+        <tlp:Comments resultEmpty="true" xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4"></tlp:Comments>
+      </GetCustomerCommentsRawResult>
+    </GetCustomerCommentsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 401 Unauthorized
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetCustomerCommentsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetCustomerCommentsRawResult>
+        <tlp:Errors xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Error>Access denied. Check siteCode, apiID, apiPassword and SSL settings</tlp:Error>
+        </tlp:Errors>
+      </GetCustomerCommentsRawResult>
+    </GetCustomerCommentsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
+
+## Errors
+
+The errors every method can return (access denied, operation failed, invalid request) are listed once in [Responses and errors](/reporting/guides/responses-and-errors#errors).
+
+This method has no errors of its own beyond the shared ones.

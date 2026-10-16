@@ -1,0 +1,232 @@
+---
+title: "GetPriceGroupsRaw"
+description: "Reporting API: Returns price groups per legal entity, general or customer-specific."
+---
+
+Returns price groups per legal entity, general or customer-specific.
+
+| | |
+|---|---|
+| API | Reporting API (raw extracts) |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/Service.asmx` |
+| SOAPAction | `http://www.timelog.com/ws/tlp/v4_4/GetPriceGroupsRaw` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | `siteCode`, `apiID` and `apiPassword` as the first three parameters. See [Authentication](/reporting/guides/authentication) |
+| Changes data | No. Safe to retry. |
+| Paging | No: the whole result comes in one response. Narrow it with the filters. |
+
+## How it works
+
+Sentinels differ from the other extracts: legalEntityId 0 = all and a NEGATIVE value returns nothing; customerId 0 = all, -1 = only general price groups, &lt;= -2 fails with HTTP 500. Low sensitivity.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="siteCode" field-type="string" required="true">
+Your account's site code, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiID" field-type="string" required="true">
+The Reporting API ID, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiPassword" field-type="string" required="true">
+The Reporting API password, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="legalEntityId" field-type="integer" required="true">
+Use `0` for no filter.
+</ResponseField>
+
+<ResponseField name="customerId" field-type="integer" required="true">
+Use `0` for no filter.
+</ResponseField>
+
+## Request
+
+<Request uid="rep-getpricegroupsraw-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+
+```xml
+POST /{account}/Service.asmx HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetPriceGroupsRaw"
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetPriceGroupsRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:legalEntityId>0</tlp:legalEntityId>
+      <tlp:customerId>0</tlp:customerId>
+    </tlp:GetPriceGroupsRaw>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/Service.asmx" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetPriceGroupsRaw"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/Service.asmx"
+SOAP_ACTION = '"http://www.timelog.com/ws/tlp/v4_4/GetPriceGroupsRaw"'
+
+envelope = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetPriceGroupsRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:legalEntityId>0</tlp:legalEntityId>
+      <tlp:customerId>0</tlp:customerId>
+    </tlp:GetPriceGroupsRaw>
+  </soap:Body>
+</soap:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=300,
+)
+rows = parse_result(response)  # see "Responses and errors"
+```
+
+</Request>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The result is an XML document inside `GetPriceGroupsRawResult`: a `tlp:PriceGroups` root with one `tlp:PriceGroup` element per record. Check the [response format](/reporting/guides/responses-and-errors) first: the same slot also carries the empty result and errors.
+
+Order: None.
+
+<ResponseField name="tlp:PriceGroup" field-type="PriceGroupRaw[]">
+One element per record. Fields without a value are left out of the element, so treat every field as optional.
+
+<Expandable title="PriceGroup fields">
+
+<ResponseField name="ID" field-type="integer (attribute)">
+**Price group ID.**
+</ResponseField>
+
+<ResponseField name="GUID" field-type="string (attribute)">
+**Price group GUID.**
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+**Name.**
+</ResponseField>
+
+<ResponseField name="LegalEntityID" field-type="integer">
+**Legal entity ID.** Owning legal entity.
+</ResponseField>
+
+<ResponseField name="LegalEntityName" field-type="string">
+**Legal entity name.**
+</ResponseField>
+
+<ResponseField name="CustomerID" field-type="integer">
+**Customer ID.** Customer-specific price group; OMITTED for a general price group.
+</ResponseField>
+
+<ResponseField name="CustomerName" field-type="string">
+**Customer name.** Omitted for general price groups.
+</ResponseField>
+
+<ResponseField name="CurrencyISO" field-type="string">
+**Currency.** The price group's currency code.
+</ResponseField>
+
+<ResponseField name="IsActive" field-type="integer">
+**Active.** Nullable bit - omitted when NULL.
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+### Example responses
+
+<Response uid="rep-getpricegroupsraw-res" show-lines="true" tabs={["HTTP 200 - data","HTTP 200 - no rows","HTTP 401 - access denied"]}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetPriceGroupsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetPriceGroupsRawResult>
+        <tlp:PriceGroups xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:PriceGroup ID="1001" GUID="3F2504E0-4F89-41D3-9A0C-0305E82C3315">
+            <tlp:Name>Example </tlp:Name>
+            <tlp:LegalEntityID>12</tlp:LegalEntityID>
+            <tlp:LegalEntityName>Example legal entity</tlp:LegalEntityName>
+            <tlp:CustomerID>12</tlp:CustomerID>
+            <tlp:CustomerName>Example Customer A/S</tlp:CustomerName>
+            <tlp:CurrencyISO>DKK</tlp:CurrencyISO>
+            <tlp:IsActive>0</tlp:IsActive>
+          </tlp:PriceGroup>
+        </tlp:PriceGroups>
+      </GetPriceGroupsRawResult>
+    </GetPriceGroupsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetPriceGroupsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetPriceGroupsRawResult>
+        <tlp:PriceGroups resultEmpty="true" xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4"></tlp:PriceGroups>
+      </GetPriceGroupsRawResult>
+    </GetPriceGroupsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 401 Unauthorized
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetPriceGroupsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetPriceGroupsRawResult>
+        <tlp:Errors xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Error>Access denied. Check siteCode, apiID, apiPassword and SSL settings</tlp:Error>
+        </tlp:Errors>
+      </GetPriceGroupsRawResult>
+    </GetPriceGroupsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</Response>
+
+<Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
+
+## Errors
+
+The errors every method can return (access denied, operation failed, invalid request) are listed once in [Responses and errors](/reporting/guides/responses-and-errors#errors).
+
+This method has no errors of its own beyond the shared ones.

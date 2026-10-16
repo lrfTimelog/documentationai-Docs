@@ -1139,8 +1139,123 @@
                 "icon": "database",
                 "pages": [
                   {
+                    "title": "GetAllocationsRaw",
+                    "path": "reporting/methods/get-allocations-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetContactsRaw",
+                    "path": "reporting/methods/get-contacts-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetContractCustomersRaw",
+                    "path": "reporting/methods/get-contract-customers-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetContractPaymentsRaw",
+                    "path": "reporting/methods/get-contract-payments-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetContractsRaw",
+                    "path": "reporting/methods/get-contracts-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetCustomerCommentsRaw",
+                    "path": "reporting/methods/get-customer-comments-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetCustomersRaw",
+                    "path": "reporting/methods/get-customers-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetEmployeeManagerHistoriesRaw",
+                    "path": "reporting/methods/get-employee-manager-histories-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetEmployeeNormalWorkingHoursRaw",
+                    "path": "reporting/methods/get-employee-normal-working-hours-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetEmployeeNormalWorkingTimeHistoriesRaw",
+                    "path": "reporting/methods/get-employee-normal-working-time-histories-raw",
+                    "icon": "file-search"
+                  },
+                  {
                     "title": "GetEmployeesRaw",
                     "path": "reporting/methods/get-employees-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetEventsRaw",
+                    "path": "reporting/methods/get-events-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetExpensesRaw",
+                    "path": "reporting/methods/get-expenses-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetGroupsRaw",
+                    "path": "reporting/methods/get-groups-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetGroupUnitsRaw",
+                    "path": "reporting/methods/get-group-units-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetHardBookingsRaw",
+                    "path": "reporting/methods/get-hard-bookings-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetHourlyRatesRaw",
+                    "path": "reporting/methods/get-hourly-rates-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetInvoicesRaw",
+                    "path": "reporting/methods/get-invoices-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetLegalEntitiesRaw",
+                    "path": "reporting/methods/get-legal-entities-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetMileageRaw",
+                    "path": "reporting/methods/get-mileage-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetMilestonesRaw",
+                    "path": "reporting/methods/get-milestones-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetMilestoneTypesRaw",
+                    "path": "reporting/methods/get-milestone-types-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetOpportunitiesRaw",
+                    "path": "reporting/methods/get-opportunities-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetPriceGroupsRaw",
+                    "path": "reporting/methods/get-price-groups-raw",
                     "icon": "file-search"
                   },
                   {
@@ -1149,8 +1264,48 @@
                     "icon": "file-search"
                   },
                   {
+                    "title": "GetSalaryAccountEmployeePostingsRaw",
+                    "path": "reporting/methods/get-salary-account-employee-postings-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetSalaryAccountsRaw",
+                    "path": "reporting/methods/get-salary-accounts-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetSalesSplitsRaw",
+                    "path": "reporting/methods/get-sales-splits-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetSubOpportunitiesRaw",
+                    "path": "reporting/methods/get-sub-opportunities-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetTasksRaw",
+                    "path": "reporting/methods/get-tasks-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetTimeOffRegistrationsRaw",
+                    "path": "reporting/methods/get-time-off-registrations-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetWorkingHoursRaw",
+                    "path": "reporting/methods/get-working-hours-raw",
+                    "icon": "file-search"
+                  },
+                  {
                     "title": "GetWorkUnitsRaw",
                     "path": "reporting/methods/get-work-units-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetWorkUnitsRawPaged",
+                    "path": "reporting/methods/get-work-units-raw-paged",
                     "icon": "file-search"
                   }
                 ]
@@ -1160,8 +1315,83 @@
                 "icon": "list",
                 "pages": [
                   {
+                    "title": "GetBarriersShortlist",
+                    "path": "reporting/methods/get-barriers-shortlist",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetContactsShortList",
+                    "path": "reporting/methods/get-contacts-short-list",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetCountriesShortList",
+                    "path": "reporting/methods/get-countries-short-list",
+                    "icon": "file-search"
+                  },
+                  {
                     "title": "GetCustomersShortList",
                     "path": "reporting/methods/get-customers-short-list",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetCustomerStatusShortList",
+                    "path": "reporting/methods/get-customer-status-short-list",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetDepartmentsShortList",
+                    "path": "reporting/methods/get-departments-short-list",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetEmployeesShortList",
+                    "path": "reporting/methods/get-employees-short-list",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetEventTypesShortlist",
+                    "path": "reporting/methods/get-event-types-shortlist",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetIndustriesShortList",
+                    "path": "reporting/methods/get-industries-short-list",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetOpportunityStatusShortlist",
+                    "path": "reporting/methods/get-opportunity-status-shortlist",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetOpportunityTypesShortlist",
+                    "path": "reporting/methods/get-opportunity-types-shortlist",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetProjectCategoriesShortList",
+                    "path": "reporting/methods/get-project-categories-short-list",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetProjectsShortList",
+                    "path": "reporting/methods/get-projects-short-list",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetProjectTypesShortList",
+                    "path": "reporting/methods/get-project-types-short-list",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetTasksShortList",
+                    "path": "reporting/methods/get-tasks-short-list",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetTaskTypesShortList",
+                    "path": "reporting/methods/get-task-types-short-list",
                     "icon": "file-search"
                   }
                 ]
