@@ -349,20 +349,7 @@
             "icon": "flask-conical",
             "groups": [
               {
-                "group": "A — OpenAPI explorer",
-                "icon": "braces",
-                "pages": [
-                  {
-                    "group": "Salary V1_1",
-                    "icon": "wallet",
-                    "expandable": true,
-                    "openapi": "api-reference/transactional/prototype/salary-v1_1.yaml",
-                    "pages": []
-                  }
-                ]
-              },
-              {
-                "group": "B — MDX pages",
+                "group": "MDX pages",
                 "icon": "file-code",
                 "pages": [
                   {
