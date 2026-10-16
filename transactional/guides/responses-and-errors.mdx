@@ -139,6 +139,7 @@ These codes can come back from **any** operation. Each operation page lists the 
 | 20003 | Error | Token could not be validated! | The token was issued for another account, or one of its values was changed. | Send the token's three values back unchanged. |
 | 20008 | Error | API is not Activated: Please Enable | The Transactional API is not enabled for this account. | Ask your TimeLog administrator. Retrying does not help. |
 | 20009 | Error | Only secure access is allow in TLP. API must be called via secure endpoint(https). | The call did not use the secure endpoint. | Call the `…ServiceSecure.svc` URL over HTTPS. |
+| 40001 | Error | Error during call on TimeLog.API, Message 'Object reference not set to an instance of an object.' | The `token` element is missing from the call. | Add the token as the last parameter. |
 | 40001 | Error | Error during call on TimeLog.API, Message '…' | A general error. **The real reason is the text inside `Message '…'`**: for example a missing token, a missing permission, or invalid data. | Read the embedded message. The operation page lists the messages it can produce. |
 
 <Callout kind="tip">40001 is a catch-all. Do not branch on the code alone: read the text after `Message '`.</Callout>

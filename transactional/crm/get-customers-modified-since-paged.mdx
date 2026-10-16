@@ -406,17 +406,15 @@ format as a real response, with made-up values. **Expired token** was recorded f
 
 ## Errors
 
-All errors come back with **HTTP 200**. Read `ResponseState`, `ErrorCode` and the `Message` text.
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation
+can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in
+[Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
 
 | ResponseState | ErrorCode | Message | What it means | What to do |
 |---|---|---|---|---|
 | Error | 40001 | Error during call on TimeLog.API, Message 'User does not have the right to access any customers' | The token's user has no access to customers. | Give the integration user access to customers. |
-| Error | 20004 | Token has Expired! | The token is more than 12 hours old. | Get a new token and repeat the call. |
-| Error | 20003 | Token could not be validated! | The token was issued for another account, or a value was changed. | Send the token back unchanged. |
-| Error | 40001 | Error during call on TimeLog.API, Message 'Object reference not set to an instance of an object.' | The `token` element is missing. | Add the token as the last parameter. |
-| Error | 20008 | API is not Activated: Please Enable | The Transactional API is not enabled for this account. | Ask your TimeLog administrator. |
-| Error | 20009 | Only secure access is allow in TLP. API must be called via secure endpoint(https). | Not called on the secure endpoint. | Use `…ServiceSecure.svc` over HTTPS. |
-| Error | 40001 | Error during call on TimeLog.API, Message '…' | Any other error. The real reason is the text inside `Message '…'`. | Read the embedded message. |
 
 ## Keeping customers in sync
 
