@@ -1094,6 +1094,83 @@
         ]
       },
       {
+        "tab": "Reporting API",
+        "icon": "bar-chart-3",
+        "dropdowns": [
+          {
+            "dropdown": "Guides",
+            "icon": "book-open",
+            "groups": [
+              {
+                "group": "Get started",
+                "icon": "rocket",
+                "pages": [
+                  {
+                    "title": "Authentication",
+                    "path": "reporting/guides/authentication",
+                    "icon": "key-round"
+                  },
+                  {
+                    "title": "Responses and errors",
+                    "path": "reporting/guides/responses-and-errors",
+                    "icon": "triangle-alert"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "dropdown": "Methods",
+            "icon": "boxes",
+            "groups": [
+              {
+                "group": "Credentials",
+                "icon": "key-round",
+                "pages": [
+                  {
+                    "title": "ValidateCredentials",
+                    "path": "reporting/methods/validate-credentials",
+                    "icon": "file-search"
+                  }
+                ]
+              },
+              {
+                "group": "Raw extracts",
+                "icon": "database",
+                "pages": [
+                  {
+                    "title": "GetEmployeesRaw",
+                    "path": "reporting/methods/get-employees-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetProjectsRaw",
+                    "path": "reporting/methods/get-projects-raw",
+                    "icon": "file-search"
+                  },
+                  {
+                    "title": "GetWorkUnitsRaw",
+                    "path": "reporting/methods/get-work-units-raw",
+                    "icon": "file-search"
+                  }
+                ]
+              },
+              {
+                "group": "Short lists",
+                "icon": "list",
+                "pages": [
+                  {
+                    "title": "GetCustomersShortList",
+                    "path": "reporting/methods/get-customers-short-list",
+                    "icon": "file-search"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
         "tab": "Help Center",
         "icon": "help-circle",
         "pages": [
