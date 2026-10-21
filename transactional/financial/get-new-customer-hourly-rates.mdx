@@ -39,7 +39,7 @@ The token from [GetToken](/transactional/guides/authentication): `Initials`, `Ex
 
 ## Request
 
-<Request uid="trx-financial-getnewcustomerhourlyrates-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
 
 ```xml
 POST /{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc HTTP/1.1
@@ -102,7 +102,7 @@ response = requests.post(
 result = parse_result(response)  # see "Responses and errors"
 ```
 
-</Request>
+</CodeGroup>
 
 <Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
 
@@ -169,7 +169,7 @@ Product number of the rate. In a Create* request: optional product number of the
 
 ### Example response
 
-<Response uid="trx-financial-getnewcustomerhourlyrates-res" show-lines="true" tabs={["HTTP 200 - success"]}>
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
 
 ```xml
 HTTP/1.1 200 OK
@@ -220,7 +220,7 @@ Content-Type: text/xml; charset=utf-8
 </s:Envelope>
 ```
 
-</Response>
+</CodeGroup>
 
 <Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
 

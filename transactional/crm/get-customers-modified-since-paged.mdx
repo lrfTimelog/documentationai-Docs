@@ -75,7 +75,7 @@ unchanged.
 
 ## Request
 
-<Request uid="trx-crm-getcustomersmodifiedsincepaged-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
 
 ```xml
 POST /{account}/WebServices/CRM/V1_4/CRMServiceSecure.svc HTTP/1.1
@@ -151,7 +151,7 @@ response = requests.post(
 customers = parse_result(response)  # see "Responses and errors"
 ```
 
-</Request>
+</CodeGroup>
 
 ## Response
 
@@ -246,9 +246,9 @@ The customer's IDs in other systems. Filled only when `loadExternalKeys` is `tru
 `Deleted`. In **full-list** mode, `KAM`, `Contacts` and the account managers in `Details` are left empty: read the
 customer by GUID if you need them.</Callout>
 
-### Example responses
+### Example response
 
-<Response uid="trx-crm-getcustomersmodifiedsincepaged-res" show-lines="true" tabs={["HTTP 200 - success", "HTTP 200 - expired token"]}>
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
 
 ```xml
 HTTP/1.1 200 OK
@@ -365,6 +365,12 @@ Content-Type: text/xml; charset=utf-8
 </s:Envelope>
 ```
 
+</CodeGroup>
+
+### Example error
+
+<CodeGroup tabs="HTTP 200 - expired token" show-lines={true}>
+
 ```xml
 HTTP/1.1 200 OK
 Content-Type: text/xml; charset=utf-8
@@ -398,7 +404,7 @@ Content-Type: text/xml; charset=utf-8
 </s:Envelope>
 ```
 
-</Response>
+</CodeGroup>
 
 <Callout kind="info">**Success** is an illustrative example: built from the service description (WSDL) in the same
 format as a real response, with made-up values. **Expired token** was recorded from a real call. In both, the

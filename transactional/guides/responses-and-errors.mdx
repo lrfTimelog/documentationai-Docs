@@ -96,7 +96,7 @@ def parse_result(response):
 This response was recorded from a real call to `GetCustomersModifiedSincePaged` with an expired token. Note that the
 HTTP status is **200**, but `ResponseState` is `Error` and `ErrorCode` is `20004`.
 
-<Response uid="trx-errors-expired-token" show-lines="true" tabs={["HTTP 200 - expired token"]}>
+<CodeGroup tabs="HTTP 200 - expired token" show-lines={true}>
 
 ```xml
 HTTP/1.1 200 OK
@@ -131,7 +131,7 @@ Content-Type: text/xml; charset=utf-8
 </s:Envelope>
 ```
 
-</Response>
+</CodeGroup>
 
 The `Request` block is shortened here.
 

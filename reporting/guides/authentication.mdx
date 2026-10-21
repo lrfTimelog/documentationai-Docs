@@ -53,7 +53,7 @@ Put the same three values first in every method you call.
 
 ## Checking the credentials
 
-<Request uid="rep-auth-validate-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
 
 ```xml
 POST /{account}/Service.asmx HTTP/1.1
@@ -106,7 +106,7 @@ response = requests.post(
 valid = "<ValidateCredentialsResult>true</ValidateCredentialsResult>" in response.text
 ```
 
-</Request>
+</CodeGroup>
 
 `ValidateCredentials` always answers with **HTTP 200**: `true` when the three values are accepted, `false` otherwise.
 It does not say which value is wrong.
@@ -116,7 +116,7 @@ It does not say which value is wrong.
 Every data method checks the credentials first. When they are not accepted, the call fails with **HTTP 401** and this
 document (recorded from a real call):
 
-<Response uid="rep-auth-denied" show-lines="true" tabs={["HTTP 401 - access denied"]}>
+<CodeGroup tabs="HTTP 401 - access denied" show-lines={true}>
 
 ```xml
 HTTP/1.1 401 Unauthorized
@@ -136,7 +136,7 @@ Content-Type: text/xml; charset=utf-8
 </soap:Envelope>
 ```
 
-</Response>
+</CodeGroup>
 
 | Check | Why |
 |---|---|

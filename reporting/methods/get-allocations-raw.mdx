@@ -52,7 +52,7 @@ Project of the allocated task. 0 = no filter.
 
 ## Request
 
-<Request uid="rep-getallocationsraw-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
 
 ```xml
 POST /{account}/Service.asmx HTTP/1.1
@@ -113,7 +113,7 @@ response = requests.post(
 rows = parse_result(response)  # see "Responses and errors"
 ```
 
-</Request>
+</CodeGroup>
 
 <Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
 
@@ -173,9 +173,9 @@ One element per record. Fields without a value are left out of the element, so t
 </Expandable>
 </ResponseField>
 
-### Example responses
+### Example response
 
-<Response uid="rep-getallocationsraw-res" show-lines="true" tabs={["HTTP 200 - data","HTTP 200 - no rows","HTTP 401 - access denied"]}>
+<CodeGroup tabs="HTTP 200 - data,HTTP 200 - no rows" show-lines={true}>
 
 ```xml
 HTTP/1.1 200 OK
@@ -222,6 +222,14 @@ Content-Type: text/xml; charset=utf-8
 </soap:Envelope>
 ```
 
+</CodeGroup>
+
+### Example error
+
+Wrong credentials, or a call over plain HTTP:
+
+<CodeGroup tabs="HTTP 401 - access denied" show-lines={true}>
+
 ```xml
 HTTP/1.1 401 Unauthorized
 Content-Type: text/xml; charset=utf-8
@@ -240,7 +248,7 @@ Content-Type: text/xml; charset=utf-8
 </soap:Envelope>
 ```
 
-</Response>
+</CodeGroup>
 
 <Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
 

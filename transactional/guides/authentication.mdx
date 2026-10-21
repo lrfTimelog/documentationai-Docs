@@ -46,7 +46,7 @@ The TimeLog **user name** of the user the integration runs as. Not the initials.
 That user's TimeLog password.
 </ResponseField>
 
-<Request uid="trx-auth-gettoken-req" show-lines="true" tabs={["XML", "cURL", "Python"]}>
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
 
 ```xml
 POST /{account}/WebServices/Security/V1_2/SecurityServiceSecure.svc HTTP/1.1
@@ -95,7 +95,7 @@ response = requests.post(
 )
 ```
 
-</Request>
+</CodeGroup>
 
 On success, `ResponseState` is `Success` and `Return` holds one token:
 
@@ -111,7 +111,7 @@ When the token stops working, 12 hours after it was issued.
 The signature of the token.
 </ResponseField>
 
-<Response uid="trx-auth-gettoken-res" show-lines="true" tabs={["HTTP 200 - success"]}>
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
 
 ```xml
 HTTP/1.1 200 OK
@@ -147,7 +147,7 @@ Content-Type: text/xml; charset=utf-8
 </s:Envelope>
 ```
 
-</Response>
+</CodeGroup>
 
 <Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real
 response, with made-up values. The `Request` block is shortened.</Callout>

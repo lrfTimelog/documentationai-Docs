@@ -211,7 +211,9 @@ Content-Type: text/xml; charset=utf-8
 
 Wrong credentials, or a call over plain HTTP:
 
-```xml HTTP 401 - access denied
+<CodeGroup tabs="HTTP 401 - access denied" show-lines={true}>
+
+```xml
 HTTP/1.1 401 Unauthorized
 Content-Type: text/xml; charset=utf-8
 
@@ -228,6 +230,8 @@ Content-Type: text/xml; charset=utf-8
   </soap:Body>
 </soap:Envelope>
 ```
+
+</CodeGroup>
 
 <Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
 
