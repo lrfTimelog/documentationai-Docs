@@ -170,6 +170,9 @@ format or time zone: the call is then rejected with 20003.</Callout>
 
 ## Errors
 
+<Callout kind="tip">GetToken takes the same user name and password as the TimeLog login. If they do not work when
+you log in to TimeLog, they do not work in the API either. Check them there first.</Callout>
+
 Authentication errors arrive like every other error: HTTP 200, with `ResponseState` = `Error` and the code in
 `ErrorCode`. See [Responses and errors](/transactional/guides/responses-and-errors).
 

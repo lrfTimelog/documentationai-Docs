@@ -57,6 +57,27 @@
                 "icon": "shield"
               }
             ]
+          },
+          {
+            "group": "Integration guides",
+            "icon": "compass",
+            "pages": [
+              {
+                "title": "External keys",
+                "path": "external-keys",
+                "icon": "link-2"
+              },
+              {
+                "title": "Tools and SDKs",
+                "path": "tools-and-sdks",
+                "icon": "wrench"
+              },
+              {
+                "title": "Usage and change policy",
+                "path": "policies",
+                "icon": "scale"
+              }
+            ]
           }
         ]
       },
@@ -1128,6 +1149,27 @@
                     "title": "Try it with Bruno",
                     "path": "reporting/guides/try-it-with-bruno",
                     "icon": "flask-conical"
+                  }
+                ]
+              },
+              {
+                "group": "Working with data",
+                "icon": "database",
+                "pages": [
+                  {
+                    "title": "Enumerations",
+                    "path": "reporting/guides/enumerations",
+                    "icon": "list-ordered"
+                  },
+                  {
+                    "title": "Sync to a data warehouse",
+                    "path": "reporting/guides/sync-to-data-warehouse",
+                    "icon": "refresh-cw"
+                  },
+                  {
+                    "title": "Power BI",
+                    "path": "reporting/guides/power-bi",
+                    "icon": "bar-chart-3"
                   }
                 ]
               }

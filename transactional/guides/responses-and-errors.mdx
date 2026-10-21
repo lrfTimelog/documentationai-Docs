@@ -57,6 +57,12 @@ Paged operations only: the number of pages for the whole result, with the `pageS
 The operation and parameters as the server received them. Useful for debugging; you do not need to read it.
 </ResponseField>
 
+## Related data in Details
+
+Many objects carry a `Details` property with the related data you usually need next to the object, so you do not have
+to fetch it in separate calls. For example, a customer's `Details` holds its status, industry, currency and owners as
+objects with their IDs. Each operation page describes the `Details` of the objects it returns.
+
 ## Checking the result in code
 
 Check in this order: the HTTP status (a SOAP fault, see below), then `ResponseState`, then `Return`.

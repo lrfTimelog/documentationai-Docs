@@ -26,9 +26,32 @@ A personal access token belongs to the TimeLog user who generated it. Every requ
 
 Personal access tokens are generated at `https://login.timelog.com/personaltoken`.
 
-<Callout kind="alert">**Not yet documented.** The step-by-step flow for creating, naming and revoking a personal access token in TimeLog is not yet described here.</Callout>
+### Create a personal access token
 
-<Callout kind="alert">**Not yet documented.** How long a token stays valid, and whether its lifetime can be chosen, is not yet confirmed.</Callout>
+<Steps>
+  <Step title="Log in to TimeLog" icon="log-in">
+    Log in to your TimeLog site, `https://app{server-number}.timelog.com/{account}`, as the user the integration will act as.
+  </Step>
+  <Step title="Open the token page" icon="link">
+    Go to `https://login.timelog.com/personaltoken`.
+  </Step>
+  <Step title="Create the token" icon="plus">
+    Click **New Token**, give the token a name that says which integration uses it, and set when it expires.
+  </Step>
+  <Step title="Copy the token" icon="copy">
+    Click **Save** and copy the token value. Store it in your secret store right away.
+  </Step>
+</Steps>
+
+You choose how long a token stays valid when you create it, up to a maximum of **two years**. Plan to replace it before
+it expires: an expired token is rejected with `401`.
+
+### Revoke or regenerate a token
+
+On the same page:
+
+- **Revoke** a token you no longer use, or one you suspect has been seen by someone else, so it cannot be used again.
+- **Regenerate** a token to get a new value for it. Copy the new value; the integration must then use it.
 
 ### Which user should own the token
 
@@ -150,4 +173,4 @@ A personal access token gives the same API access as its user. Treat it like a p
 
 ## Rate limits
 
-<Callout kind="alert">**Not yet documented.** Rate limits for the REST API are not yet confirmed. See [Rate limits and known limitations](/rest/limitations).</Callout>
+TimeLog has not published hard rate limits. Usage is monitored, and TimeLog contacts the account before limiting it. See [Usage and change policy](/policies) and [Rate limits and known limitations](/rest/limitations).

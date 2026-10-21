@@ -1,0 +1,61 @@
+---
+title: "Sync to a data warehouse"
+description: "Replicate TimeLog data, especially time registrations, into a data warehouse with consistent results and light API usage."
+---
+
+The Reporting API can copy most of TimeLog's data into a data warehouse or a similar store for further processing.
+This guide covers the schedule that keeps the copy consistent without heavy API use.
+
+## Why not re-read everything every night
+
+Time registrations keep changing after the day they are registered: people correct their timesheets, managers approve
+them, and invoicing changes their status. A copy that reads only "yesterday" misses those changes. A copy that reads
+the full history every night puts unnecessary load on the API, and most methods return all matching records in one
+response.
+
+The answer is to read **recent periods often and the full history rarely**.
+
+## Recommended schedule
+
+| How often | What to read again |
+|---|---|
+| Every day | The last 7 days |
+| Every week | The last 4 weeks |
+| Every month | The last 3 months |
+| Every quarter | The full data set, in batches of one month |
+
+Each run **replaces** the records of its period in your copy. Adjust the periods to how disciplined your organisation
+is about registering and approving time: if timesheets are often corrected weeks later, widen the weekly window.
+
+<Callout kind="tip">For time registrations, use [GetWorkUnitsRawPaged](/reporting/methods/get-work-units-raw-paged)
+with `startDate` and `endDate` set to the period, and read it page by page. Without a date range the call returns
+every registration of the account.</Callout>
+
+## One period, step by step
+
+<Steps>
+  <Step title="Pick the period" icon="calendar">
+    For example the last 7 days: `startDate` 7 days ago, `endDate` today, both as `yyyy-MM-dd`.
+  </Step>
+  <Step title="Read every page" icon="layers">
+    Call the method with `page` = `1` and a `pageSize` that fits your environment, then the next page, until a page
+    comes back empty.
+  </Step>
+  <Step title="Replace the period in your copy" icon="refresh-cw">
+    Delete your copy's registrations for the period and insert what you read. This also removes registrations that were
+    deleted in TimeLog.
+  </Step>
+</Steps>
+
+Look-up data, such as customers, projects and employees, is much smaller. Read it in full on each run with the
+matching raw extract or short list.
+
+## Protect the copy
+
+No TimeLog user's permissions are applied in the Reporting API: the copy holds the whole account's data, including
+personal data. Apply your own access rules in the data warehouse and in any reporting tool you connect to it.
+
+## Usage
+
+There are no published hard limits, but heavy, repeated full reads affect other customers. See
+[Usage and change policy](/policies).

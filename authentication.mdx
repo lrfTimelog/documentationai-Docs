@@ -12,7 +12,7 @@ puts the three side by side. The details live in each API's own Authentication g
 |---|---|---|---|
 | What you send | A personal access token | A token from `GetToken`, requested with a user name and password | `siteCode`, `apiID` and `apiPassword` |
 | Where it goes | The `Authorization: Bearer` header | The last parameter, `token`, of every call | The first three parameters of every call |
-| How long it lasts | Not yet documented | 12 hours, cannot be refreshed | No token: the same three values every call |
+| How long it lasts | Chosen when you create it, up to 2 years | 12 hours, cannot be refreshed | No token: the same three values every call |
 | Who the call acts as | The token's TimeLog user | The user who requested the token | No user: the account |
 | Full guide | [REST authentication](/rest/authentication) | [Transactional authentication](/transactional/guides/authentication) | [Reporting authentication](/reporting/guides/authentication) |
 

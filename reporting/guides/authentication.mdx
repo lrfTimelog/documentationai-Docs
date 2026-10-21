@@ -15,6 +15,19 @@ three parameters:
 You find all three, and your API address, under **System Administration > Integrations and API > Reporting API
 settings**.
 
+## Setting up the API ID and password
+
+An administrator opens the Reporting API settings and notes the **site code**. The API ID and password are then
+chosen there:
+
+- **API ID** works as the API user name: letters and numbers, for example `apiUser123`.
+- **Password** is the password for API access.
+- If both show `0`, no API login has been set up yet.
+- Any other value means a login is already set and may be in use by other systems.
+
+The account has **one** API ID and password. A change applies from the next call, so changing values that are already
+set breaks every system that uses them. Agree on the change with the account's system administrator first.
+
 ## Base URL
 
 All methods are served by one endpoint:

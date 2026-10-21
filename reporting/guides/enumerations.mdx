@@ -1,0 +1,220 @@
+---
+title: "Enumerations"
+description: "What the numbers in Reporting API status and type fields mean."
+---
+
+Many Reporting API fields hold a number that stands for a status or a type. This page lists what each number
+means. The method pages link the fields they return.
+
+<Callout kind="info">Values can be added over time. Treat a number you do not know as "other" instead of
+failing.</Callout>
+
+## Approval status
+
+The approval state of a time registration. Field: `ApprovedStatus`.
+
+Returned by [GetWorkUnitsRawPaged](/reporting/methods/get-work-units-raw-paged), [GetWorkUnitsRaw](/reporting/methods/get-work-units-raw).
+
+| Value | Name | Meaning |
+|---|---|---|
+| `0` | Open | The timesheet is open. Rejected and resubmitted registrations also show as open. |
+| `10` | Closed | The employee has closed (submitted) the timesheet. Not yet approved. |
+| `20` | Project Manager Approved | Approved by the project manager. |
+| `30` | Employee Manager Approved | Approved by the employee's manager. |
+
+## Billable status
+
+Whether a time registration is billable, combined with whether its task is billable. Field: `BillableStatus`.
+
+Returned by [GetWorkUnitsRawPaged](/reporting/methods/get-work-units-raw-paged), [GetWorkUnitsRaw](/reporting/methods/get-work-units-raw).
+
+| Value | Name | Meaning |
+|---|---|---|
+| `-3` | Non Billable Registration On Billable Task With Zero Hourly Rate | Billable task. The registration is marked non-billable and its registered amount is 0. |
+| `-2` | Billable Registration On Non Billable Task | Non-billable task. The registration is not marked non-billable. |
+| `-1` | Non Billable Registration On Non Billable Task | Non-billable task. The registration is marked non-billable. |
+| `1` | Billable Registration On Billable Task | Billable task. Every case not covered by -3 or 2. |
+| `2` | Non Billable Registration On Billable Task | Billable task. The registered amount is written off to 0. |
+
+## Time registration invoice status
+
+Whether a time registration has been put on a voucher or an invoice. Field: `InvoiceStatus`.
+
+Returned by [GetWorkUnitsRawPaged](/reporting/methods/get-work-units-raw-paged), [GetWorkUnitsRaw](/reporting/methods/get-work-units-raw).
+
+| Value | Name | Meaning |
+|---|---|---|
+| `0` | Bookable | Not yet on a voucher or invoice - can still be invoiced. |
+| `1` | Added To Voucher | Included on an invoice voucher (draft) that is not booked as an invoice. |
+| `2` | Added To Invoice | Included on an invoice. |
+
+## Absence code type
+
+The kind of absence a time-off registration records. Field: `AbsenceCodeType`.
+
+Returned by [GetTimeOffRegistrationsRaw](/reporting/methods/get-time-off-registrations-raw).
+
+| Value | Name | Meaning |
+|---|---|---|
+| `1` | Illness | Sick leave. This is health data: handle it with extra care. |
+| `2` | Holiday | Holiday / vacation. |
+| `3` | Absence Non Compensated | Absence without pay compensation. |
+| `4` | Absence Compensated | Absence with pay compensation. |
+
+## Contract type
+
+The contract model of a project contract. Field: `ContractModelType`.
+
+Returned by [GetContractsRaw](/reporting/methods/get-contracts-raw).
+
+| Value | Name | Meaning |
+|---|---|---|
+| `1` | Time Material Basic | Time and material, standard agreement. |
+| `2` | Fixed Price Basic | Fixed price, standard agreement. |
+| `3` | Time Material Account End Balancing | Time and material on account, balanced at the end. |
+| `4` | Time Material Account Periodic Balancing | Time and material on account, balanced periodically (recurrence contract). |
+| `5` | Prepaid Services | Prepaid hours (time and material). |
+| `6` | Task Driven Revenue | Fixed price, revenue requested per task. |
+| `7` | Continuous Service | Fixed price, revenue requested per period (recurrence contract). |
+| `8` | Continuous Item Invoicing | Fixed price, volume invoicing (recurrence contract). |
+| `20` | Recurring Product Contract | System contract for expenses generated from recurring product sales. |
+
+## Contract status
+
+The state of a project contract. Field: `ProjectContractStatus`.
+
+Returned by [GetContractsRaw](/reporting/methods/get-contracts-raw).
+
+| Value | Name | Meaning |
+|---|---|---|
+| `1` | Quotation | Quotation. |
+| `2` | Active | Active. |
+| `3` | Completed | Completed. |
+| `4` | Cancelled | Cancelled. |
+
+## Task progress
+
+How far a task has progressed. Field: `StatusDetailed`.
+
+Returned by [GetTasksRaw](/reporting/methods/get-tasks-raw).
+
+| Value | Name | Meaning |
+|---|---|---|
+| `0` | Not Started | Not started. |
+| `1` | In Progress | In progress. |
+| `2` | On Hold | On hold. |
+| `3` | Completed | Completed. |
+| `4` | Cancelled | Cancelled. |
+
+## Invoice line registration type
+
+What an invoice line detail was created from. Field: `RegistrationType`.
+
+| Value | Name | Meaning |
+|---|---|---|
+| `0` | Raw Invoiceable | Raw invoiceable item (no specific registration type). |
+| `2` | Work Unit | Time registration (work unit). |
+| `3` | Disbursement | Disbursement (expense). |
+| `4` | Travel Expense | Travel expense. |
+| `5` | Support Unit | Support unit. |
+| `6` | Payment | Payment. |
+| `7` | Support Contract | Support contract. |
+| `8` | Rounding | Rounding. |
+| `9` | Currency Difference | Currency difference. |
+| `10` | Work Remaining Revenue Share | Voucher: remaining work revenue share. |
+| `11` | Expense Remaining Revenue Share | Voucher: remaining expense revenue share. |
+| `12` | Travel Remaining Revenue Share | Voucher: remaining travel revenue share. |
+| `13` | Unallocated Revenue Share | Voucher: unallocated revenue share (payment vs budget difference). |
+| `14` | Financial Posting | Voucher financial posting. |
+| `15` | Pending Booking Action Raw Invoiceable | Raw invoiceable with a pending booking action. |
+| `16` | Mileage Registration | Mileage registration. |
+| `17` | Invoicing Fee Percentage | Invoicing fee (percentage). |
+| `18` | Invoicing Fee Fixed | Invoicing fee (fixed). |
+
+## Unit type
+
+The unit of an invoice line or contract payment. Field: `UnitType`.
+
+Returned by [GetContractPaymentsRaw](/reporting/methods/get-contract-payments-raw).
+
+| Value | Name | Meaning |
+|---|---|---|
+| `0` | Undefined | No unit. |
+| `1` | Hours | Hours. |
+| `2` | Minutes | Minutes. |
+| `3` | Days | Days. |
+| `4` | Km | Kilometres. |
+| `6` | Pieces | Pieces (5 = Miles is retired). |
+| `7` | Liters | Litres. |
+| `8` | Meters | Metres. |
+| `9` | Kilograms | Kilograms. |
+
+## Customer status type
+
+Where customers with this status are shown. The value is a set of flags: add values together to combine them. Field: `CustomerStatusType`.
+
+Returned by [GetCustomerStatusShortList](/reporting/methods/get-customer-status-short-list).
+
+| Value | Name | Meaning |
+|---|---|---|
+| `0` | None | In no group. |
+| `1` | Is Shown In Customers | Customer status - customers carry it. |
+| `2` | Is Shown In Suppliers | Supplier status - suppliers are customers with such a status. |
+| `8` | Is Shown In Leads | Offered for leads. |
+| `16` | Is Multi Customer Projects | System status used for projects with more than one customer. |
+
+## Resource booking type
+
+How a resource booking was made. Field: `HardBookingType`.
+
+Returned by [GetHardBookingsRaw](/reporting/methods/get-hard-bookings-raw).
+
+| Value | Name | Meaning |
+|---|---|---|
+| `0` | Manual | Booked by hand in the resource planner. |
+| `1` | Outlook | Created from an Outlook calendar event. |
+| `2` | Favourite | Booked through a favourite. |
+
+## Salary account posting type
+
+How a posting on an employee's salary account was made. Field: `PostingType`.
+
+Returned by [GetSalaryAccountEmployeePostingsRaw](/reporting/methods/get-salary-account-employee-postings-raw).
+
+| Value | Name | Meaning |
+|---|---|---|
+| `0` | Automatic | Posted automatically. |
+| `1` | Manual | Manual posting. |
+| `2` | Balance Moved From | Balance moved away from this account. |
+| `3` | Balance Moved To | Balance moved to this account. |
+| `4` | Reset | Balance reset. |
+| `5` | Salary Time | Salary time. |
+| `6` | Automatic Adjustments | Automatic adjustment. |
+| `7` | Reset Automatic Adjustments | Reset of automatic adjustments. |
+
+## Event status
+
+The state of a CRM event. Field: `Status`.
+
+| Value | Name | Meaning |
+|---|---|---|
+| `1` | Planned | Planned, not yet done. |
+| `2` | Postponed | Postponed. |
+| `3` | Finished | Completed. |
+| `4` | Cancelled | Cancelled. |
+
+## Weekday
+
+The day in an employee's normal working time. Field: `Weekday`.
+
+Returned by [GetEmployeeNormalWorkingHoursRaw](/reporting/methods/get-employee-normal-working-hours-raw).
+
+| Value | Name | Meaning |
+|---|---|---|
+| `0` | Sunday | Sunday. |
+| `1` | Monday | Monday. |
+| `2` | Tuesday | Tuesday. |
+| `3` | Wednesday | Wednesday. |
+| `4` | Thursday | Thursday. |
+| `5` | Friday | Friday. |
+| `6` | Saturday | Saturday. |

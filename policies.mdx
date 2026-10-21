@@ -1,0 +1,50 @@
+---
+title: "Usage and change policy"
+description: "How TimeLog handles API usage, how the APIs change over time, and how long a version is supported."
+---
+
+These rules apply to all three TimeLog APIs: REST, Transactional and Reporting.
+
+## Usage
+
+The APIs are available to all TimeLog customers, to supplement the TimeLog web app.
+
+- **No hard limits are published.** TimeLog monitors API usage and usage patterns, so that one account's load does not
+  degrade performance for other customers.
+- **Use the APIs responsibly.** Call at a reasonable frequency, avoid large bursts of requests, and narrow each call
+  with its filters instead of reading everything again.
+- **TimeLog contacts you before limiting.** Before taking action that limits an account's API use, TimeLog reaches
+  out to the employee marked as *TimeLog Responsible* in that account.
+
+For bulk reads, see [Sync to a data warehouse](/reporting/guides/sync-to-data-warehouse): it reads recent periods
+often and the full history rarely.
+
+## How the APIs change
+
+- **Additions can happen without notice.** TimeLog may add new methods, operations and properties to any of the APIs
+  at any time, sometimes announced in the release notes. Build your integration so that it ignores fields it does not
+  know.
+- **Breaking changes are announced.** Changing or removing existing fields or methods, including changes to a method's
+  signature, is announced in advance.
+
+## How long a version is supported
+
+TimeLog guarantees that a solution built on a given version of an API keeps working for **three years** from the
+release of that version.
+
+- **REST API:** the version is the `v1` or `v2` segment in the URL. See
+  [Base URL and versioning](/rest/conventions/versioning).
+- **Transactional API:** every service version (for example CRM 1.4) has its own endpoint. TimeLog only adds to and
+  fixes an existing version; a rename or removal comes as a new version.
+- **Reporting API:** not versioned. New methods are added next to the existing ones.
+
+Moving a solution to a newer version is not covered by the guarantee: test it against the new version before you
+switch.
+
+<Callout kind="alert">**Not yet documented.** Which API is recommended for new integrations, and the release date of
+each current version, are not yet documented.</Callout>
+
+## Questions
+
+For questions about the APIs, best practice or performance, or to report a problem, contact TimeLog through
+[timelog.com/en/contact](https://timelog.com/en/contact/).

@@ -1,0 +1,60 @@
+---
+title: "Keep systems in sync with external keys"
+description: "Store the IDs your other systems use on TimeLog records, and look records up by them, so TimeLog can act as the hub of your integrations."
+---
+
+When you connect TimeLog to another business system, the first job is usually to match the two systems' records: this
+customer in your CRM is that customer in TimeLog. Keeping that match in your own database works for two systems, and
+becomes hard to maintain with three or more.
+
+TimeLog lets you store the match **on the TimeLog record itself**. Many objects carry **external keys**: pairs of an
+external system and the record's ID in that system. TimeLog then holds the foreign keys for every system you connect.
+
+## How external keys work
+
+<Steps>
+  <Step title="Register the external system" icon="plug">
+    An external key always belongs to an external system registered on the account. A key for an unknown system is
+    rejected.
+  </Step>
+  <Step title="Store the key when you create or update a record" icon="key-round">
+    Send the record's ID in your system as an external key, for example in `ExternalKeys` when you create a customer
+    with the Transactional API.
+  </Step>
+  <Step title="Look the record up by your own ID" icon="search">
+    Ask TimeLog for the record that matches your system's ID, instead of keeping a mapping table of your own.
+  </Step>
+</Steps>
+
+An external key is a **string**, so it can hold any ID that can be written as text: a number, a GUID or a code.
+
+## Where you find them
+
+### Transactional API
+
+| Task | Operations |
+|---|---|
+| Save keys with a record | `ExternalKeys` on creates, for example [InsertCustomer](/transactional/crm/insert-customer). Keys are saved only when `IsExternalKeysLoaded` is `true`. |
+| Read a record's keys | Reads that take `loadExternalKeys`, for example [GetCustomersModifiedSincePaged](/transactional/crm/get-customers-modified-since-paged). |
+| Find a record by your ID | [GetCustomerByExternalKey](/transactional/crm/get-customer-by-external-key), [GetInvoiceByExternalKey](/transactional/invoicing/get-invoice-by-external-key), [GetProjectByExternalKey](/transactional/projectmanagement/get-project-by-external-key), [GetTaskByExternalKey](/transactional/projectmanagement/get-task-by-external-key), [GetAllocationByExternalKey](/transactional/projectmanagement/get-allocation-by-external-key) |
+| Read time with the keys of its project and task | [GetWorkPagedWithExternalIds](/transactional/projectmanagement/get-work-paged-with-external-ids) |
+
+A lookup for a system that is not registered returns `ResponseState` = `Invalid`. A lookup that finds no mapped record
+returns an error. See each operation's page for the exact responses.
+
+### REST API
+
+The **Integrations** service group registers the external systems your external keys belong to, and records sync
+conflicts TimeLog cannot resolve on its own. See [What you can do](/rest/overview#what-you-can-do).
+
+<Callout kind="alert">**Not yet documented.** Which REST operations read or write external keys on other objects is
+not yet documented here.</Callout>
+
+## Good practice
+
+- **Use one external system per connected system.** Then a customer can carry its ID in your CRM and in your ERP at the
+  same time, without the keys colliding.
+- **Write the key in the same call that creates the record.** If you create first and add the key later, a failure in
+  between leaves a record you cannot find again by your own ID.
+- **Look up before you create.** Searching by external key first stops a retried sync from creating the same record
+  twice.

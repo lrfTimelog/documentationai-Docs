@@ -30,6 +30,19 @@ The same slot carries three different answers. Tell them apart by the **root ele
 | Yes / no | `1` or `0`. |
 | GUIDs | Upper case. |
 | Decimals | A dot as decimal separator: `950.0000`. |
+| Status and type numbers | See [Enumerations](/reporting/guides/enumerations) for what each number means. |
+
+## Currencies
+
+Amounts follow a naming rule, unless the method page says otherwise for a field:
+
+| Amount field name | Currency |
+|---|---|
+| Ends with `SystemCurrency` | The account's system currency. |
+| Ends with `Currency` (for example `…ProjectCurrency`) | The currency of the project, contract or invoice the amount belongs to. |
+| No currency in the name | The account's system currency. |
+
+Each method page states the currency in the field's label, for example *Billable amount (project currency)*.
 
 ## Large results
 
