@@ -15,10 +15,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -45,7 +43,7 @@ paths:
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Consistency: immediate for the caller's own create / delete (both invalidate the "UserPageFavorites" cache entry).
+        - Consistency: immediate for the caller's own create / delete.
 
         **Next:** `DELETE /v2/bookmarks/{bookmarkId}`
 
@@ -127,8 +125,7 @@ paths:
         - Not idempotent.
         - A repeat with the same page (non-entity pages) or a Url ending with an existing bookmark's stored URL creates nothing and still answers 200 null.
         - Safe to retry.
-        - Duplicates: Server-side duplicate check against the caller's own (cached, access-filtered) bookmarks: same page for non-entity pages, or stored URL is a case-insensitive suffix of the new Url (query strings ignored). No DB constraint.
-        - Side effect: Invalidates the caller's bookmark cache.
+        - Duplicates: Server-side duplicate check against the caller's own bookmarks: same page for non-entity pages, or stored URL is a case-insensitive suffix of the new Url (query strings ignored).
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v2/pages/design-seven`, `GET /v2/menus/main`
@@ -218,7 +215,7 @@ paths:
       description: |-
         Permanently deletes a bookmark by its ID.
 
-        Deletes the bookmark with this ID. Intended for the caller's own bookmarks (the delete action on each entity of GET /v2/bookmarks), but the ID is not checked against the caller. An unknown or already-deleted ID fails with 500, not 404.
+        Deletes the bookmark with this ID. An unknown or already-deleted ID fails with 500, not 404.
 
         **Use it to:**
         - "Remove bookmark" in the bookmark menu (follow the entity's delete action)
@@ -231,7 +228,6 @@ paths:
         - The first call answers 200 null; a repeat answers 500 Code 100 (the lookup throws).
         - Safe to retry only under a condition. After a lost response, a 500 Code 100 on retry most likely means the first call succeeded; confirm with GET /v2/bookmarks.
         - Duplicates: n/a
-        - Side effect: Invalidates the "UserPageFavorites" cache entry (the caller's list).
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v2/bookmarks`
@@ -307,7 +303,7 @@ paths:
       description: |-
         Returns one page of the employees who are account manager of at least one project, by name, as filter options, optionally narrowed by search text.
 
-        Returns each employed employee (Ansat = 1, SystemEmployeeType not 1) who is the account manager of at least one project — any project, including closed projects and project templates — once, ordered by "first last" name. Search text matches the full name or the initials. NOT scoped to the caller: every such employee of the tenant is returned. The AccountManager feature hides this filter from the filter list but is not checked here. Personal data (employee names).
+        Returns each employed employee (Ansat = 1, SystemEmployeeType not 1) who is the account manager of at least one project — any project, including closed projects and project templates — once, ordered by "first last" name. Search text matches the full name or the initials. NOT scoped to the caller: every such employee of the account is returned. Personal data (employee names).
 
         **Use it to:**
         - Fill the account-manager picker; send the chosen values as accountManagerIds to the project dropdown
@@ -343,14 +339,14 @@ paths:
         schema:
           type: integer
           format: int32
-        description: Rows to skip (SQL OFFSET). Required (404 when omitted).
+        description: Rows to skip. Required (404 when omitted).
       - name: take
         in: query
         required: true
         schema:
           type: integer
           format: int32
-        description: Rows to return (SQL FETCH NEXT). Required (404 when omitted); no upper bound.
+        description: Rows to return. Required (404 when omitted); no upper bound.
       - name: searchText
         in: query
         required: false
@@ -401,8 +397,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or skip / take not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -437,7 +432,7 @@ paths:
       description: |-
         Returns one page of the users who are approval manager of at least one active user, by name, as filter options, optionally narrowed by search text.
 
-        Returns each user who is the approval manager of at least one active user of type 0, ordered by "First Last (INITIALS)". Only the managed users are filtered on active state and type — the manager is listed even if they are inactive themselves. Search text matches the first name, the last name or the initials separately. NOT scoped to the caller: every such manager of the tenant is returned. Value is the USER ID, which the employee dropdown accepts as approvalManagerIds. Personal data (names, initials).
+        Returns each user who is the approval manager of at least one active user of type 0, ordered by "First Last (INITIALS)". Only the managed users are filtered on active state and type — the manager is listed even if they are inactive themselves. Search text matches the first name, the last name or the initials separately. NOT scoped to the caller: every such manager of the account is returned. Value is the USER ID, which the employee dropdown accepts as approvalManagerIds. Personal data (names, initials).
 
         **Use it to:**
         - Fill the approval-manager picker; send the chosen values as approvalManagerIds to the employee dropdown
@@ -473,14 +468,14 @@ paths:
         schema:
           type: integer
           format: int32
-        description: Rows to skip (SQL OFFSET). Required (404 when omitted).
+        description: Rows to skip. Required (404 when omitted).
       - name: take
         in: query
         required: true
         schema:
           type: integer
           format: int32
-        description: Rows to return (SQL FETCH NEXT). Required (404 when omitted); no upper bound.
+        description: Rows to return. Required (404 when omitted); no upper bound.
       - name: searchText
         in: query
         required: false
@@ -490,7 +485,7 @@ paths:
             operators:
             - contains
         description: |-
-          Keeps managers whose first name, last name or initials contain the text (LIKE '%text%', each column separately). Omitted / null = all.
+          Keeps managers whose first name, last name or initials contain the text. Omitted / null = all.
 
           Filters on `manager first name, last name or initials` (contains).
       responses:
@@ -531,8 +526,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or skip / take not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -565,9 +559,9 @@ paths:
       operationId: filtersCompetenceContentGetV2
       summary: List competence filter options
       description: |-
-        Returns up to maxResults (default 30) of the tenant's active competences as filter options, optionally narrowed by search text.
+        Returns up to maxResults (default 30) of the account's active competences as filter options, optionally narrowed by search text.
 
-        Returns active competences with their competence group; the SQL takes the first maxResults ordered by group name then competence name, and the manager re-sorts them by competence name. The group is read but not returned, so equally named competences of different groups are indistinguishable. Search text matches the competence name. competenceIds / isCompetenceInclusive are accepted but IGNORED. Tenant configuration, not scoped to the caller (not filed).
+        The group is read but not returned, so equally named competences of different groups are indistinguishable. Search text matches the competence name. competenceIds / isCompetenceInclusive are accepted but IGNORED. Account configuration, not scoped to the caller (not filed).
 
         **Behaviour:**
         - Idempotent.
@@ -606,7 +600,7 @@ paths:
           type: integer
           format: int32
           default: 30
-        description: Maximum options returned (SQL TOP). Omitted = 30.
+        description: Maximum options returned. Omitted = 30.
       - name: competenceIds
         in: query
         required: false
@@ -625,7 +619,7 @@ paths:
           description: |-
             A list, wrapped in the TAF list envelope (`Entities[].Properties`). Value = competence ID; DisplayText = competence name (the group name is not included).
 
-            Order: Competence name (in memory), over the first maxResults by group name then competence name.
+            Order: Competence name, over the first maxResults by group name then competence name.
 
             Empty result: 200 with only the self link (no Entities).
           content:
@@ -656,8 +650,8 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or maxResults / isCompetenceInclusive not parseable (model binding; src_only). —
-            Fix: Fix every item listed in Details and resend.'
+            a member name nor an integer, or maxResults / isCompetenceInclusive not parseable. — Fix: Fix every item listed
+            in Details and resend.'
           content:
             application/json:
               schema:
@@ -692,7 +686,7 @@ paths:
       description: |-
         Returns one page of the customer contact persons that are the contact of at least one project, by name, optionally limited to given customers.
 
-        Returns each customer contact person that is set as the contact of at least one project — any project state; no contact or project state filter is applied — once, ordered by "first last" name. customerIds limits the list to contacts of those customers (always inclusive; there is no exclude switch). Search text matches the initials, first name or last name. NOT scoped to the caller: contacts of every customer of the tenant are returned. Personal data of external people (customer contact names).
+        Returns each customer contact person that is set as the contact of at least one project — any project state; no contact or project state filter is applied — once, ordered by "first last" name. customerIds limits the list to contacts of those customers (always inclusive; there is no exclude switch). Search text matches the initials, first name or last name. NOT scoped to the caller: contacts of every customer of the account are returned. Personal data of external people (customer contact names).
 
         **Use it to:**
         - Fill the contact picker, narrowed to the customers chosen in the customer dropdown
@@ -724,14 +718,14 @@ paths:
         schema:
           type: integer
           format: int32
-        description: Rows to skip (SQL OFFSET). Required (404 when omitted).
+        description: Rows to skip. Required (404 when omitted).
       - name: take
         in: query
         required: true
         schema:
           type: integer
           format: int32
-        description: Rows to return (SQL FETCH NEXT). Required (404 when omitted); no upper bound.
+        description: Rows to return. Required (404 when omitted); no upper bound.
       - name: searchText
         in: query
         required: false
@@ -796,8 +790,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or skip / take not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -832,7 +825,7 @@ paths:
       description: |-
         Returns the fixed list of the eight non-system contract models as filter options, labelled "&lt;invoicing type> - &lt;model>" in the caller's language.
 
-        - &lt;contract model text>" from the enum resources. In en-GB: 1 "Time & material - Standard contract", 3 "Time & material - On account with end-balancing", 5 "Time & material - Prepaid hours", 4 "Time & material - Continuous on-account invoicing with period balancing", 2 "Fixed price - Standard contract", 7 "Fixed price - Continuous service", 6 "Fixed price - Task-driven revenue", 8 "Fixed price - Continuous item invoicing". The list is the same for every tenant and caller. Search text and skip / take are applied in memory; the search is a CASE-SENSITIVE substring match.
+        - &lt;contract model text>" from the enum resources. In en-GB: 1 "Time & material - Standard contract", 3 "Time & material - On account with end-balancing", 5 "Time & material - Prepaid hours", 4 "Time & material - Continuous on-account invoicing with period balancing", 2 "Fixed price - Standard contract", 7 "Fixed price - Continuous service", 6 "Fixed price - Task-driven revenue", 8 "Fixed price - Continuous item invoicing". The list is the same for every account and caller.
 
         **Behaviour:**
         - Idempotent.
@@ -860,14 +853,14 @@ paths:
         schema:
           type: integer
           format: int32
-        description: Options to skip, in memory (LINQ Skip; a negative value acts as 0). Required (404 when omitted).
+        description: Required (404 when omitted).
       - name: take
         in: query
         required: true
         schema:
           type: integer
           format: int32
-        description: Options to return, in memory (LINQ Take; 0 or negative = none). Required (404 when omitted).
+        description: Required (404 when omitted).
       - name: searchText
         in: query
         required: false
@@ -918,8 +911,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or skip / take not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -948,7 +940,7 @@ paths:
       description: |-
         Returns the fixed list of the four contract statuses as filter options, translated into the caller's language.
 
-        Returns every ProjectSubContractStatus member — 1 Quotation, 2 Active, 3 Completed, 4 Cancelled (en-GB labels from the ForAll_* enum resources) — the same for every tenant and caller. Search text and skip / take are applied in memory; the search is a CASE-SENSITIVE substring match.
+        Returns every ProjectSubContractStatus member — 1 Quotation, 2 Active, 3 Completed, 4 Cancelled (en-GB labels from the ForAll_* enum resources) — the same for every account and caller.
 
         **Behaviour:**
         - Idempotent.
@@ -976,14 +968,14 @@ paths:
         schema:
           type: integer
           format: int32
-        description: Options to skip, in memory (LINQ Skip; a negative value acts as 0). Required (404 when omitted).
+        description: Required (404 when omitted).
       - name: take
         in: query
         required: true
         schema:
           type: integer
           format: int32
-        description: Options to return, in memory (LINQ Take; 0 or negative = none). Required (404 when omitted).
+        description: Required (404 when omitted).
       - name: searchText
         in: query
         required: false
@@ -1034,8 +1026,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or skip / take not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -1064,7 +1055,7 @@ paths:
       description: |-
         Returns one page of the employees referenced as owner of at least one customer, by name, as filter options, optionally narrowed by search text.
 
-        Search text matches the initials, first name or last name. NOT scoped to the caller: every such employee of the tenant is returned. Personal data (employee names).
+        Search text matches the initials, first name or last name. NOT scoped to the caller: every such employee of the account is returned. Personal data (employee names).
 
         **Not for:**
         - Listing employees — use the employee operations
@@ -1095,14 +1086,14 @@ paths:
         schema:
           type: integer
           format: int32
-        description: Rows to skip (SQL OFFSET). Required (404 when omitted).
+        description: Rows to skip. Required (404 when omitted).
       - name: take
         in: query
         required: true
         schema:
           type: integer
           format: int32
-        description: Rows to return (SQL FETCH NEXT). Required (404 when omitted); no upper bound.
+        description: Rows to return. Required (404 when omitted); no upper bound.
       - name: searchText
         in: query
         required: false
@@ -1153,8 +1144,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or skip / take not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -1187,7 +1177,7 @@ paths:
       operationId: filtersCustomerContentGetV2
       summary: List customer filter options
       description: |-
-        Returns one page of the tenant's customers (by company name) as filter options, optionally narrowed by search text.
+        Returns one page of the account's customers (by company name) as filter options, optionally narrowed by search text.
 
         Returns every customer whose status is shown in the customer list (status system type 1 = customers, or 3 = customers and suppliers; supplier-only and lead statuses are excluded), ordered by company name. Search text matches the company name, the nickname or the customer number. NOT scoped to the caller: unlike the project dropdown, no customer privilege is applied. Unlike the other dropdowns, skip and take are optional (defaults 0 / 50).
 
@@ -1235,7 +1225,7 @@ paths:
           type: integer
           format: int32
           default: 0
-        description: Rows to skip (SQL OFFSET).
+        description: Rows to skip.
       - name: take
         in: query
         required: false
@@ -1243,7 +1233,7 @@ paths:
           type: integer
           format: int32
           default: 50
-        description: Rows to return (SQL FETCH NEXT); no upper bound.
+        description: Rows to return; no upper bound.
       responses:
         '200':
           description: |-
@@ -1282,8 +1272,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or skip / take not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -1316,9 +1305,9 @@ paths:
       operationId: filtersDepartmentContentGetV2
       summary: List department filter options (general)
       description: |-
-        Returns the tenant's active departments as an indented tree of filter options (no paging, no search).
+        Returns the account's active departments as an indented tree of filter options (no paging, no search).
 
-        Returns the tenant's ACTIVE departments as a flattened tree: each top-level department followed by its sub-departments (depth-first), DisplayText prefixed with one " » " per level below the top. This general variant takes no skip / take: the manager defaults (0 / 50) apply, so at most 50 departments per tree level are returned, chosen BEFORE sorting by name.
+        Returns the account's ACTIVE departments as a flattened tree: each top-level department followed by its sub-departments (depth-first), DisplayText prefixed with one " » " per level below the top. This general variant takes no skip / take: the manager defaults (0 / 50) apply, so at most 50 departments per tree level are returned, chosen BEFORE sorting by name.
 
         **Not for:**
         - Reading the entities themselves — use the entity's own REST operations
@@ -1350,8 +1339,6 @@ paths:
 
             No paging parameters; the manager defaults skip 0 / take 50 cap the result.
 
-            Order: Per tree level: the first 50 rows in database order (TSP_Department_GetAll), then sorted by name; children directly after their parent.
-
             Empty result: 200 with only the self link (no Entities).
           content:
             application/json:
@@ -1381,7 +1368,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer (model binding; src_only). — Fix: Fix every item listed in Details and resend.'
+            a member name nor an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -1414,9 +1401,9 @@ paths:
       operationId: filtersEmployeeDepartmentContentGetV2
       summary: List employee-department filter options
       description: |-
-        Returns the tenant's active departments as an indented tree, for the employee-department filter.
+        Returns the account's active departments as an indented tree, for the employee-department filter.
 
-        Returns the tenant's ACTIVE departments as a flattened tree: each top-level department followed by its sub-departments (depth-first), DisplayText prefixed with one " » " per level below the top. Identical content to the department and project-department routes (same code branch); used by the employee-department filter (employees' department).
+        Returns the account's ACTIVE departments as a flattened tree: each top-level department followed by its sub-departments (depth-first), DisplayText prefixed with one " » " per level below the top. Identical content to the department and project-department routes (same code branch); used by the employee-department filter (employees' department).
 
         **Not for:**
         - Reading the entities themselves — use the entity's own REST operations
@@ -1462,8 +1449,6 @@ paths:
 
             Paged with `skip` and `take`.
 
-            Order: Per tree level: rows skip..skip+take in database order, then sorted by name; children directly after their parent.
-
             Empty result: 200 with only the self link (no Entities).
           content:
             application/json:
@@ -1493,8 +1478,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or skip / take not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -1527,9 +1511,9 @@ paths:
       operationId: filtersEmployeeTypeContentGetV2
       summary: List employee type filter options
       description: |-
-        Returns one page of the tenant's active employee types, by name, as filter options, optionally narrowed by search text.
+        Returns one page of the account's active employee types, by name, as filter options, optionally narrowed by search text.
 
-        Returns every active employee type, ordered by name. Search text matches the name. The values are the IDs the employee dropdown filters on. Tenant configuration, not scoped to the caller (not filed). The EmployeeTypes feature hides this filter from the filter list but is not checked here.
+        Returns every active employee type, ordered by name. Search text matches the name. The values are the IDs the employee dropdown filters on. Account configuration, not scoped to the caller (not filed).
 
         **Use it to:**
         - Fill the employee-type picker; send the chosen values as employeeTypeIds to the employee dropdown
@@ -1560,14 +1544,14 @@ paths:
         schema:
           type: integer
           format: int32
-        description: Rows to skip (SQL OFFSET). Required (404 when omitted).
+        description: Rows to skip. Required (404 when omitted).
       - name: take
         in: query
         required: true
         schema:
           type: integer
           format: int32
-        description: Rows to return (SQL FETCH NEXT). Required (404 when omitted); no upper bound.
+        description: Rows to return. Required (404 when omitted); no upper bound.
       - name: searchText
         in: query
         required: false
@@ -1618,8 +1602,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or skip / take not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -1652,9 +1635,9 @@ paths:
       operationId: filtersEmployeeContentGetV2
       summary: List employee filter options
       description: |-
-        Returns one page of the tenant's active users, by name, as filter options, optionally narrowed by search text and by selected employee types, departments, legal entities and approval managers.
+        Returns one page of the account's active users, by name, as filter options, optionally narrowed by search text and by selected employee types, departments, legal entities and approval managers.
 
-        Returns every active user of type 0, ordered by DisplayText "First Last (INITIALS)". Search text matches the first name, the last name or the initials separately (a "first last" string does not match). Each ID-list parameter narrows by one profile attribute, inclusively (keep these) or exclusively (drop these); the approval-manager EXCLUDE mode compares the wrong column. NOT scoped to the caller: every active user is offered. Value is the USER ID, not the employee ID used by the project-manager / account-manager dropdowns. Personal data (names, initials).
+        Returns every active user of type 0, ordered by DisplayText "First Last (INITIALS)". Search text matches the first name, the last name or the initials separately (a "first last" string does not match). NOT scoped to the caller: every active user is offered. Value is the USER ID, not the employee ID used by the project-manager / account-manager dropdowns. Personal data (names, initials).
 
         **Not for:**
         - Listing employees or users with their details — use the employee / user operations
@@ -1689,14 +1672,14 @@ paths:
         schema:
           type: integer
           format: int32
-        description: Rows to skip (SQL OFFSET). Required (404 when omitted).
+        description: Rows to skip. Required (404 when omitted).
       - name: take
         in: query
         required: true
         schema:
           type: integer
           format: int32
-        description: Rows to return (SQL FETCH NEXT). Required (404 when omitted); no upper bound.
+        description: Rows to return. Required (404 when omitted); no upper bound.
       - name: searchText
         in: query
         required: false
@@ -1706,7 +1689,7 @@ paths:
             operators:
             - contains
         description: |-
-          Keeps users whose first name, last name or initials contain the text (LIKE '%text%', each column separately). Omitted / null = no text filter.
+          Keeps users whose first name, last name or initials contain the text. Omitted / null = no text filter.
 
           Filters on `user first name, last name or initials` (contains).
       - name: employeeTypeIds
@@ -1832,8 +1815,8 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take / an is...Inclusive flag not parseable (model binding; src_only).
-            — Fix: Fix every item listed in Details and resend.'
+            a member name nor an integer, or skip / take / an is...Inclusive flag not parseable. — Fix: Fix every item listed
+            in Details and resend.'
           content:
             application/json:
               schema:
@@ -1868,7 +1851,7 @@ paths:
       description: |-
         Returns one page of active legal entities by name, for the employee legal-entity filter.
 
-        Returns the tenant's ACTIVE legal entities (IsActive = 1), ordered by name. Not scoped to the caller and not gated by the MultiLegalEntities feature (the filter list hides the filter when that feature is off; this route still answers). Identical content to legal-entity and legal-entity-project (same stored procedure; nothing employee-specific). Used by the employee legal-entity filter.
+        Returns the account's ACTIVE legal entities (IsActive = 1), ordered by name. Not scoped to the caller and not gated by the MultiLegalEntities feature (the filter list hides the filter when that feature is off; this route still answers). Identical content to legal-entity and legal-entity-project. Used by the employee legal-entity filter.
 
         **Not for:**
         - Reading the entities themselves — use the entity's own REST operations
@@ -1899,14 +1882,14 @@ paths:
         schema:
           type: integer
           format: int32
-        description: Rows to skip (SQL OFFSET). Required (404 when omitted).
+        description: Rows to skip. Required (404 when omitted).
       - name: take
         in: query
         required: true
         schema:
           type: integer
           format: int32
-        description: Rows to return (SQL FETCH NEXT). Required (404 when omitted); no upper bound.
+        description: Rows to return. Required (404 when omitted); no upper bound.
       responses:
         '200':
           description: |-
@@ -1945,8 +1928,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or skip / take not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -1981,7 +1963,7 @@ paths:
       description: |-
         Returns one page of active legal entities by name, for the project legal-entity filter.
 
-        Returns the tenant's ACTIVE legal entities (IsActive = 1), ordered by name. Not scoped to the caller and not gated by the MultiLegalEntities feature (the filter list hides the filter when that feature is off; this route still answers). Identical content to legal-entity and legal-entity-employee (same stored procedure; nothing project-specific). Send the chosen values back as legalEntityProjectIds on the project dropdown.
+        Returns the account's ACTIVE legal entities (IsActive = 1), ordered by name. Not scoped to the caller and not gated by the MultiLegalEntities feature (the filter list hides the filter when that feature is off; this route still answers). Identical content to legal-entity and legal-entity-employee. Send the chosen values back as legalEntityProjectIds on the project dropdown.
 
         **Not for:**
         - Reading the entities themselves — use the entity's own REST operations
@@ -2012,14 +1994,14 @@ paths:
         schema:
           type: integer
           format: int32
-        description: Rows to skip (SQL OFFSET). Required (404 when omitted).
+        description: Rows to skip. Required (404 when omitted).
       - name: take
         in: query
         required: true
         schema:
           type: integer
           format: int32
-        description: Rows to return (SQL FETCH NEXT). Required (404 when omitted); no upper bound.
+        description: Rows to return. Required (404 when omitted); no upper bound.
       responses:
         '200':
           description: |-
@@ -2058,8 +2040,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or skip / take not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -2094,7 +2075,7 @@ paths:
       description: |-
         Returns the first 50 active legal entities by name as filter options (no paging, no search).
 
-        Returns the tenant's ACTIVE legal entities (IsActive = 1), ordered by name. Not scoped to the caller and not gated by the MultiLegalEntities feature (the filter list hides the filter when that feature is off; this route still answers). This general variant has no skip / take: the manager defaults (0 / 50) apply, so a tenant with more than 50 active legal entities only ever gets the first 50.
+        Returns the account's ACTIVE legal entities (IsActive = 1), ordered by name. Not scoped to the caller and not gated by the MultiLegalEntities feature (the filter list hides the filter when that feature is off; this route still answers). This general variant has no skip / take: the manager defaults (0 / 50) apply, so a account with more than 50 active legal entities only ever gets the first 50.
 
         **Not for:**
         - Reading the entities themselves — use the entity's own REST operations
@@ -2126,7 +2107,7 @@ paths:
 
             No paging parameters; the manager defaults skip 0 / take 50 cap the result.
 
-            Order: Legal entity name (SQL ORDER BY Name, then the page is re-sorted by DisplayText = the same name).
+            Order: Legal entity name.
 
             Empty result: 200 with only the self link (no Entities).
           content:
@@ -2157,7 +2138,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer (model binding; src_only). — Fix: Fix every item listed in Details and resend.'
+            a member name nor an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -2190,7 +2171,7 @@ paths:
       operationId: filtersListGetV2
       summary: List the filters of a page
       description: |-
-        Returns the code-defined filter definitions for a page. DesignSevenReports and NewResourcePlanner (one shared list), DesignSevenSearchProject and DesignSevenMoveHours have their own list in a fixed order; every other page — including an integer that is not a PageIdentifier member — gets the general list of all filters in definition order. Filters whose tenant feature is off are removed. The result is grouped by category (FilterCategory), categories in the order their first filter appears. Nothing here depends on the caller: same tenant + page = same answer for every user. Load each filter's options from its ContentUrl (the dropdown-content operations).
+        Returns the code-defined filter definitions for a page. DesignSevenReports and NewResourcePlanner (one shared list), DesignSevenSearchProject and DesignSevenMoveHours have their own list in a fixed order; every other page — including an integer that is not a PageIdentifier member — gets the general list of all filters in definition order. Filters whose account feature is off are removed. The result is grouped by category (FilterCategory), categories in the order their first filter appears. Nothing here depends on the caller: same account + page = same answer for every user. Load each filter's options from its ContentUrl (the dropdown-content operations).
 
         **Use it to:**
         - Discover which dropdown-content route serves a filter, and which filters narrow it (ParentFilters)
@@ -2305,7 +2286,7 @@ paths:
       description: |-
         Returns one page of the employees who are partner on at least one project, by name, as filter options, optionally narrowed by search text.
 
-        Returns each employed employee (Ansat = 1, SystemEmployeeType not 1) referenced as Partner of at least one project — any project, including closed projects — once, ordered by "first last" name. Search text matches the initials, first name or last name. NOT scoped to the caller: every such employee of the tenant is returned. The Partner feature hides this filter from the filter list but is not checked here. Personal data (employee names).
+        Returns each employed employee (Ansat = 1, SystemEmployeeType not 1) referenced as Partner of at least one project — any project, including closed projects — once, ordered by "first last" name. Search text matches the initials, first name or last name. NOT scoped to the caller: every such employee of the account is returned. Personal data (employee names).
 
         **Not for:**
         - Listing employees — use the employee operations
@@ -2336,14 +2317,14 @@ paths:
         schema:
           type: integer
           format: int32
-        description: Rows to skip (SQL OFFSET). Required (404 when omitted).
+        description: Rows to skip. Required (404 when omitted).
       - name: take
         in: query
         required: true
         schema:
           type: integer
           format: int32
-        description: Rows to return (SQL FETCH NEXT). Required (404 when omitted); no upper bound.
+        description: Rows to return. Required (404 when omitted); no upper bound.
       - name: searchText
         in: query
         required: false
@@ -2394,8 +2375,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or skip / take not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -2428,9 +2408,9 @@ paths:
       operationId: filtersProjectCategoryContentGetV2
       summary: List project category filter options
       description: |-
-        Returns one page of the tenant's active project categories, by name, as filter options, optionally narrowed by search text.
+        Returns one page of the account's active project categories, by name, as filter options, optionally narrowed by search text.
 
-        Returns each active project category, ordered by name. Search text matches the name only. The ProjectCategory feature hides this filter from the filter list but is not checked here.
+        Returns each active project category, ordered by name. Search text matches the name only.
 
         **Not for:**
         - Managing project categories — use the project category operations
@@ -2461,14 +2441,14 @@ paths:
         schema:
           type: integer
           format: int32
-        description: Rows to skip (SQL OFFSET). Required (404 when omitted).
+        description: Rows to skip. Required (404 when omitted).
       - name: take
         in: query
         required: true
         schema:
           type: integer
           format: int32
-        description: Rows to return (SQL FETCH NEXT). Required (404 when omitted); no upper bound.
+        description: Rows to return. Required (404 when omitted); no upper bound.
       - name: searchText
         in: query
         required: false
@@ -2519,8 +2499,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or skip / take not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -2553,9 +2532,9 @@ paths:
       operationId: filtersProjectDepartmentContentGetV2
       summary: List project-department filter options
       description: |-
-        Returns the tenant's active departments as an indented tree, for the project-department filter.
+        Returns the account's active departments as an indented tree, for the project-department filter.
 
-        Returns the tenant's ACTIVE departments as a flattened tree: each top-level department followed by its sub-departments (depth-first), DisplayText prefixed with one " » " per level below the top. Identical content to the department and employee-department routes (same code branch); the name only says which filter uses it (projects' department, sent back as projectDepartmentIds).
+        Returns the account's ACTIVE departments as a flattened tree: each top-level department followed by its sub-departments (depth-first), DisplayText prefixed with one " » " per level below the top. Identical content to the department and employee-department routes (same code branch); the name only says which filter uses it (projects' department, sent back as projectDepartmentIds).
 
         **Not for:**
         - Reading the entities themselves — use the entity's own REST operations
@@ -2601,8 +2580,6 @@ paths:
 
             Paged with `skip` and `take`.
 
-            Order: Per tree level: rows skip..skip+take in database order, then sorted by name; children directly after their parent.
-
             Empty result: 200 with only the self link (no Entities).
           content:
             application/json:
@@ -2632,8 +2609,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or skip / take not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -2668,7 +2644,7 @@ paths:
       description: |-
         Returns the fixed list of four project inactivity periods (30, 60, 90, 180 days) as filter options, translated into the caller's language.
 
-        Returns always the same four options, in this order: "30" (en: "1 month"), "60" ("2 months"), "90" ("90 days"), "180" ("180 days"). The same for every tenant and caller.
+        Returns always the same four options, in this order: "30" (en: "1 month"), "60" ("2 months"), "90" ("90 days"), "180" ("180 days"). The same for every account and caller.
 
         **Behaviour:**
         - Idempotent.
@@ -2744,8 +2720,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or skip / take not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -2774,7 +2749,7 @@ paths:
       description: |-
         Returns one page of the employees who manage at least one project, by name, as filter options, optionally narrowed by search text.
 
-        Returns each employed employee (Ansat = 1, SystemEmployeeType not 1) who is the project manager of at least one project — any project, including closed projects and project templates — once, ordered by "first last" name. Search text matches the full name or the initials. NOT scoped to the caller: every such employee of the tenant is returned. Personal data (employee names).
+        Returns each employed employee (Ansat = 1, SystemEmployeeType not 1) who is the project manager of at least one project — any project, including closed projects and project templates — once, ordered by "first last" name. Search text matches the full name or the initials. NOT scoped to the caller: every such employee of the account is returned. Personal data (employee names).
 
         **Use it to:**
         - Fill the project-manager picker; send the chosen values as projectManagerIds to the project dropdown
@@ -2810,14 +2785,14 @@ paths:
         schema:
           type: integer
           format: int32
-        description: Rows to skip (SQL OFFSET). Required (404 when omitted).
+        description: Rows to skip. Required (404 when omitted).
       - name: take
         in: query
         required: true
         schema:
           type: integer
           format: int32
-        description: Rows to return (SQL FETCH NEXT). Required (404 when omitted); no upper bound.
+        description: Rows to return. Required (404 when omitted); no upper bound.
       - name: searchText
         in: query
         required: false
@@ -2868,8 +2843,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or skip / take not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -2902,9 +2876,9 @@ paths:
       operationId: filtersProjectStageContentGetV2
       summary: List project stage filter options
       description: |-
-        Returns one page of the tenant's active project stages as filter options, optionally narrowed by search text.
+        Returns one page of the account's active project stages as filter options, optionally narrowed by search text.
 
-        Returns each active project stage. The SQL pages the stages in their configured SortOrder, but the manager then re-sorts each page by name, so the configured order is not visible. Search text matches the name only.
+        Returns each active project stage. Search text matches the name only.
 
         **Not for:**
         - Managing project stages — use the project stage operations
@@ -2935,14 +2909,14 @@ paths:
         schema:
           type: integer
           format: int32
-        description: Rows to skip (SQL OFFSET). Required (404 when omitted).
+        description: Rows to skip. Required (404 when omitted).
       - name: take
         in: query
         required: true
         schema:
           type: integer
           format: int32
-        description: Rows to return (SQL FETCH NEXT). Required (404 when omitted); no upper bound.
+        description: Rows to return. Required (404 when omitted); no upper bound.
       - name: searchText
         in: query
         required: false
@@ -2993,8 +2967,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or skip / take not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -3029,7 +3002,7 @@ paths:
       description: |-
         Returns the fixed list of project status filter options (three group headings with their statuses), translated into the caller's language.
 
-        Returns a code-defined list of 10 options, always in this order: "-1" (group heading) with " » "-prefixed children "1", "2", "3", "4"; "-2" (group heading) with children "5", "6", "7"; and "-3" (standalone). The labels are translated server-side (LanguageDB). Children 3, 4, 5 and 7 use the same language texts as the task statuses In progress, On hold, Completed and Cancelled; the texts of -1, 1, 2, -2, 6 and -3 were not resolved (see gaps). The list is the same for every tenant and caller. skip / take page the list in memory; searchText is accepted but IGNORED. Nothing in this unit consumes the values: the project dropdown has no project-status parameter.
+        Returns a code-defined list of 10 options, always in this order: "-1" (group heading) with " » "-prefixed children "1", "2", "3", "4"; "-2" (group heading) with children "5", "6", "7"; and "-3" (standalone). The labels are translated server-side (LanguageDB). Children 3, 4, 5 and 7 use the same language texts as the task statuses In progress, On hold, Completed and Cancelled; the texts of -1, 1, 2, -2, 6 and -3 were not resolved (see gaps). Nothing in this unit consumes the values: the project dropdown has no project-status parameter.
 
         **Behaviour:**
         - Idempotent.
@@ -3057,15 +3030,14 @@ paths:
         schema:
           type: integer
           format: int32
-        description: Options to skip, in memory (LINQ Skip; a negative value acts as 0). Required (404 when omitted).
+        description: Required (404 when omitted).
       - name: take
         in: query
         required: true
         schema:
           type: integer
           format: int32
-        description: Options to return, in memory (LINQ Take; 0 or negative = none). Required (404 when omitted). take >=
-          10 returns the whole list.
+        description: Required (404 when omitted). take >= 10 returns the whole list.
       - name: searchText
         in: query
         required: false
@@ -3110,8 +3082,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or skip / take not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -3138,9 +3109,9 @@ paths:
       operationId: filtersProjectTypeContentGetV2
       summary: List project type filter options
       description: |-
-        Returns one page of the tenant's active project types, by name, as filter options, optionally narrowed by search text.
+        Returns one page of the account's active project types, by name, as filter options, optionally narrowed by search text.
 
-        Returns every active project type, ordered by name. Search text matches the name. Value is the project type number (Aktivitetsnummer), which the project dropdown accepts as projectTypeIds. Tenant configuration, not scoped to the caller (not filed). The ProjectType feature hides this filter from the filter list but is not checked here.
+        Returns every active project type, ordered by name. Search text matches the name. Value is the project type number (Aktivitetsnummer), which the project dropdown accepts as projectTypeIds. Account configuration, not scoped to the caller (not filed).
 
         **Use it to:**
         - Fill the project-type picker; send the chosen values as projectTypeIds to the project dropdown
@@ -3171,14 +3142,14 @@ paths:
         schema:
           type: integer
           format: int32
-        description: Rows to skip (SQL OFFSET). Required (404 when omitted).
+        description: Rows to skip. Required (404 when omitted).
       - name: take
         in: query
         required: true
         schema:
           type: integer
           format: int32
-        description: Rows to return (SQL FETCH NEXT). Required (404 when omitted); no upper bound.
+        description: Rows to return. Required (404 when omitted); no upper bound.
       - name: searchText
         in: query
         required: false
@@ -3229,8 +3200,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or skip / take not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -3265,7 +3235,7 @@ paths:
       description: |-
         Returns one page of the projects the caller may see, as filter options, optionally narrowed by search text and by selected managers, departments, customers, types and legal entities.
 
-        The only dropdown in this group that is SCOPED TO THE CALLER: callers with the ProjectAllProjects privilege get every project; everyone else only the project IDs their privilege package grants (cached per user). Project templates are never included; closed projects are (there is no status filter). On pageIdentifier=NewResourcePlanner only projects available in the resource planner are returned. Each ID-list parameter narrows by one project attribute, inclusively (keep these) or exclusively (drop these).
+        The only dropdown in this group that is SCOPED TO THE CALLER: callers with the ProjectAllProjects privilege get every project; everyone else only the project IDs their privilege package grants. Project templates are never included; closed projects are (there is no status filter). On pageIdentifier=NewResourcePlanner only projects available in the resource planner are returned. Each ID-list parameter narrows by one project attribute, inclusively (keep these) or exclusively (drop these).
 
         **Not for:**
         - Searching projects with their details — use the project search operations (REST v1 Project)
@@ -3300,14 +3270,14 @@ paths:
         schema:
           type: integer
           format: int32
-        description: Rows to skip (SQL OFFSET). Required (404 when omitted).
+        description: Rows to skip. Required (404 when omitted).
       - name: take
         in: query
         required: true
         schema:
           type: integer
           format: int32
-        description: Rows to return (SQL FETCH NEXT). Required (404 when omitted); no upper bound.
+        description: Rows to return. Required (404 when omitted); no upper bound.
       - name: searchText
         in: query
         required: false
@@ -3455,8 +3425,6 @@ paths:
 
             Paged with `skip` and `take`.
 
-            Order: SQL orders by project name before paging; each page is then re-sorted by DisplayText.
-
             Empty result: 200 with only the self link (no Entities).
           content:
             application/json:
@@ -3486,8 +3454,8 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or skip / take / an is...Inclusive flag not parseable (model binding; src_only).
-            — Fix: Fix every item listed in Details and resend.'
+            a member name nor an integer, or skip / take / an is...Inclusive flag not parseable. — Fix: Fix every item listed
+            in Details and resend.'
           content:
             application/json:
               schema:
@@ -3522,7 +3490,7 @@ paths:
       description: |-
         Returns the five task statuses as filter options, translated into the caller's language.
 
-        Returns every member of the TaskStatus enum — 0 NotStarted, 1 InProgress, 2 OnHold, 3 Completed, 4 Cancelled — with the translated label (enum resource text), sorted by that label. The list is the same for every tenant and caller. searchText and maxResults are accepted but IGNORED; there is no paging. Values are the integers the task dropdown accepts as taskStatusIds.
+        Returns every member of the TaskStatus enum — 0 NotStarted, 1 InProgress, 2 OnHold, 3 Completed, 4 Cancelled — with the translated label (enum resource text), sorted by that label. The list is the same for every account and caller. searchText and maxResults are accepted but IGNORED; there is no paging. Values are the integers the task dropdown accepts as taskStatusIds.
 
         **Use it to:**
         - Fill the task-status picker; send the chosen values as taskStatusIds to the task dropdown
@@ -3598,8 +3566,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or maxResults not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or maxResults not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -3626,9 +3593,9 @@ paths:
       operationId: filtersTaskTypeContentGetV2
       summary: List task type filter options
       description: |-
-        Returns up to 50 of the tenant's active task types, by name, as filter options, optionally narrowed by search text.
+        Returns up to 50 of the account's active task types, by name, as filter options, optionally narrowed by search text.
 
-        Returns the active task types, ordered by name (then ID). Search text matches the name. The route has no skip / take, so the manager's defaults apply (skip 0, take 50): the result is silently capped at the first 50 types by name, and the declared maxResults is ignored. Tenant configuration, not scoped to the caller (not filed). No dropdown in this unit accepts the values as a parent filter.
+        Returns the active task types, ordered by name (then ID). Search text matches the name. The route has no skip / take, so the manager's defaults apply (skip 0, take 50): the result is silently capped at the first 50 types by name, and the declared maxResults is ignored. Account configuration, not scoped to the caller (not filed). No dropdown in this unit accepts the values as a parent filter.
 
         **Behaviour:**
         - Idempotent.
@@ -3672,8 +3639,6 @@ paths:
           description: |-
             A list, wrapped in the TAF list envelope (`Entities[].Properties`). Value = task type ID; DisplayText = task type name.
 
-            Order: Name, then ID (SQL); each result re-sorted by name in memory.
-
             Empty result: 200 with only the self link (no Entities).
           content:
             application/json:
@@ -3703,8 +3668,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or maxResults not an integer (model binding; src_only). — Fix: Fix every item listed
-            in Details and resend.'
+            a member name nor an integer, or maxResults not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -3739,7 +3703,7 @@ paths:
       description: |-
         Returns up to maxResults (default 30) leaf tasks of the selected projects as filter options, optionally narrowed by search text and task status.
 
-        A project selection is MANDATORY: without projectIds the result is always empty. Search text matches the task full name, the task number or the WBS code. pageIdentifier is NOT ignored here: NewResourcePlanner keeps only tasks of projects available in the resource planner. The SQL takes the first maxResults tasks BY NAME, which are then shown in WBS order.
+        A project selection is MANDATORY: without projectIds the result is always empty. Search text matches the task full name, the task number or the WBS code. pageIdentifier is NOT ignored here: NewResourcePlanner keeps only tasks of projects available in the resource planner.
 
         **Use it to:**
         - Fill the task picker after the user picked projects (projectIds from `GET /v2/filters/project/content`)
@@ -3790,7 +3754,7 @@ paths:
           type: integer
           format: int32
           default: 30
-        description: Maximum options returned (SQL TOP). Omitted = 30.
+        description: Maximum options returned. Omitted = 30.
       - name: projectIds
         in: query
         required: false
@@ -3838,7 +3802,7 @@ paths:
           description: |-
             A list, wrapped in the TAF list envelope (`Entities[].Properties`). Value = task ID; DisplayText = task full name, plus " (<task number>)" when the TaskNo feature is on and the task has a number.
 
-            Order: WBS code (in memory), over the first maxResults tasks by full name.
+            Order: WBS code, over the first maxResults tasks by full name.
 
             Empty result: 200 with only the self link (no Entities) — always when projectIds is omitted.
           content:
@@ -3869,8 +3833,8 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: pageIdentifier not
-            a member name nor an integer, or maxResults / an is...Inclusive flag not parseable (model binding; src_only).
-            — Fix: Fix every item listed in Details and resend.'
+            a member name nor an integer, or maxResults / an is...Inclusive flag not parseable. — Fix: Fix every item listed
+            in Details and resend.'
           content:
             application/json:
               schema:
@@ -3905,19 +3869,16 @@ paths:
       description: |-
         Returns the caller's create menu: the "New ..." entries (new project, new invoice, new customer ...) the caller may open, grouped by area.
 
-        Despite the action name, this is a READ: it creates nothing. It returns the create menu (the '+ New' menu of the web app): group headings per area (Register, Projects, Employees, Invoices, Customers in the capture) whose SubMenus are the 'New ...' pages the caller may open. Entries carry Type Main. Group headings have no page, so they carry only Name, Type, IsParent and SubMenus. Names are always English.
+        Despite the action name, this is a READ: it creates nothing. It returns the create menu (the '+ New' menu of the web app): group headings per area whose SubMenus are the 'New ...' pages the caller may open. Entries carry Type Main. Group headings have no page, so they carry only Name, Type, IsParent and SubMenus. Names are always English.
 
         **Use it to:**
-        - Render the '+ New' (create) menu of a navigation shell for the signed-in user
 
         **Not for:**
         - Creating anything - the entries only link to the pages that create records
-        - Deciding authorization in an integration - menus are cached per user and errors are swallowed into an empty menu
 
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Consistency: eventual: the filtered menu is cached per user; a role, licence or feature change shows only once that cache entry is gone.
 
         **Next:** `POST /v2/bookmarks`
 
@@ -3987,16 +3948,13 @@ paths:
         Entries carry Type Main. Names are always English.
 
         **Use it to:**
-        - Render the main navigation of a TimeLog shell for the signed-in user
 
         **Not for:**
         - The create ('+ New') entries - `GET /v2/menus/create`
-        - Deciding authorization in an integration - menus are cached per user and errors are swallowed into an empty menu
 
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Consistency: eventual: the filtered menu is cached per user; a role, licence or feature change shows only once that cache entry is gone.
 
         **Next:** `POST /v2/bookmarks`
 
@@ -4063,19 +4021,17 @@ paths:
       description: |-
         Returns the caller's page settings menu: for each page the caller may open, a link to that page's personal page-settings screen.
 
-        Returns the page settings menu: the same page structure as the main menu, but every entry's PageUrl points at the page's personal page-settings screen (views, columns, filters for that page), not at the page itself. Entries carry Type PageSetting. Names are always English.
+        Returns the page settings menu: the same page structure as the main menu, but every entry's PageUrl points at the page's personal page-settings screen, not at the page itself. Entries carry Type PageSetting. Names are always English.
 
         **Use it to:**
         - Render the 'Page settings' menu so a user can configure their own views per page
 
         **Not for:**
         - Opening the pages themselves - `GET /v2/menus/main`
-        - Deciding authorization in an integration - menus are cached per user and errors are swallowed into an empty menu
 
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Consistency: eventual: the filtered menu is cached per user; a role, licence or feature change shows only once that cache entry is gone.
 
         **Next:** `POST /v2/bookmarks`
 
@@ -4142,19 +4098,17 @@ paths:
       description: |-
         Returns the caller's personal settings menu: the user's own preference and profile pages.
 
-        Returns the personal settings menu (a single 'Personal settings' group in the capture with the personal settings, personal profile and one more page). Entries carry Type PersonalSettings. Names are always English.
+        Returns the personal settings menu. Entries carry Type PersonalSettings. Names are always English.
 
         **Use it to:**
         - Render the user menu's personal settings links
 
         **Not for:**
         - Reading or changing the settings themselves - these are links to the settings pages
-        - Deciding authorization in an integration - menus are cached per user and errors are swallowed into an empty menu
 
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Consistency: eventual: the filtered menu is cached per user; a role, licence or feature change shows only once that cache entry is gone.
 
         **Next:** `POST /v2/bookmarks`
 
@@ -4228,12 +4182,10 @@ paths:
 
         **Not for:**
         - Checking whether a user is an administrator - an empty menu has several causes (licence, roles, a swallowed error)
-        - Deciding authorization in an integration - menus are cached per user and errors are swallowed into an empty menu
 
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Consistency: eventual: the filtered menu is cached per user; a role, licence or feature change shows only once that cache entry is gone.
 
         **Next:** `POST /v2/bookmarks`
 
@@ -4442,7 +4394,7 @@ components:
             uniqueness_enforced: true
             id_format: int
           description: |-
-            The bookmark's ID: a sequential integer, unique in the tenant. Used by DELETE /v2/bookmarks/{bookmarkId}.
+            The bookmark's ID: a sequential integer, unique in the account. Used by DELETE /v2/bookmarks/{bookmarkId}.
 
             Identifier of this object, unique per TimeLog site.
         Name:
@@ -4469,10 +4421,10 @@ components:
           - string
           - 'null'
           readOnly: true
-          description: |-
-            The option's label, ready to show. Composition depends on the dropdown: the plain entity name (customer, legal entity, project manager "First Last"); for projects "<number> <name>" when the tenant's ProjectNumber feature is on, otherwise "<name> (<number>)"; the department name prefixed with one " » " per tree level (department dropdowns). Static lists are translated server-side into the caller's language.
-
-            Null: Not produced by the traced paths (DomainText is read with ToString(), so a NULL column becomes an empty string); nullable only because the C# type is string.
+          description: 'The option''s label, ready to show. Composition depends on the dropdown: the plain entity name (customer,
+            legal entity, project manager "First Last"); for projects "<number> <name>" when the account''s ProjectNumber
+            feature is on, otherwise "<name> (<number>)"; the department name prefixed with one " » " per tree level (department
+            dropdowns). Static lists are translated server-side into the caller''s language.'
         Value:
           type: string
           readOnly: true
@@ -5080,7 +5032,7 @@ components:
             | `68` | Default | Not yet documented |
 
             > **Not yet documented:** multiple → max items.
-      description: Definitions are code, not tenant data — the same filter always has the same Id, Type and ContentUrl.
+      description: Definitions are code, not account data — the same filter always has the same Id, Type and ContentUrl.
     FilterListRead:
       type: object
       properties:
@@ -5122,7 +5074,7 @@ components:
           description: The filters of this category, in the page's defined order (DesignSevenReports / NewResourcePlanner
             / DesignSevenSearchProject / DesignSevenMoveHours) or in definition order (every other page).
       description: A page's filter list is a list of these; a category appears only when at least one of its filters is active
-        for the tenant.
+        for the account.
     MenuRead:
       type: object
       properties:
@@ -6788,13 +6740,12 @@ components:
           - ''
           - ''
           readOnly: true
-          description: |+
+          description: |-
             Omitted when the entry has no page.
 
             Null: Omitted when the entry has no page.
 
             Allowed values:
-
         SubMenus:
           type:
           - array
@@ -8624,7 +8575,7 @@ components:
             uniqueness_enforced: unknown
             id_format: guid
           description: |-
-            The page's GUID. Fixed in the page definitions in code, so the same across tenants. Used as BookmarkCreate.PageId.
+            The page's GUID. Fixed in the page definitions in code, so the same across accounts. Used as BookmarkCreate.PageId.
 
             Identifier of this object, globally unique.
         Name:
@@ -10194,10 +10145,10 @@ components:
             $ref: '#/components/schemas/PageActionRead'
           readOnly: true
           description: |-
-            The page's static actions from its definition in code, each with how it opens. Omitted when the page defines none (none of the 10 pages in the capture had any). Context-dependent actions that need an entity ID are not resolved here.
+            The page's static actions from its definition in code, each with how it opens. Omitted when the page defines none. Context-dependent actions that need an entity ID are not resolved here.
 
             Null: Omitted when the page has no actions.
-      description: The page catalogue is defined in code (not tenant data); which pages are returned depends on tenant configuration
+      description: The page catalogue is defined in code (not account data); which pages are returned depends on account configuration
         and the caller's access.
     ResponseError:
       type: object

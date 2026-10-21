@@ -15,10 +15,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -45,7 +43,7 @@ paths:
         - Safe to retry only under a condition. After a lost response, a 500 Code 100 on retry most likely means the first call succeeded; confirm with GET.
         - Duplicates: n/a
         - Side effect: Deletes all values of the view, then the view.
-        - On failure: Not transactional: values are deleted before the view row; if the view delete fails, the view remains without values (src_only).
+        - On failure: Not transactional: values are deleted before the view row; if the view delete fails, the view remains without values.
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v2/filter-view/{pageIdentifier}`
@@ -235,7 +233,7 @@ paths:
         - Duplicates: Not deduplicated — same name twice gives two views.
         - Side effect: Inserts the view and its values.
         - Side effect: IsDefault = true: clears IsDefault on the caller's other views of the same page.
-        - On failure: Not transactional: if the value insert fails, the view row remains without (some of) its values (src_only).
+        - On failure: Not transactional: if the value insert fails, the view row remains without (some of) its values.
         - Changes are visible to the next read immediately.
 
         **Next:** `GET /v2/filter-view/{pageIdentifier}`
@@ -328,7 +326,7 @@ paths:
 
         **Behaviour:**
         - Idempotent.
-        - Same body twice gives the same stored state (LastModified changes; a FilterViewUpdated event is raised each time).
+        - Same body twice gives the same stored state.
         - Safe to retry.
         - Duplicates: n/a
         - Side effect: Overwrites Name and IsDefault; sets LastModified / LastModifiedBy to now / the caller's EmployeeID.
@@ -533,8 +531,7 @@ components:
             | `6` | Textbox | Free text (e.g. search text). Stored as one string; returned as that string. |
             | `7` | DateRange | A named period (e.g. CurrentWeek, OneMonth). Stored as one string; returned as that string. |
       description: 'One value saved in a filter view: either a sidebar filter or a view option (Name = the frontend control,
-        Value = its setting). The database row''s own IDs are not exposed — values have no identity of their own and are always
-        replaced as a set.'
+        Value = its setting).'
     FilterValueWrite:
       type: object
       properties:
@@ -656,8 +653,6 @@ components:
             Integer ID of the saved view; the {id} of DELETE /v2/filter-view/{id} and the FilterViewId of the PUT body.
 
             Identifier of this object, unique per TimeLog site.
-
-            Sequential IDENTITY values — guessable.
         Name:
           type: string
           readOnly: true
@@ -2229,7 +2224,7 @@ components:
           description: |-
             When the view was created.
 
-            Time zone: server local time (DateTime.Now on the TimeLog web server), no offset in the value
+            Time zone: server local time, no offset in the value
 
             > **Not yet documented:** constraints → timezone.
         CreatedBy:
@@ -2249,7 +2244,7 @@ components:
           description: |-
             When the view was last written (create or update).
 
-            Time zone: server local time (DateTime.Now on the TimeLog web server), no offset in the value
+            Time zone: server local time, no offset in the value
 
             > **Not yet documented:** constraints → timezone.
         LastModifiedBy:
@@ -2258,10 +2253,7 @@ components:
           readOnly: true
           x-timelog-identity:
             role: reference
-          description: |-
-            EmployeeID of whoever last wrote the view (stored in an NCHAR(10) column, returned as an integer).
-
-            Refers to `EmployeeRead.EmployeeID`.
+          description: Refers to `EmployeeRead.EmployeeID`.
         FilterValues:
           type: array
           items:

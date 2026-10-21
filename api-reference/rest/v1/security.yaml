@@ -17,10 +17,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -102,7 +100,7 @@ paths:
         Switches off one cell of a role's privilege matrix — the same change as unticking a privilege checkbox for a role in TimeLog's settings. Pages connected to the event-type group are removed from the role unless another of the role's groups still needs them. The call ALWAYS answers 200 `null` when it does not crash: if a TimeLog rule blocks the removal (last role that can edit all employees, hourly-rate privilege dependencies), nothing is deleted and the response is still 200. REST v1 cannot read a role's privileges, so the result cannot be verified through the API.
 
         **Use it to:**
-        - Withdraw a privilege from a role on many tenants at once
+        - Withdraw a privilege from a role on many accounts at once
 
         **Not for:**
         - Deleting a role — not possible in REST v1
@@ -114,10 +112,9 @@ paths:
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Duplicates: Deleting a mapping that does not exist still runs the side effects (events, cache clear) and returns 200.
+        - Duplicates: Deleting a mapping that does not exist still runs the side effects and returns 200.
         - Side effect: Recomputes the time-tracking search rows of the role's users when the privilege is 'projects available for employee department / resource group'.
         - Side effect: Removes the group's connected pages from the role, unless another group of the same area still needs them.
-        - Side effect: Clears cached privilege lists for employee / project / customer / invoice scopes when the area privilege is one of those scope privileges.
 
         **Call first:** `GET /v1/role`
 
@@ -197,7 +194,7 @@ paths:
       operationId: listRoles
       summary: List roles
       description: |-
-        Lists the tenant's shared roles (name, description, active flag), by name.
+        Lists the account's shared roles (name, description, active flag), by name.
 
         The value set for RoleID: UserRoleIDs on user create/update and roleId / RoleID on the role-privilege operations. Only shared roles are listed — employee-specific roles and locked system roles are left out. Inactive roles ARE listed (IsActive false); user create/update reject them, so filter on IsActive before offering a role for assignment.
 
@@ -238,7 +235,7 @@ paths:
 
             Order: Name ascending (no tie-breaker)
 
-            Empty result: 200 with TotalRecord "0" and no Entities (not expected: tenants are seeded with standard roles)
+            Empty result: 200 with TotalRecord "0" and no Entities (not expected: accounts are seeded with standard roles)
           content:
             application/json:
               schema:
@@ -289,14 +286,13 @@ paths:
         Switches on one cell of a role's privilege matrix — the same change as ticking a privilege checkbox for a role in TimeLog's settings. If the event-type group is connected to pages, the role also gets access to those pages. It does not create a role, and REST v1 has no operation that creates or deletes roles. The call returns 200 with body `null`. There is no read operation for a role's privileges, so the result cannot be verified through REST v1.
 
         **Use it to:**
-        - Provision a tenant's role set-up from a template (same privileges on many tenants)
+        - Provision a account's role set-up from a template (same privileges on many accounts)
 
         **Not for:**
         - Creating a role — not possible in REST v1
         - Giving a role to a user — use UserRoleIDs on `POST /v1/user/create` / update
 
         **Rules across fields:**
-        - R1: AreaPrivilegeGUID should belong to the area of the event-type group; NOT checked — any pairing is stored.
 
         **Behaviour:**
         - Not idempotent.
@@ -304,7 +300,6 @@ paths:
         - Duplicates: Not deduplicated — the same mapping can be stored several times.
         - Side effect: Recomputes the time-tracking search rows of the role's users when the privilege is 'register on all tasks' or 'projects available for employee department / resource group'.
         - Side effect: Maps the group's connected pages to the role (page access), each with its own audit events.
-        - Side effect: Clears the cached privilege lists for employee / project / customer / invoice scopes when the area privilege is one of those scope privileges.
         - On failure: Unknown RoleID or AreaPrivilegeGUID with a valid group: the inserts, the allocation recompute and the page mappings are kept; the call returns 500.
 
         **Call first:** `GET /v1/role`
@@ -491,8 +486,6 @@ components:
             - The area privilege does not belong to the event-type group's area — No pairing check.
 
             > **Not yet documented:** values → lookup op.
-
-            > **Not yet documented:** identity → references → schema.
         EventTypeGroupGUID:
           type: string
           format: uuid
@@ -507,8 +500,6 @@ components:
             - The group has connected pages — POST also gives the role access to those pages; DELETE removes them unless another group still needs them.
 
             > **Not yet documented:** values → lookup op.
-
-            > **Not yet documented:** identity → references → schema.
       required:
       - RoleID
       - AreaPrivilegeGUID
@@ -536,7 +527,7 @@ components:
           readOnly: true
           maxLength: 255
           description: |-
-            Display name as typed by the tenant administrator (not translated). Standard roles are seeded with a numbering prefix, e.g. "10. Time tracker". A NULL name is returned as an empty string.
+            Display name as typed by the account administrator (not translated). Standard roles are seeded with a numbering prefix, e.g. "10. Time tracker". A NULL name is returned as an empty string.
 
             Not declared unique in the table; match roles on RoleID or ID, not on Name.
         Description:
@@ -551,7 +542,7 @@ components:
         IsLockedSystemRole:
           type: boolean
           readOnly: true
-          description: true = a system role that tenants cannot change. Always false in this list, because the list excludes
+          description: true = a system role that accounts cannot change. Always false in this list, because the list excludes
             locked system roles.
         ID:
           type: string
@@ -563,13 +554,11 @@ components:
             uniqueness_enforced: unknown
             id_format: guid
           description: |-
-            GUID of the role, generated by the database. No REST v1 operation takes it as input.
+            No REST v1 operation takes it as input.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
-      description: 'A role of the tenant: a named bundle of area access, page access and privileges that is given to users.
-        The list operation returns only the shared roles a tenant administrator creates. Employee-specific roles and locked
+      description: 'A role of the account: a named bundle of area access, page access and privileges that is given to users.
+        The list operation returns only the shared roles a account administrator creates. Employee-specific roles and locked
         system roles (e.g. the external-user role) are never returned.'
     TafAction:
       type: object

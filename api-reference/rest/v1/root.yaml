@@ -17,10 +17,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -36,10 +34,10 @@ paths:
       description: |-
         Returns the build version, the server time zone and a link to every REST v1 controller the caller may use.
 
-        The entry point of REST v1 in the TAF (hypermedia) style: Properties tell which TimeLog build answered (IndexRead), and Links list the v1 API one controller at a time, each with its actions. Link semantics (how the list is built, per request): A controller that serves v1 and another version is NOT listed; v2-only controllers are listed by GET /v2. - Rel = the controller class name without "Controller" (e.g. "ContactPerson", "TaskExtended", "ExchangeRate") — a code name, not a resource name; two Rels can share a path (Task and TaskExtended are both /task). - Href = the request URL + "/" + the controller's route prefix without "v&#123;version:apiVersion&#125;/". - Actions = each public action returning IHttpActionResult: Name = the route name (null when the route is unnamed), Method = its first HTTP method attribute, Href = controller Href + "/" + the raw route template (placeholders such as &#123;id:int&#125; are left in; an empty template gives a trailing "/"). - Controllers and actions carrying privilege / page / feature policy attributes are listed only when the caller and tenant pass those policies, so the link set can differ per user and per tenant. Versioning: the path segment selects the API version (/v1 here). The root does not list versions; Version in Properties is the TimeLog build, not the API version.
+        The entry point of REST v1 in the TAF (hypermedia) style: Properties tell which TimeLog build answered (IndexRead), and Links list the v1 API one controller at a time, each with its actions. Link semantics (how the list is built, per request): A controller that serves v1 and another version is NOT listed; v2-only controllers are listed by GET /v2. - Rel = the controller class name without "Controller" (e.g. "ContactPerson", "TaskExtended", "ExchangeRate") — a code name, not a resource name; two Rels can share a path (Task and TaskExtended are both /task). - Href = the request URL + "/" + the controller's route prefix without "v&#123;version:apiVersion&#125;/". - Actions = each public action returning IHttpActionResult: Name = the route name (null when the route is unnamed), Method = its first HTTP method attribute, Href = controller Href + "/" + the raw route template (placeholders such as &#123;id:int&#125; are left in; an empty template gives a trailing "/"). - Controllers and actions carrying privilege / page / feature policy attributes are listed only when the caller and account pass those policies, so the link set can differ per user and per account. Versioning: the path segment selects the API version (/v1 here). The root does not list versions; Version in Properties is the TimeLog build, not the API version.
 
         **Use it to:**
-        - Smoke test of credentials and connectivity: 200 means the token works on this tenant
+        - Smoke test of credentials and connectivity: 200 means the token works on this account
         - Record the TimeLog build (Version / ChangeSet) in integration logs for support cases
 
         **Not for:**
@@ -113,17 +111,13 @@ components:
           type: string
           readOnly: true
           description: 'The source change set the build was made from: the trimmed content of DLL\Version.txt in the folder
-            above the web root. When that file cannot be read, the field holds the exception MESSAGE instead (e.g. "Could
-            not find file ''<server path>\DLL\Version.txt''."), which discloses a server file path.'
+            above the web root. "Could not find file ''<server path>\DLL\Version.txt''."), which discloses a server file path.'
         ServerTimeZoneId:
           type: string
           readOnly: true
-          description: |-
-            The Windows time-zone ID of the web server (TimeZoneInfo.Local.Id, e.g. "W. Europe Standard Time") — the zone of server-side DateTime.Now values.
-
-            > **Not yet documented:** description.
-      description: 'The Properties of the REST v1 root document: which build of TimeLog answered and the web server''s time
-        zone. The useful part of the root document is its Links array (one link per v1 controller), documented on `GET /v1`.'
+          description: '> **Not yet documented:** description.'
+      description: The useful part of the root document is its Links array (one link per v1 controller), documented on `GET
+        /v1`.
     MessageError:
       type: object
       description: Body of 401 and some framework errors — not the ResponseError shape.

@@ -17,10 +17,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -39,7 +37,7 @@ paths:
         The entry point of REST v2 in the TAF style.
 
         **Use it to:**
-        - Credential and connectivity check for a v2 client (200 = the token works on this tenant)
+        - Credential and connectivity check for a v2 client (200 = the token works on this account)
         - Read product type, edition and site status to switch front-end features
 
         **Not for:**
@@ -97,18 +95,17 @@ paths:
       description: |-
         Returns TimeLog's news RSS feed for the caller's language, as raw XML.
 
-        Picks a feed URL from the tenant settings by the caller's profile language — Danish → RSSFeedUrl_DK, Swedish → RSSFeedUrl_SE, English and every other language → RSSFeedUrl_EN (defaults: http://help.timelog.com/&lt;dk|en|se>/feed/) — downloads it server-side, parses it as XML and returns the document unchanged with Content-Type application/xml. The parsed document is kept in the application cache under "&lt;url>-Xml", so later calls for the same URL do not download again. The body is NOT the TAF JSON envelope.
+        Picks a feed URL from the account settings by the caller's profile language — Danish → RSSFeedUrl_DK, Swedish → RSSFeedUrl_SE, English and every other language → RSSFeedUrl_EN (defaults: http://help.timelog.com/&lt;dk|en|se>/feed/) — downloads it server-side, parses it as XML and returns the document unchanged with Content-Type application/xml. The body is NOT the TAF JSON envelope.
 
         **Use it to:**
         - Show TimeLog product news on the front page.
 
         **Not for:**
-        - Anything tenant-specific — the feed is TimeLog's public help-site feed unless the settings were changed.
+        - Anything account-specific — the feed is TimeLog's public help-site feed unless the settings were changed.
 
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Side effect: Outbound HTTP(S) request from the TimeLog web server to the configured feed URL on a cache miss.
 
         **See also:** `GET /v2`
 
@@ -169,12 +166,11 @@ components:
         ChangeSet:
           type: string
           readOnly: true
-          description: Trimmed content of DLL\Version.txt above the web root; when the file cannot be read, the exception
-            MESSAGE; "Directory not found" when the web root has no parent.
+          description: ''
         ServerTimeZoneId:
           type: string
           readOnly: true
-          description: Windows time-zone ID of the web server (TimeZoneInfo.Local.Id), e.g. "W. Europe Standard Time".
+          description: '"W. Europe Standard Time".'
         ProductType:
           type: string
           enum:
@@ -197,7 +193,7 @@ components:
           - Product with all Firebird features. Integer 8.
           readOnly: true
           description: |-
-            The tenant's product (setting PlatformProductType), as the enum NAME.
+            The account's product (setting PlatformProductType), as the enum NAME.
 
             Allowed values:
 
@@ -249,7 +245,7 @@ components:
         CompanyName:
           type: string
           readOnly: true
-          description: Name of the tenant's own company — the internal customer record.
+          description: Name of the account's own company — the internal customer record.
         SiteLcid:
           type: integer
           format: int32
@@ -298,7 +294,7 @@ components:
           type: string
           format: uri
           readOnly: true
-      description: 'The Properties of the REST v2 root document: which TimeLog build answered, and facts about the tenant
+      description: 'The Properties of the REST v2 root document: which TimeLog build answered, and facts about the account
         site that a front end needs at start-up (product type, edition, company name, locale, production status, frontend
         address and, for some users, the customer-portal link).'
     MessageError:

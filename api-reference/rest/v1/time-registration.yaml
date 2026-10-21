@@ -17,10 +17,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -1452,7 +1450,7 @@ paths:
       description: |-
         Lists the calling user's time trackers, running and stopped-but-not-converted, newest first.
 
-        Returns every tracker row of the authenticated user, whatever its status: running (1) or stopped but not turned into a registration (2). Trackers that were converted into registrations are deleted, so they never appear.
+        Trackers that were converted into registrations are deleted, so they never appear.
 
         **Behaviour:**
         - Idempotent.
@@ -1660,7 +1658,7 @@ paths:
           description: |-
             - **Code 60071** — The tracker has EntityType NotSpecified (0). POST /v1/time-tracker always hits it; PUT hits it when EntityType is omitted. — When: EntityType omitted or 0 (R2)
 
-            - **Code 37673** — The user has another running tracker. NOT raised when starting through this API (WebApi source): starting stops the running tracker instead. — When: Updating a stopped tracker while the owner has another running one
+            - **Code 37673** — The user has another running tracker. NOT raised when starting through this API: starting stops the running tracker instead. — When: Updating a stopped tracker while the owner has another running one
 
             - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: Task / absence / date rules as on start (37667–37678, 37714, 30043 …)
 
@@ -1737,7 +1735,7 @@ paths:
 
             - **Code 37714** — The absence code requires approval, so it cannot be tracked with a stopwatch.
 
-            - **Code 37672** — The tracker's date is closed for the employee (employee projection IsClosed — e.g. a closed timesheet).
+            - **Code 37672** — The tracker's date is closed for the employee.
 
             - **Code 37671** — The tracker's date is in a closed accounting period for the employee.
 
@@ -1899,7 +1897,7 @@ paths:
 
             - **Code 37669** — The caller is inactive in the task's project resource group.
 
-            - **Code 37672** — The tracker's date is closed for the employee (employee projection IsClosed — e.g. a closed timesheet).
+            - **Code 37672** — The tracker's date is closed for the employee.
 
             - **Code 37671** — The tracker's date is in a closed accounting period for the employee.
 
@@ -1909,7 +1907,7 @@ paths:
 
             - **Code 30048** — additional-field-required — When: Task requires additional text (30048)
 
-            - **Code 30091** — The tenant's additional text field is configured as always required and AdditionalTextField is empty.
+            - **Code 30091** — The account's additional text field is configured as always required and AdditionalTextField is empty.
 
             - **Code 30092** — additional-field-invalid
 
@@ -2090,11 +2088,9 @@ components:
           readOnly: true
           maxLength: 255
           description: |-
-            The tenant's short code for the absence (e.g. "30", "20"); matched by searchText on GET /v1/absence-code/{status}.
+            The account's short code for the absence (e.g. "30", "20"); matched by searchText on GET /v1/absence-code/{status}.
 
             Filterable via `searchText` (contains).
-
-            > **Not yet documented:** identity → role.
         Name:
           type: string
           readOnly: true
@@ -2165,8 +2161,6 @@ components:
           description: |-
             Reference to another object.
 
-            > **Not yet documented:** identity → references.
-
             > **Not yet documented:** values → lookup op.
 
             > **Not yet documented:** description.
@@ -2221,7 +2215,7 @@ components:
           - 'null'
           readOnly: true
           description: |-
-            Whether the CALLER has marked this code as a favourite. Always true/false on both list operations (the procedures always return the column).
+            Whether the CALLER has marked this code as a favourite. Always true/false on both list operations.
 
             Filterable via `includeFavouriteOnly` (eq).
         ID:
@@ -2237,8 +2231,6 @@ components:
             GUID of the absence code (AbsenceCodeGUID). Rows without a GUID are dropped by the mapper.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
       description: 'An absence code: a reason an employee can be away (illness, vacation, leave …) that absence time is registered
         on. Each code posts to one salary account (SalaryAccountID) with a factor and sign, and fixes how absence on it is
         expressed (TimeTrackingFormat: hours, full day or half day). Send AbsenceCodeID as AbsenceID on the absence registration
@@ -2292,7 +2284,7 @@ components:
             id_format: string
           maxLength: 255
           description: |-
-            Customer number. Unique only when the tenant feature UniqueCustomerNumber is on, and then only by an application check (no database constraint). When the customer-number series (auto number) is active and create sends no number, the next number in the series is assigned.
+            Customer number. Unique only when the account feature UniqueCustomerNumber is on, and then only by an application check. When the customer-number series (auto number) is active and create sends no number, the next number in the series is assigned.
 
             Alternate key, unique per TimeLog site.
 
@@ -2310,11 +2302,11 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            The customer's status. Statuses are tenant-defined; their group (customer, supplier, lead, multi-customer project) is CustomerStatusRead.CustomerStatusType. There is no status filter: list and get return suppliers and partners too.
+            The customer's status. Statuses are account-defined; their group (customer, supplier, lead, multi-customer project) is CustomerStatusRead.CustomerStatusType. There is no status filter: list and get return suppliers and partners too.
 
             Refers to `CustomerStatusRead.CustomerStatusID`. Look up valid values with `GET /v1/customerstatus`.
 
-            The "Multi customer project" pseudo-customer carries a status (AssociationFlags 16) that GET /v1/customerstatus does not list, so its CustomerStatusID cannot be resolved through the API. A NULL status in the database is returned as 0.
+            The "Multi customer project" pseudo-customer carries a status (AssociationFlags 16) that GET /v1/customerstatus does not list, so its CustomerStatusID cannot be resolved through the API.
 
             Valid values come from `GET /v1/customerstatus`.
         VATNo:
@@ -2327,9 +2319,7 @@ components:
           readOnly: true
           maxLength: 255
           description: Company registration number.
-      description: 'A customer as the REST v1 API returns it: the identifiers, name, number, status and tax numbers only.
-        Every row of the customer table is a "customer" here, whatever its status: suppliers, partners, the tenant''s own
-        company and the system "Multi customer project" row are included (see CustomerStatusID).'
+      description: 'A customer as the REST v1 API returns it: the identifiers, name, number, status and tax numbers only.'
     ExternalKey:
       type: object
       properties:
@@ -2407,8 +2397,6 @@ components:
             Integer identifier of the project. Use it as ProjectID on the two POST operations of this controller.
 
             Identifier of this object, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         ID:
           type: string
           format: uuid
@@ -2422,33 +2410,29 @@ components:
             The project's GUID.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         Name:
           type: string
           readOnly: true
           description: |-
-            Project name. Null in the database is returned as "".
+            Project name.
 
             Filterable via `searchText` (contains).
         'No':
           type: string
           readOnly: true
           description: |-
-            Project number. Null in the database is returned as "".
+            Project number.
 
             Filterable via `searchText` (contains).
-
-            > **Not yet documented:** identity → role.
         ExpenseIsBillable:
           type:
           - boolean
           - 'null'
           readOnly: true
-          description: |-
-            The billable default for an expense or mileage registration on this project. Meaning depends on the operation: on the time-tracking searches and the allocation-scoped expense/travel search it is the IsBillable of the first ACTIVE contract (status 2) in this order — the default-for-expenses contract, else the project's main contract, else the active contract with the lowest ID; null when the project has no active contract. On the expense/travel search with searchAll=true it is the project's own ExpenseIsBillable column instead.
-
-            Null: No active contract on the project (contract-derived variants), or NULL column (searchAll expense/travel variant).
+          description: 'The billable default for an expense or mileage registration on this project. Meaning depends on the
+            operation: on the time-tracking searches and the allocation-scoped expense/travel search it is the IsBillable
+            of the first ACTIVE contract (status 2) in this order — the default-for-expenses contract, else the project''s
+            main contract, else the active contract with the lowest ID; null when the project has no active contract.'
         CustomerID:
           type: integer
           format: int32
@@ -2484,13 +2468,10 @@ components:
             A contract (ProjectSubContractID) of the project. Meaning depends on the operation: on the time-tracking "order-by-recent-registration" searches (with or without searchAll) and on the expense/travel searches without searchAll, it is the contract an expense would default to — the ACTIVE default-for-expenses contract, else the main contract if active, else the active contract with the lowest ID (0 when there is none). On search-for-time-tracking, search-for-time-tracking-by-customer-id and the expense/travel searches with searchAll=true it is the project's stored main contract, whatever its status.
 
             Refers to `ContractRead.ProjectSubContractID`.
-
-            > **Not yet documented:** identity → references.
       description: 'A short project representation for pickers: the project''s IDs, name and number, its customer, and the
-        contract and billable default an expense or mileage registration on the project would get. It is not the full project
-        (rest.v1 project GET, not curated yet). The TAF self link points to GET /v1/project/{ProjectID}; every entity also
-        carries two TAF actions, create-employee-expense and create-mileage-registration, that describe the two POST operations
-        of this controller.'
+        contract and billable default an expense or mileage registration on the project would get. It is not the full project.
+        The TAF self link points to GET /v1/project/{ProjectID}; every entity also carries two TAF actions, create-employee-expense
+        and create-mileage-registration, that describe the two POST operations of this controller.'
     ResponseError:
       type: object
       description: Error body for validation (400), privilege (403), business-rule (422/500) and other server errors. `Details`
@@ -2548,8 +2529,6 @@ components:
             Integer identifier of the task. Use it as TaskID when registering time (POST /v1/task/registration, POST /v1/time-registration).
 
             Identifier of this object, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         ID:
           type: string
           format: uuid
@@ -2563,10 +2542,6 @@ components:
             The task's GUID.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
-
-            > **Not yet documented:** identity → role.
         Name:
           type: string
           readOnly: true
@@ -2580,11 +2555,9 @@ components:
           type: string
           readOnly: true
           description: |-
-            Task number. Null in the database is returned as "".
+            Task number.
 
             Filterable via `searchText` (contains).
-
-            > **Not yet documented:** identity → role.
         IsFixedPrice:
           type: boolean
           readOnly: true
@@ -2594,17 +2567,11 @@ components:
         IsDefaultBillable:
           type: boolean
           readOnly: true
-          description: |-
-            The task's default_billable column.
-
-            > **Not yet documented:** description.
+          description: '> **Not yet documented:** description.'
         AdditionalTextIsRequired:
           type: boolean
           readOnly: true
-          description: |-
-            The task's AdditionalTextIsRequired column.
-
-            > **Not yet documented:** description.
+          description: '> **Not yet documented:** description.'
         ParentFullName:
           type: string
           readOnly: true
@@ -2634,7 +2601,7 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            The task's project as ProjectHeaderRead, only with $expand=project (otherwise null). With $expand=project the project's Customer is filled too. On this read ExpenseIsBillable is the project's own ExpenseIsBillable column and MainContractId the project's stored main contract (not the contract-derived values of some /project-header searches).
+            The task's project as ProjectHeaderRead, only with $expand=project (otherwise null). With $expand=project the project's Customer is filled too.
 
             Refers to `ProjectHeaderRead.ProjectID`.
 
@@ -2665,7 +2632,7 @@ components:
           - 'null'
           readOnly: true
           description: |-
-            Whether the CALLER has marked the task as a favourite. Filled (true / false) by search-for-time-tracking, search-for-time-tracking-by-customer-id and get-recently-registered; null on every other operation, whose procedures do not return the column.
+            Whether the CALLER has marked the task as a favourite.
 
             Null: The operation does not compute favourites — not 'not a favourite'.
 
@@ -2795,8 +2762,6 @@ components:
 
             Import does NOT check that TaskID belongs to ContractID/ProjectID (only validate-import does).
 
-            > **Not yet documented:** identity → references → lookup op.
-
             > **Not yet documented:** values → lookup op.
         ProjectID:
           type: integer
@@ -2810,8 +2775,6 @@ components:
             **Conditional.** Required (non-zero) unless GroupType = Absence (3).
 
             Refers to `ProjectRead.ProjectID`.
-
-            > **Not yet documented:** identity → references → lookup op.
 
             > **Not yet documented:** values → lookup op.
         ContractID:
@@ -2827,8 +2790,6 @@ components:
 
             Refers to `ContractRead.ContractID`.
 
-            > **Not yet documented:** identity → references → lookup op.
-
             > **Not yet documented:** values → lookup op.
         UserID:
           type: integer
@@ -2841,8 +2802,6 @@ components:
             Refers to `UserRead.UserID`.
 
             - UserID is not the caller and the caller lacks RegistrationAllRegistrations — Fails with 300131 (HTTP 500). Department / legal-entity access does not count on this path.
-
-            > **Not yet documented:** identity → references → lookup op.
 
             > **Not yet documented:** values → lookup op.
         Date:
@@ -2900,8 +2859,6 @@ components:
 
             Refers to `AbsenceCodeRead.AbsenceCodeID`.
 
-            > **Not yet documented:** identity → references → lookup op.
-
             > **Not yet documented:** values → lookup op.
         Billable:
           type: boolean
@@ -2909,7 +2866,7 @@ components:
           description: |-
             Whether the time is billable.
 
-            Same tenant-feature overrides as TimeRegistrationWrite.Billable (BillableFlagCoordinator).
+            Same account-feature overrides as TimeRegistrationWrite.Billable (BillableFlagCoordinator).
         Comment:
           type: string
           description: Free-text comment on the registration.
@@ -2999,8 +2956,6 @@ components:
 
             Import does NOT check that TaskID belongs to ContractID/ProjectID (only validate-import does).
 
-            > **Not yet documented:** identity → references → lookup op.
-
             > **Not yet documented:** values → lookup op.
         ProjectID:
           type: integer
@@ -3014,8 +2969,6 @@ components:
             **Conditional.** Required (non-zero) unless GroupType = Absence (3).
 
             Refers to `ProjectRead.ProjectID`.
-
-            > **Not yet documented:** identity → references → lookup op.
 
             > **Not yet documented:** values → lookup op.
         ContractID:
@@ -3031,8 +2984,6 @@ components:
 
             Refers to `ContractRead.ContractID`.
 
-            > **Not yet documented:** identity → references → lookup op.
-
             > **Not yet documented:** values → lookup op.
         UserID:
           type: integer
@@ -3045,8 +2996,6 @@ components:
             Refers to `UserRead.UserID`.
 
             - UserID is not the caller and the caller lacks RegistrationAllRegistrations — Fails with 300131 (HTTP 500). Department / legal-entity access does not count on this path.
-
-            > **Not yet documented:** identity → references → lookup op.
 
             > **Not yet documented:** values → lookup op.
         Date:
@@ -3104,8 +3053,6 @@ components:
 
             Refers to `AbsenceCodeRead.AbsenceCodeID`.
 
-            > **Not yet documented:** identity → references → lookup op.
-
             > **Not yet documented:** values → lookup op.
         Billable:
           type: boolean
@@ -3113,7 +3060,7 @@ components:
           description: |-
             Whether the time is billable.
 
-            Same tenant-feature overrides as TimeRegistrationWrite.Billable (BillableFlagCoordinator).
+            Same account-feature overrides as TimeRegistrationWrite.Billable (BillableFlagCoordinator).
         Comment:
           type: string
           description: Free-text comment on the registration.
@@ -3565,8 +3512,6 @@ components:
           - data Import
           - Unknown source
           description: |-
-            Channel that created the registration. 50 = WebApi (this API).
-
             Allowed values:
 
             | Value | Name | Meaning |
@@ -3596,7 +3541,7 @@ components:
             | `23` | MoveTaskToOtherProject | Move task to other project modal |
             | `24` | ProjectEditSetting | Project edit setting page |
             | `25` | HolidayCalendar | Holiday calendar changes |
-            | `26` | IntegrationSetupPages | Special source interface that should avoid additional events being fired |
+            | `26` | IntegrationSetupPages | — |
             | `27` | EventEngine | Event Engine executes these |
             | `28` | EmployeeNew | New Employee page |
             | `29` | EmployeeEdit | Edit Employee page (source note: old value: 27) |
@@ -3609,12 +3554,12 @@ components:
             | `36` | OutlookIntegration | For outlook integration |
             | `37` | EditCustomer | EditCustomer (no source comment; meaning from the name only) |
             | `38` | EditContact | EditContact (no source comment; meaning from the name only) |
-            | `39` | ProjectPlanAdjustTimePlan | For the adjust time plan from project plan. ALSO: TimeRegistrationSync = 39 is commented out in the source (The time registration synchronize Obsolete, using the time registration source interface instead of this generic one); rows written before that may still carry 39 with that meaning. |
+            | `39` | ProjectPlanAdjustTimePlan | For the adjust time plan from project plan. |
             | `40` | UpdateProjectDates | For update project dates modal from task plan (when it deviates) |
             | `41` | AdjustAllocationWithStandardHourlyRate | AdjustAllocationWithStandardHourlyRate (no source comment; meaning from the name only) |
             | `42` | CopyTimeRegistrations | Copy time registrations from last week functionality - do not change this ID or let me know IMO |
             | `43` | TimeTrackingBar | TimeTrackingBar (no source comment; meaning from the name only) |
-            | `44` | ApprovalEventHandler | ApprovalEventHandler (no source comment; meaning from the name only) |
+            | `44` | ApprovalEventHandler | — |
             | `45` | UpdateHardBookingToTimeRegistration | UpdateHardBookingToTimeRegistration (no source comment; meaning from the name only) |
             | `46` | CalendarEvent | CalendarEvent (no source comment; meaning from the name only) |
             | `47` | LinkCustomerModal | LinkCustomerModal (no source comment; meaning from the name only) |
@@ -3808,7 +3753,7 @@ components:
             | `23` | MoveTaskToOtherProject | Move task to other project modal |
             | `24` | ProjectEditSetting | Project edit setting page |
             | `25` | HolidayCalendar | Holiday calendar changes |
-            | `26` | IntegrationSetupPages | Special source interface that should avoid additional events being fired |
+            | `26` | IntegrationSetupPages | — |
             | `27` | EventEngine | Event Engine executes these |
             | `28` | EmployeeNew | New Employee page |
             | `29` | EmployeeEdit | Edit Employee page (source note: old value: 27) |
@@ -3821,12 +3766,12 @@ components:
             | `36` | OutlookIntegration | For outlook integration |
             | `37` | EditCustomer | EditCustomer (no source comment; meaning from the name only) |
             | `38` | EditContact | EditContact (no source comment; meaning from the name only) |
-            | `39` | ProjectPlanAdjustTimePlan | For the adjust time plan from project plan. ALSO: TimeRegistrationSync = 39 is commented out in the source (The time registration synchronize Obsolete, using the time registration source interface instead of this generic one); rows written before that may still carry 39 with that meaning. |
+            | `39` | ProjectPlanAdjustTimePlan | For the adjust time plan from project plan. |
             | `40` | UpdateProjectDates | For update project dates modal from task plan (when it deviates) |
             | `41` | AdjustAllocationWithStandardHourlyRate | AdjustAllocationWithStandardHourlyRate (no source comment; meaning from the name only) |
             | `42` | CopyTimeRegistrations | Copy time registrations from last week functionality - do not change this ID or let me know IMO |
             | `43` | TimeTrackingBar | TimeTrackingBar (no source comment; meaning from the name only) |
-            | `44` | ApprovalEventHandler | ApprovalEventHandler (no source comment; meaning from the name only) |
+            | `44` | ApprovalEventHandler | — |
             | `45` | UpdateHardBookingToTimeRegistration | UpdateHardBookingToTimeRegistration (no source comment; meaning from the name only) |
             | `46` | CalendarEvent | CalendarEvent (no source comment; meaning from the name only) |
             | `47` | LinkCustomerModal | LinkCustomerModal (no source comment; meaning from the name only) |
@@ -4167,8 +4112,6 @@ components:
             Refers to `TaskRead.TaskID`.
 
             - TaskID differs from the current task and the employee is not allocated to it — The allocation is created (same staffing side effect as create).
-
-            > **Not yet documented:** identity → references → lookup op.
 
             > **Not yet documented:** values → lookup op.
         StartTime:
@@ -4897,7 +4840,7 @@ components:
           - string
           - 'null'
           readOnly: true
-          description: The additional text field value carried to the registration (tenant feature TimeRegistrationAdditionalTextField).
+          description: The additional text field value carried to the registration (account feature TimeRegistrationAdditionalTextField).
         Factor:
           type: number
           readOnly: true
@@ -4928,7 +4871,7 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            Start from an existing registration: copies comment, additional text, factor and monthly period, and LINKS the tracker when the registration is dated today (server date). The registration is not checked to belong to the caller.
+            Start from an existing registration: copies comment, additional text, factor and monthly period, and LINKS the tracker when the registration is dated today (server date).
 
             Refers to `TimeRegistrationRead.TimeRegistrationID`. Look up valid values with `GET /v1/time-registration/{timeRegistrationID}`.
         Minute:
@@ -4980,8 +4923,6 @@ components:
             - The registration is dated the start day and the user does not use timestamps on project time — The tracker is LINKED to the registration: stopping adds the tracked minutes to it.
 
             - Otherwise — Task, additional text, billable flag, factor and monthly period are copied; stopping creates a new registration.
-
-            The registration is not checked to belong to the caller.
         IsBillable:
           type:
           - boolean

@@ -17,10 +17,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -34,7 +32,7 @@ paths:
       operationId: listContactPersons
       summary: List contact persons
       description: |-
-        Returns every contact person of the tenant in one response.
+        Returns every contact person of the account in one response.
 
         Returns all contacts of all customers — active and inactive alike, with no way to tell them apart — ordered by ID, in ONE response: no paging is applied and the TAF paging properties read TotalRecord "0" / TotalPage "0". There are no filters (by customer, name or e-mail). ShownName on this operation is the full name of the contact's OWNER, not of the contact; Address3 is always null.
 
@@ -108,7 +106,7 @@ paths:
       description: |-
         Creates a contact person, optionally on a customer and with an owner, and returns it.
 
-        Creates a row in the tenant's contact list. The contact can then be used as a customer contact, project contact or invoice recipient (ContactID on CustomerCreate / ProjectCreate). Only FirstName, LastName and a valid CountryID are required; without CustomerID the contact belongs to no customer. The response is the stored contact (ContactRead); its ShownName is the contact's own full name. Failure reporting is weak: a create that the manager refuses — missing customer privilege, or a database error — is NOT reported with its reason. The controller ignores the manager's result and re-reads contact 0, which fails with a generic 500 (Code 100).
+        Creates a row in the account's contact list. The contact can then be used as a customer contact, project contact or invoice recipient (ContactID on CustomerCreate / ProjectCreate). Only FirstName, LastName and a valid CountryID are required; without CustomerID the contact belongs to no customer. The response is the stored contact (ContactRead); its ShownName is the contact's own full name. The controller ignores the manager's result and re-reads contact 0, which fails with a generic 500 (Code 100).
 
         **Use it to:**
         - Create the contact persons of a customer synchronised from a CRM
@@ -121,7 +119,6 @@ paths:
         - Not safe to retry blindly.
         - Duplicates: Not deduplicated — the same names on the same customer create a second contact.
         - Side effect: Inserts the contact, stamped with the caller as creator.
-        - Side effect: Flushes the per-customer contact caches.
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v1/customer`, `GET /v1/country/get-all`, `GET /v1/user`
@@ -257,9 +254,7 @@ paths:
       operationId: listCustomers
       summary: List customers
       description: |-
-        Lists every customer row of the tenant, newest first, one page at a time.
-
-        Returns all rows of the customer table, whatever their status: customers, suppliers, partners, the tenant's own company and the system "Multi customer project" row. There is no filter or search parameter; use the search-for-* operations to search by name or number, and by-number for an exact number match. The model carries only identifiers, name, number, status and tax numbers.
+        There is no filter or search parameter; use the search-for-* operations to search by name or number, and by-number for an exact number match. The model carries only identifiers, name, number, status and tax numbers.
 
         **Use it to:**
         - Initial sync of the customer register into an ERP or CRM
@@ -273,7 +268,6 @@ paths:
         - Idempotent.
         - Safe to retry.
         - Changes are visible to the next read immediately.
-        - Reads the customer table directly (no read model or cache).
 
         **Next:** `GET /v1/customer/{customerID}`, `PUT /v1/customer/update`, `GET /v1/customerstatus`
 
@@ -351,7 +345,7 @@ paths:
       description: |-
         Returns every customer whose customer number equals the given value.
 
-        Exact match on the customer number. Returns a LIST, because customer numbers are unique only when the tenant feature UniqueCustomerNumber is on. No match is a 404, not an empty list.
+        Exact match on the customer number. Returns a LIST, because customer numbers are unique only when the account feature UniqueCustomerNumber is on. No match is a 404, not an empty list.
 
         **Use it to:**
         - Look up the TimeLog CustomerID for a customer number held in an ERP
@@ -372,7 +366,7 @@ paths:
         required: true
         schema:
           type: string
-        description: Customer number, matched exactly (database collation decides case sensitivity).
+        description: Customer number, matched exactly.
       responses:
         '200':
           description: |-
@@ -458,9 +452,7 @@ paths:
         - Duplicates: Only the exact Name + CustomerNo pair is rejected (and the number alone when UniqueCustomerNumber is on). No external-key deduplication.
         - Side effect: Inserts the customer (CustomerGUID generated server-side) and its invoice settings.
         - Side effect: Assigns the next customer number from the series when CustomerNo is blank and the series is active.
-        - Side effect: Raises the TLP event CustomerCreate (consumed by the finance integrations: e-conomic, Uniconta, Fortnox, Dinero, Business Central, Exact Online, Bjørn Lunden, Danløn, generic).
-        - Side effect: Clears the customer caches.
-        - On failure: If saving the invoice settings fails after the customer row is inserted, the customer exists without invoice settings and the call still returns 500 (src_only).
+        - On failure: If saving the invoice settings fails after the customer row is inserted, the customer exists without invoice settings and the call still returns 500.
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v1/customerstatus`, `GET /v1/industry/get-all`
@@ -536,7 +528,7 @@ paths:
 
             - **Code 38017** — Another customer has the same name AND number (case-insensitive). Checked only against the customers the caller may see. — Fix: Change the name or the number.
 
-            - **Code 37697** — UseEanNo is true on a tenant without the OIOXML feature. — Fix: Send UseEanNo false, or enable OIOXML.
+            - **Code 37697** — UseEanNo is true on a account without the OIOXML feature. — Fix: Send UseEanNo false, or enable OIOXML.
 
             - **Code 60063** — UseEanNo is true but Address, ZipCode or City is blank.
 
@@ -561,7 +553,7 @@ paths:
       description: |-
         Customer search for expense and mileage clients; returns the same result as search-for-time-tracking-order-by-recent-registration.
 
-        Despite its name, this operation runs exactly the query of `GET /v1/customer/search-for-time-tracking-order-by-recent-registration` (customers with tasks the caller is allocated to, recent project-time registrations first). Only the gate on searchAll differs: here searchAll=true requires the tenant feature EnableAllEmployeesRegisterOnAllActiveProjects instead of a user privilege. No expense- or mileage-specific rule is applied.
+        Despite its name, this operation runs exactly the query of `GET /v1/customer/search-for-time-tracking-order-by-recent-registration` (customers with tasks the caller is allocated to, recent project-time registrations first). Only the gate on searchAll differs: here searchAll=true requires the account feature EnableAllEmployeesRegisterOnAllActiveProjects instead of a user privilege. No expense- or mileage-specific rule is applied.
 
         **Behaviour:**
         - Idempotent.
@@ -592,7 +584,7 @@ paths:
         schema:
           type: boolean
           default: false
-        description: true = all customers with tasks. Needs tenant feature EnableAllEmployeesRegisterOnAllActiveProjects.
+        description: true = all customers with tasks. Needs account feature EnableAllEmployeesRegisterOnAllActiveProjects.
       - name: $page
         in: query
         required: false
@@ -910,9 +902,8 @@ paths:
         - Idempotent.
         - Safe to retry.
         - Side effect: Saves the customer and its (unchanged) invoice settings; saves its external keys.
-        - Side effect: Refreshes the owner copy on invoicing-potential rows and the customer name/number copy in the task search table.
         - Side effect: A changed CustomerStatusID: an extra save of the customer before the main save (CMGR.ChangeCustomerStatus → UpdatePrivate).
-        - On failure: When CustomerStatusID changes, the status AND every group-A field and CurrencyID already mapped (Name, CustomerNo, NickName, OrganizationNo, Phone, Fax, Email, Website, VatNo, CreditorID, InvoicingName) are saved even if the main update then fails with 403 or 500. That save raises no CustomerUpdate event (src_only).
+        - On failure: When CustomerStatusID changes, the status AND every group-A field and CurrencyID already mapped (Name, CustomerNo, NickName, OrganizationNo, Phone, Fax, Email, Website, VatNo, CreditorID, InvoicingName) are saved even if the main update then fails with 403 or 500. That save raises no CustomerUpdate event.
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v1/customer/{customerID}`, `GET /v1/customer`
@@ -963,7 +954,7 @@ paths:
 
             - **Code 30169** — Feature UniqueCustomerNumber is on and another customer has this CustomerNo. — Fix: Use another number, or omit it to take the next number of the series.
 
-            - **Code 31115** — The tenant's own company (the internal customer) must keep a status flagged as a customer status. — Fix: Pick a status whose CustomerStatusType includes 1.
+            - **Code 31115** — The account's own company (the internal customer) must keep a status flagged as a customer status. — Fix: Pick a status whose CustomerStatusType includes 1.
           content:
             application/json:
               schema:
@@ -1072,7 +1063,7 @@ paths:
 
             - **Code 38017** — Another customer has the same name AND number (case-insensitive). Checked only against the customers the caller may see. — Fix: Change the name or the number.
 
-            - **Code 37697** — UseEanNo is true on a tenant without the OIOXML feature. — Fix: Send UseEanNo false, or enable OIOXML.
+            - **Code 37697** — UseEanNo is true on a account without the OIOXML feature. — Fix: Send UseEanNo false, or enable OIOXML.
 
             - **Code 60063** — UseEanNo is true but Address, ZipCode or City is blank.
 
@@ -1176,7 +1167,7 @@ paths:
       operationId: listCustomerStatuses
       summary: List customer statuses
       description: |-
-        Lists the tenant's customer statuses, by name.
+        Lists the account's customer statuses, by name.
 
         The value set for CustomerStatusID on customers. Active and inactive statuses are both returned. The system status of the "Multi customer project" pseudo-customer (type 16) is left out. CustomerStatusType tells which group a status belongs to (customer, supplier, lead).
 
@@ -1300,7 +1291,7 @@ paths:
       operationId: listIndustries
       summary: List industries
       description: |-
-        Lists the tenant's industries, by name.
+        Lists the account's industries, by name.
 
         The value set for IndustryID on customer create and update. Active and inactive industries are both returned; create/update accept either.
 
@@ -1404,8 +1395,6 @@ components:
             Contains personal data.
 
             - null, empty or whitespace — 400 "'First Name' must not be empty."
-
-            - longer than 255 characters — Silently truncated to 255 by the insert procedure.
         LastName:
           type: string
           maxLength: 255
@@ -1618,7 +1607,7 @@ components:
           type: string
           writeOnly: true
           default: '""'
-          description: Free-text comment on the contact. Stored, but not returned by any curated read.
+          description: Free-text comment on the contact.
         Birthday:
           type:
           - string
@@ -1626,7 +1615,7 @@ components:
           format: date-time
           writeOnly: true
           description: |-
-            Birthday of the contact. Stored, but not returned by any curated read.
+            Birthday of the contact.
 
             Time zone: not yet documented.
 
@@ -1665,7 +1654,7 @@ components:
             uniqueness_enforced: true
             id_format: guid
           description: |-
-            Contact GUID. Not accepted as input by any curated operation.
+            Contact GUID.
 
             Alternate key, unique per TimeLog site.
         FirstName:
@@ -1797,8 +1786,6 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            The customer the contact belongs to. 0 for a contact created without a customer; -1 on the list when the column is NULL.
-
             Refers to `CustomerRead.CustomerID`. Look up valid values with `GET /v1/customer`.
 
             Valid values come from `GET /v1/customer`.
@@ -1861,9 +1848,8 @@ components:
             NOT the same value on the two operations. On the create response: the contact's own full name (IContact.Fullname). On the list: the full name of the contact's OWNER — the TimeLog employee responsible for the contact, null when no owner is set.
 
             Contains personal data.
-      description: 'A contact person — a named person at a customer (or supplier / partner; any row of the customer table)
-        that projects and invoices can point to as contact or invoice recipient. Personal data: name, phone numbers, e-mail
-        and address of a private individual.'
+      description: 'A contact person — a named person at a customer that projects and invoices can point to as contact or
+        invoice recipient. Personal data: name, phone numbers, e-mail and address of a private individual.'
     CustomerCreate.create:
       type: object
       properties:
@@ -1950,8 +1936,6 @@ components:
             The caller's customer privilege is evaluated against the owner set here: with only the "customers where I am account manager" privilege, create succeeds only when the caller is the primary owner. Owner when omitted: unknown.
 
             > **Not yet documented:** notes.
-
-            > **Not yet documented:** identity → references → lookup op.
         SecondaryKAMID:
           type: integer
           x-timelog-identity:
@@ -1966,8 +1950,6 @@ components:
             - User does not exist / inactive — 37040 / 37931 (HTTP 500, Code 102).
 
             TAF display depends on feature TwoOwnersPerCustomer; the API stores it either way.
-
-            > **Not yet documented:** identity → references → lookup op.
         CustomerSince:
           type: string
           format: date-time
@@ -2087,8 +2069,6 @@ components:
             Refers to `ContactRead.ContactID`.
 
             -1 = the project's contact; 0 = choose when invoicing; > 0 = a contact ID (must exist: 37011).
-
-            > **Not yet documented:** identity → references → lookup op.
         InvoiceAddressToUse:
           type: integer
           enum:
@@ -2126,8 +2106,6 @@ components:
             Refers to `EmployeeRead.EmployeeID`.
 
             -3 = project's account manager; -2 = project manager; -1 = customer's owner; 0 = choose when invoicing; > 0 = an EMPLOYEE ID (must exist: 30014).
-
-            > **Not yet documented:** identity → references → lookup op.
         CustomerReferenceID:
           type: integer
           x-timelog-identity:
@@ -2139,8 +2117,6 @@ components:
             Refers to `ContactRead.ContactID`.
 
             -1 = project's contact; 0 = choose when invoicing; > 0 = a contact ID (must exist: 37011).
-
-            > **Not yet documented:** identity → references → lookup op.
         PaymentTermID:
           type: integer
           x-timelog-identity:
@@ -2283,7 +2259,7 @@ components:
             id_format: string
           maxLength: 255
           description: |-
-            Customer number. Unique only when the tenant feature UniqueCustomerNumber is on, and then only by an application check (no database constraint). When the customer-number series (auto number) is active and create sends no number, the next number in the series is assigned.
+            Customer number. Unique only when the account feature UniqueCustomerNumber is on, and then only by an application check. When the customer-number series (auto number) is active and create sends no number, the next number in the series is assigned.
 
             Alternate key, unique per TimeLog site.
 
@@ -2301,11 +2277,11 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            The customer's status. Statuses are tenant-defined; their group (customer, supplier, lead, multi-customer project) is CustomerStatusRead.CustomerStatusType. There is no status filter: list and get return suppliers and partners too.
+            The customer's status. Statuses are account-defined; their group (customer, supplier, lead, multi-customer project) is CustomerStatusRead.CustomerStatusType. There is no status filter: list and get return suppliers and partners too.
 
             Refers to `CustomerStatusRead.CustomerStatusID`. Look up valid values with `GET /v1/customerstatus`.
 
-            The "Multi customer project" pseudo-customer carries a status (AssociationFlags 16) that GET /v1/customerstatus does not list, so its CustomerStatusID cannot be resolved through the API. A NULL status in the database is returned as 0.
+            The "Multi customer project" pseudo-customer carries a status (AssociationFlags 16) that GET /v1/customerstatus does not list, so its CustomerStatusID cannot be resolved through the API.
 
             Valid values come from `GET /v1/customerstatus`.
         VATNo:
@@ -2318,9 +2294,7 @@ components:
           readOnly: true
           maxLength: 255
           description: Company registration number.
-      description: 'A customer as the REST v1 API returns it: the identifiers, name, number, status and tax numbers only.
-        Every row of the customer table is a "customer" here, whatever its status: suppliers, partners, the tenant''s own
-        company and the system "Multi customer project" row are included (see CustomerStatusID).'
+      description: 'A customer as the REST v1 API returns it: the identifiers, name, number, status and tax numbers only.'
     CustomerStatusRead:
       type: object
       properties:
@@ -2358,7 +2332,7 @@ components:
           type: boolean
           readOnly: true
           description: |-
-            The tenant's default status flag.
+            The account's default status flag.
 
             > **Not yet documented:** description.
         IsActive:
@@ -2378,11 +2352,11 @@ components:
             | Value | Name | Meaning |
             |---|---|---|
             | `0` | None | In no group. Seed status 'Import' has this value. |
-            | `1` | IsShownInCustomers | Customer status: offered when a customer is created in TimeLog, and the only kind the tenant's own company may hold (business rule 31115). |
+            | `1` | IsShownInCustomers | Customer status: offered when a customer is created in TimeLog, and the only kind the account's own company may hold (business rule 31115). |
             | `2` | IsShownInSuppliers | Supplier status: suppliers are customers with such a status; creating a supplier uses the first status with this flag. |
             | `8` | IsShownInLeads | Offered for leads (the 'Leads' checkbox on the customer-status settings page). |
             | `16` | IsMultiCustomerProjects | System status of the 'Multi customer project' pseudo-customer. Never returned by this API (filtered out). |
-      description: 'A tenant-defined customer status: the values a customer''s CustomerStatusID can take. Each status belongs
+      description: 'A account-defined customer status: the values a customer''s CustomerStatusID can take. Each status belongs
         to one or more groups (CustomerStatusType) that decide where it is offered — customers, suppliers, leads.'
     CustomerUpdate.update:
       type: object
@@ -2461,7 +2435,7 @@ components:
 
             - The rest of the update follows.
 
-            - Customer is the tenant's own company and the status is not a customer status — 31115.
+            - Customer is the account's own company and the status is not a customer status — 31115.
 
             Valid values come from `GET /v1/customerstatus`.
         CustomerSince:
@@ -2481,8 +2455,6 @@ components:
             Refers to `UserRead.UserID`.
 
             - User does not exist / inactive — 37040 / 37931 (HTTP 500, Code 102).
-
-            > **Not yet documented:** identity → references → lookup op.
         SecondaryKAMID:
           type: integer
           x-timelog-identity:
@@ -2491,8 +2463,6 @@ components:
             Secondary owner, as a USER ID.
 
             Refers to `UserRead.UserID`.
-
-            > **Not yet documented:** identity → references → lookup op.
         IndustryID:
           type: integer
           x-timelog-identity:
@@ -2583,7 +2553,7 @@ components:
             Industry GUID. Not accepted as input.
 
             Alternate key, unique per TimeLog site.
-      description: A tenant-defined industry that a customer can be classified under. The value set for IndustryID on customer
+      description: A account-defined industry that a customer can be classified under. The value set for IndustryID on customer
         create/update.
     MessageError:
       type: object

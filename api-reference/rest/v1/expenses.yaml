@@ -17,10 +17,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -36,7 +34,7 @@ paths:
       description: |-
         Returns the caller's own home address and the company's address, as one-tap start / end addresses for a trip.
 
-        Two suggestions: the CALLER's home address from their user profile (Type 2 Home — always returned, with empty fields when no home address is stored) and the tenant's own company address (Type 0 Internal — the CRM customer configured as the company itself; absent when that customer has no country). Use FullDetailAddress as the mileage StartAddress / EndAddress. Personal data: the response contains the caller's home address and is scoped to the caller.
+        Two suggestions: the CALLER's home address from their user profile (Type 2 Home — always returned, with empty fields when no home address is stored) and the account's own company address (Type 0 Internal — the CRM customer configured as the company itself; absent when that customer has no country). Use FullDetailAddress as the mileage StartAddress / EndAddress. Personal data: the response contains the caller's home address and is scoped to the caller.
 
         **Use it to:**
         - Mobile mileage form: prefill 'from home' / 'to office' for a commute-style trip
@@ -56,7 +54,7 @@ paths:
       responses:
         '200':
           description: |-
-            A list, wrapped in the TAF list envelope (`Entities[].Properties`). Usually two entities, Home then Internal (UNION — order not guaranteed by SQL). A self link; no paging properties.
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). Usually two entities, Home then Internal. A self link; no paging properties.
 
             Order: unspecified (captured: Home, Internal)
 
@@ -147,7 +145,7 @@ paths:
       description: |-
         Suggests addresses TimeLog already holds — for a project (home, own company, the project's customer) or by a search phrase over CRM customers.
 
-        Address suggestions for a trip's start / end address without calling Google. With projectId: the caller's own home address (Type 2 Home, returned even when empty), the tenant's own company address (Type 0 Internal) and the address of the project's customer (Type 1 Project). With addressPhrase: CRM customers whose name or any address part or country contains the phrase (Type 3 Customer), paged. Store FullDetailAddress.
+        Address suggestions for a trip's start / end address without calling Google. With projectId: the caller's own home address (Type 2 Home, returned even when empty), the account's own company address (Type 0 Internal) and the address of the project's customer (Type 1 Project). With addressPhrase: CRM customers whose name or any address part or country contains the phrase (Type 3 Customer), paged. Store FullDetailAddress.
 
         **Use it to:**
         - Mobile mileage form: offer 'home', 'office' and 'customer of this project' as one-tap start / end addresses
@@ -186,7 +184,7 @@ paths:
         schema:
           type: string
         description: |-
-          Text searched with LIKE '%phrase%' (trimmed) in customer name, address lines, postcode, city, state and country. '%' and '_' act as SQL wildcards (not escaped). Max 200 characters (procedure parameter).
+          Text searched with LIKE '%phrase%' (trimmed) in customer name, address lines, postcode, city, state and country. Max 200 characters.
 
           **Conditional.** Exactly one of projectId / addressPhrase selects the variant.
       - name: $page
@@ -277,11 +275,10 @@ paths:
       description: |-
         Lists employee expenses, newest first, optionally for one user and a date range, one page at a time.
 
-        Returns employee expenses (not project expenses) ordered by date descending, with the receipt download URLs (15-minute SAS) of each one. Filter with userID (a user ID) and an inclusive startDate / endDate on the expense date. Without userID the list spans the whole tenant — see the access note: the call does not restrict the result to the caller.
+        Returns employee expenses (not project expenses) ordered by date descending, with the receipt download URLs of each one. Filter with userID (a user ID) and an inclusive startDate / endDate on the expense date. Without userID the list spans the whole account — see the access note: the call does not restrict the result to the caller.
 
         **Use it to:**
         - Finance / payroll integration pulling the expenses of a period for reimbursement or posting (filter by date, then by Status = Approved on your side)
-        - Expense app showing the signed-in user's recent expenses (pass the caller's own userID)
 
         **Not for:**
         - One expense by ID — `GET /v1/employee-expense/{employeeExpenseID}` (it enforces the owner check)
@@ -290,7 +287,6 @@ paths:
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Side effect: Each call mints new 15-minute SAS read URLs for every listed attachment (no state change).
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v1/user`
@@ -309,7 +305,7 @@ paths:
             operators:
             - eq
         description: |-
-          Only expenses of this user (a USER ID). Omitted = all employees. Not checked against the caller.
+          Only expenses of this user (a USER ID). Omitted = all employees.
 
           Filters on `EmployeeExpenseRead.EmployeeUserID` (eq).
       - name: startDate
@@ -441,7 +437,6 @@ paths:
 
         **Use it to:**
         - Expense or receipt-capture app (e.g. a scan-and-submit flow) booking a receipt line, then uploading the receipt image/PDF to the returned ID
-        - Corporate-card or ERP integration (e.g. receipt flows from a Business Central add-on) creating card transactions on behalf of employees with UserID
 
         **Rules across fields:**
         - R1: ProjectSubContractID, when > 0, must belong to ProjectID, be Active and not be prepaid services.
@@ -453,9 +448,8 @@ paths:
         - Not idempotent.
         - Not safe to retry blindly. Each call creates a new expense with a new GUID; nothing deduplicates. After a lost response, list the owner's expenses for the date (GET /v1/employee-expense?userID=&startDate=&endDate=) before retrying.
         - Duplicates: Not deduplicated.
-        - Side effect: Creates the employee expense (category Employee, interface WebApi) with the conversion rates to the project's and the owner's legal-entity currencies.
-        - Side effect: Writes registration currency data for the expense; invalidates the expense cache.
-        - On failure: No transaction wraps the insert and the follow-up writes. A failure after the insert — e.g. in the currency-data notification or the read-back — returns 500 while the expense row stays (src_only).
+        - Side effect: Creates the employee expense with the conversion rates to the project's and the owner's legal-entity currencies.
+        - On failure: No transaction wraps the insert and the follow-up writes. A failure after the insert — e.g. in the currency-data notification or the read-back — returns 500 while the expense row stays.
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v1/project-header/search-for-expense-travel-registration-order-by-recent-registration`, `GET /v1/currency/{status}`, `GET /v1/user`
@@ -549,10 +543,6 @@ paths:
             - **Code 31140** — The contract the expense is booked on is fixed-price and IsBillable is false. — Fix: Send IsBillable true for fixed-price contracts.
 
             - **Code 37018** — PaymentMethodID does not exist. — Fix: Use an existing payment method ID.
-
-            - **Code 37699** — Date falls in a closed accounting period of the owner's employee projection. — Fix: Use a date in an open period.
-
-            - **Code 38022** — The owner has no employee projection on Date (for example a date before the employment start). — Fix: Use a date inside the owner's employment.
           content:
             application/json:
               schema:
@@ -584,7 +574,6 @@ paths:
         - Same body → same stored values; last write wins (no concurrency token).
         - Safe to retry.
         - Duplicates: n/a
-        - Side effect: Overwrites the expense and recalculates its conversion rates; invalidates the expense cache.
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v1/employee-expense/{employeeExpenseID}`
@@ -649,10 +638,6 @@ paths:
             - **Code 37689** — The project is inactive. — Fix: Use an active project.
 
             - **Code 37018** — PaymentMethodID does not exist. — Fix: Use an existing payment method ID.
-
-            - **Code 37699** — Date falls in a closed accounting period of the owner's employee projection. — Fix: Use a date in an open period.
-
-            - **Code 38022** — The owner has no employee projection on Date (for example a date before the employment start). — Fix: Use a date inside the owner's employment.
           content:
             application/json:
               schema:
@@ -770,7 +755,7 @@ paths:
       description: |-
         Returns the caller's number of expenses and their total incl. / excl. VAT, in the system currency, for one day.
 
-        A day summary for a "my expenses" view: how many expense rows the CALLER registered with that purchase date and their sum including and excluding VAT, converted to the tenant's system (base) currency at each expense's save-time rate. Counts both employee expenses and project expenses the caller registered. Always the caller — there is no user parameter.
+        A day summary for a "my expenses" view: how many expense rows the CALLER registered with that purchase date and their sum including and excluding VAT, converted to the account's system (base) currency at each expense's save-time rate. Counts both employee expenses and project expenses the caller registered. Always the caller — there is no user parameter.
 
         **Use it to:**
         - Mobile time/expense client: show 'today: 3 expenses, 1,250.00 DKK' next to the day's time registrations
@@ -1001,7 +986,7 @@ paths:
       description: |-
         Deletes an unapproved, uninvoiced employee expense together with all its receipt files.
 
-        Permanently removes the expense and deletes every attached receipt from blob storage. Only the expense's employee, or a user with the 'all registrations' privilege, may delete it. Approved, invoiced, closed-period and completed-project / completed-contract expenses are refused, and all violated rules are reported together.
+        Only the expense's employee, or a user with the 'all registrations' privilege, may delete it. Approved, invoiced, closed-period and completed-project / completed-contract expenses are refused, and all violated rules are reported together.
 
         **Use it to:**
         - Expense app withdrawing a draft expense
@@ -1015,8 +1000,6 @@ paths:
         - A second delete of the same ID fails with 500 Code 100 (the expense no longer exists).
         - Safe to retry only under a condition. Retry after a lost response only after checking with GET that the expense still exists (a 500 Code 100 on retry means the first call succeeded).
         - Duplicates: n/a
-        - Side effect: Deletes every receipt blob of the expense, then the expense row; invalidates the expense and project caches.
-        - On failure: Blobs are deleted one by one BEFORE the row: a failure mid-way (storage or SQL) returns 500 with some or all receipt files already gone while the expense remains, its attachment list still pointing at them (src_only).
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v1/employee-expense`, `GET /v1/employee-expense/{employeeExpenseID}`
@@ -1094,7 +1077,7 @@ paths:
       description: |-
         Returns one employee expense, including short-lived download URLs for its receipts.
 
-        Reads an expense by its integer ID. The caller must be the expense's employee or hold a registration privilege covering that employee. The receipt URLs (ImageUrls for images, FileUrls for PDFs) carry a read-only SAS token valid for about 15 minutes after the call — download the receipt right away, or re-read the expense for a fresh URL. Use $expand to embed the project, currency, expense type and payment method.
+        Reads an expense by its integer ID. The caller must be the expense's employee or hold a registration privilege covering that employee. Use $expand to embed the project, currency, expense type and payment method.
 
         **Use it to:**
         - Finance / ERP integration fetching an approved expense and its receipt to post it as a purchase document
@@ -1106,9 +1089,7 @@ paths:
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Side effect: Each call mints new 15-minute SAS read URLs for the attachments (no state change).
         - Changes are visible to the next read immediately.
-        - The owner lookup can be served from the application cache; the response comes from the read-model procedure (no cache).
 
         **Call first:** `GET /v1/employee-expense`, `POST /v1/employee-expense`
 
@@ -1211,7 +1192,7 @@ paths:
       description: |-
         Removes one or more PDF (or other) receipt attachments from an employee expense and deletes the files from storage.
 
-        Pass each attachment to remove as a fileUrl query parameter (repeat it for several), using the URLs from FileUrls. The SAS query string is ignored when matching. URLs are processed one at a time; earlier deletions persist if a later one fails.
+        Pass each attachment to remove as a fileUrl query parameter (repeat it for several), using the URLs from FileUrls. URLs are processed one at a time; earlier deletions persist if a later one fails.
 
         **Use it to:**
         - Integration replacing a PDF receipt: delete the old URL, then attach the new PDF
@@ -1224,8 +1205,6 @@ paths:
         - Repeating a successful call fails with 37684.
         - Safe to retry only under a condition. After a lost response, GET the expense: a URL that is gone was deleted.
         - Duplicates: A URL repeated in one call fails on its second occurrence (37684).
-        - Side effect: Deletes the blob and rewrites the expense's attachment list without it, per URL.
-        - On failure: URLs before the failing one stay deleted; the blob is deleted before the list is saved (src_only).
         - Changes are visible to the next read immediately.
         - Batch: partial
 
@@ -1253,7 +1232,7 @@ paths:
             type: string
             format: uri
         description: |-
-          An attachment URL of this expense, URL-encoded. Repeat for several. Matched on scheme + host + path; the query string (SAS) is ignored.
+          An attachment URL of this expense, URL-encoded. Repeat for several. Matched on scheme + host + path; the query string is ignored.
 
           Default: none — the call then does nothing and returns 200
       responses:
@@ -1282,10 +1261,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ResponseError'
         '500':
-          description: |-
-            - **Code 37684** — A fileUrl / imageUrl (compared without its query string) is not in the expense's attachment list. — When: A fileUrl is not an attachment of this expense — or any storage / DB failure during its deletion. — Fix: Send a URL taken from the expense's ImageUrls / FileUrls (GET /v1/employee-expense/{id}); the SAS query string may stay on.
-
-            - **Code 100** — Unhandled server error.
+          description: '- **Code 100** — Unhandled server error.'
           content:
             application/json:
               schema:
@@ -1297,7 +1273,7 @@ paths:
       description: |-
         Uploads one or more PDF receipts to an existing employee expense.
 
-        The receipt write path for PDFs (e.g. e-mailed invoices or receipts). Send multipart/form-data with one part per PDF; every part is treated as a file. Each part must carry a PDF signature, else the whole call fails and nothing is stored. Files are stored in TimeLog's Azure blob storage under a random name with Content-Type application/pdf and appended to the expense's attachment list; the response is JSON null — GET the expense for the (15-minute) download URLs in FileUrls.
+        The receipt write path for PDFs (e.g. e-mailed invoices or receipts). Send multipart/form-data with one part per PDF; every part is treated as a file. Each part must carry a PDF signature, else the whole call fails and nothing is stored.
 
         **Use it to:**
         - Integration forwarding a supplier's PDF invoice as the receipt of an expense it created
@@ -1308,11 +1284,9 @@ paths:
 
         **Behaviour:**
         - Not idempotent.
-        - Not safe to retry blindly. Each call appends new blobs; a retry stores the PDF twice. GET the expense and compare FileUrls before retrying.
+        - Not safe to retry blindly. GET the expense and compare FileUrls before retrying.
         - Duplicates: Not deduplicated.
-        - Side effect: Uploads each PDF to the tenant blob container as EmployeeExpense-&lt;random GUID>.pdf with Content-Type application/pdf.
-        - Side effect: Rewrites the expense's attachment list (ImageAsJson) with the new private URLs; refreshes the cached expense.
-        - On failure: All parts are checked before any upload, so an invalid part stores nothing. A storage or DB failure after some uploads leaves orphan blobs (src_only).
+        - On failure: All parts are checked before any upload, so an invalid part stores nothing.
         - Changes are visible to the next read immediately.
         - Batch: For validation only; not transactional for storage failures.
 
@@ -1371,7 +1345,7 @@ paths:
                 $ref: '#/components/schemas/ResponseError'
         '500':
           description: |-
-            - **Code 37938** — A multipart part does not have a PDF signature (DropzoneUtility.IsPDFFile). Every part is treated as a file. — When: Any part lacks a PDF signature — including a text form field. — Fix: Send only PDF parts; send images to POST /v1/employee-expense/{id}/image.
+            - **Code 37938** — A multipart part does not have a PDF signature. Every part is treated as a file. — When: Any part lacks a PDF signature — including a text form field. — Fix: Send only PDF parts; send images to POST /v1/employee-expense/{id}/image.
 
             - **Code 100** — Unhandled server error.
           content:
@@ -1386,7 +1360,7 @@ paths:
       description: |-
         Removes one or more receipt attachments from an employee expense and deletes the files from storage.
 
-        Pass each attachment to remove as an imageUrl query parameter (repeat it for several). Use the URLs exactly as returned in ImageUrls / FileUrls of the expense — the SAS query string may stay on, it is stripped before matching. URLs are processed one at a time: each is deleted from blob storage and the attachment list is saved before the next, so a failure part-way keeps the earlier deletions. Despite the name, this route also deletes PDFs.
+        Pass each attachment to remove as an imageUrl query parameter (repeat it for several). Despite the name, this route also deletes PDFs.
 
         **Use it to:**
         - Expense app letting the employee remove a wrong receipt photo before submitting
@@ -1400,9 +1374,7 @@ paths:
         - Repeating a successful call fails with 37684 (the URL is no longer on the expense).
         - Safe to retry only under a condition. After a lost response, GET the expense: a URL that is gone was deleted.
         - Duplicates: A URL repeated in one call fails on its second occurrence (37684) after the first was deleted.
-        - Side effect: Deletes the blob (DeleteIfExists) and rewrites the expense's attachment list without it, per URL; refreshes the cached expense.
         - On failure: URLs before the failing one stay deleted (each is saved separately).
-        - On failure: The blob is deleted before the list is saved: if the DB update fails the list still points at a deleted file (src_only).
         - Changes are visible to the next read immediately.
         - Batch: partial
 
@@ -1430,7 +1402,7 @@ paths:
             type: string
             format: uri
         description: |-
-          An attachment URL of this expense (from ImageUrls or FileUrls), URL-encoded. Repeat the parameter for several. Matched on scheme + host + path; the query string (SAS) is ignored.
+          An attachment URL of this expense (from ImageUrls or FileUrls), URL-encoded. Repeat the parameter for several. Matched on scheme + host + path; the query string is ignored.
 
           Default: none — the call then does nothing and returns 200
       responses:
@@ -1459,10 +1431,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ResponseError'
         '500':
-          description: |-
-            - **Code 37684** — A fileUrl / imageUrl (compared without its query string) is not in the expense's attachment list. — When: An imageUrl is not an attachment of this expense — or any storage / DB failure during its deletion. — Fix: Send a URL taken from the expense's ImageUrls / FileUrls (GET /v1/employee-expense/{id}); the SAS query string may stay on.
-
-            - **Code 100** — Unhandled server error.
+          description: '- **Code 100** — Unhandled server error.'
           content:
             application/json:
               schema:
@@ -1474,11 +1443,10 @@ paths:
       description: |-
         Uploads one or more receipt images (JPEG, PNG, GIF, BMP, TIFF …) to an existing employee expense.
 
-        The receipt write path for images. Send multipart/form-data with one part per image; every part is treated as a file (no form fields). Each part must decode as an image, else the whole call fails and nothing is stored. The files go to TimeLog's Azure blob storage under a random name and are appended to the expense's attachment list; the response is JSON null — GET the expense to obtain the (15-minute) download URLs in ImageUrls. PDFs go to the file endpoint. The expense must already exist: create it first, then attach.
+        The receipt write path for images. Send multipart/form-data with one part per image; every part is treated as a file (no form fields). Each part must decode as an image, else the whole call fails and nothing is stored. PDFs go to the file endpoint. The expense must already exist: create it first, then attach.
 
         **Use it to:**
         - Receipt-capture / OCR app uploading the photographed receipt right after creating the expense
-        - ERP or card-provider integration (e.g. a Business Central expense add-on) pushing the receipt image of a card transaction it booked on behalf of the employee
 
         **Not for:**
         - PDF receipts — `POST /v1/employee-expense/{employeeExpenseID}/file`
@@ -1486,11 +1454,9 @@ paths:
 
         **Behaviour:**
         - Not idempotent.
-        - Not safe to retry blindly. Each call appends new blobs under new random names; a retried upload stores the receipt twice. After a lost response, GET the expense and compare ImageUrls before retrying.
+        - Not safe to retry blindly. After a lost response, GET the expense and compare ImageUrls before retrying.
         - Duplicates: Not deduplicated: the same image uploaded twice becomes two attachments.
-        - Side effect: Uploads each image to the tenant blob container (tlp-&lt;CustomerProductId>) as EmployeeExpense-&lt;random GUID>.&lt;format>; no Content-Type is set on image blobs.
-        - Side effect: Rewrites the expense's attachment list (ImageAsJson) with the new private URLs; refreshes the cached expense.
-        - On failure: All parts are decoded before any upload, so an invalid part stores nothing. A storage or DB failure after some uploads leaves orphan blobs that are not in the attachment list (src_only).
+        - On failure: All parts are decoded before any upload, so an invalid part stores nothing.
         - Changes are visible to the next read immediately.
         - Batch: For validation: one bad part rejects the call. Not transactional for storage failures (see side_effects_on_failure).
 
@@ -1564,7 +1530,7 @@ paths:
       description: |-
         Lists expense types of every legal entity (or one), each with its legal entity, optionally filtered by active / inactive.
 
-        The tenant-wide expense-type catalogue for integrations that serve several legal entities: every type with its LegalEntityId / LegalEntityName (-1 / "AllLegalEntities" = shared). legalEntityId narrows to one legal entity plus the shared types, but only when the CurrencyMatrix feature is on — otherwise it is ignored. Ordered by name, paged; TotalRecord over-counts.
+        The account-wide expense-type catalogue for integrations that serve several legal entities: every type with its LegalEntityId / LegalEntityName (-1 / "AllLegalEntities" = shared). legalEntityId narrows to one legal entity plus the shared types, but only when the CurrencyMatrix feature is on — otherwise it is ignored. Ordered by name, paged; TotalRecord over-counts.
 
         **Use it to:**
         - ERP / receipt-capture integration building a per-legal-entity mapping of cost categories to ExpenseTypeID
@@ -1737,7 +1703,7 @@ paths:
             operators:
             - eq
         description: |-
-          ActiveStatus. Also bound from the member name (enum type converter; not tested live).
+          ActiveStatus. Also bound from the member name.
 
           Filters on `ExpenseTypeRead.IsActive` (eq).
 
@@ -2034,7 +2000,7 @@ paths:
         - Employee self-service export of a month's mileage
 
         **Not for:**
-        - Another employee's or a team's mileage (payroll, approval) — no REST v1 operation in this service; see the Reporting / Transactional APIs (not curated yet)
+        - Another employee's or a team's mileage (payroll, approval) — no REST v1 operation in this service; see the Reporting / Transactional APIs
 
         **Behaviour:**
         - Idempotent.
@@ -2097,13 +2063,11 @@ paths:
           x-enum-descriptions:
           - Fill Project (with its customer) on every entity. The only value the list procedure supports.
         description: |-
-          Only `project`. car / mileageRate are accepted by GET-by-ID only; on the list they add a procedure parameter that does not exist (error not tested).
-
           Allowed values:
 
           | Value | Name | Meaning |
           |---|---|---|
-          | `project` | project | Fill Project (with its customer) on every entity. The only value the list procedure supports. |
+          | `project` | project | Fill Project (with its customer) on every entity. |
       responses:
         '200':
           description: |-
@@ -2182,7 +2146,7 @@ paths:
         - Not idempotent.
         - Not safe to retry blindly. Every call creates a new registration (new GUID); nothing deduplicates. After a lost response, list your registrations (or the owner's, via GET by ID) before retrying.
         - Duplicates: Not deduplicated (except one mileage registration per TimeRegistrationID, 37825).
-        - Side effect: Creates the registration (source interface WebApi) with expense number (auto-number), travel product number and system text "&lt;Mileage> (&lt;owner name>) &lt;start> » &lt;end> &lt;TotalDistance> km.".
+        - Side effect: Creates the registration with expense number (auto-number), travel product number and system text "&lt;Mileage> (&lt;owner name>) &lt;start> » &lt;end> &lt;TotalDistance> km.".
         - Side effect: Creates mileage financial data and invoicing potential, recalculates the contract's estimated values, creates the employee reimbursement posting.
         - Side effect: With TravelTimeRegistration: creates a TravelTime time registration (owner, Date, Purpose as comment, billable hours = Hours when the task is billable) and links it.
         - On failure: With TravelTimeRegistration: the time registration is created first and deleted again if the mileage save throws (compensation, not one transaction).
@@ -2273,8 +2237,6 @@ paths:
 
             - **Code 37825** — TimeRegistrationID is set and another mileage registration is already linked to that time registration. — Fix: Link to a different time registration, or omit TimeRegistrationID.
 
-            - **Code 37827** — Date falls in a closed accounting period of the owner's employee projection. — Fix: Use a date in an open period, or ask finance to reopen the period.
-
             - **Code 37845** — MileageRateID has no rate period covering Date. — Fix: Choose a mileage rate that is valid on the date.
 
             - **Code 37932** — CarID is a personal car assigned to an employee other than the registration's owner. Shared cars (no employee) are accepted. — Fix: Use the owner's car or a shared car.
@@ -2321,7 +2283,6 @@ paths:
         - Same body → same stored values (last write wins, no concurrency token). With TravelTimeRegistration on a mileage that has none, the FIRST call creates a time registration and later calls update it.
         - Safe to retry.
         - Duplicates: n/a
-        - Side effect: Overwrites the registration; regenerates product number and system text; updates financial data, invoicing potential and the employee reimbursement posting; recalculates the old contract's estimates if the contract changed; refreshes the cache.
         - Side effect: With TravelTimeRegistration: updates (or creates and links) the travel-time registration — task, hours, date, Purpose as comment.
         - Side effect: With ?deleteTravelTimeRegistration=true: unlinks the travel-time registration, saves the mileage, then deletes the time registration.
         - On failure: Travel-time changes are compensated, not transactional: the previous time registration is re-saved (or the new one deleted) when the mileage save throws; if time-registration delete fails after unlinking, the mileage is re-saved with the link.
@@ -2393,7 +2354,7 @@ paths:
           description: |-
             - **Code 100** — Unhandled server error.
 
-            - **Code 37828** — The caller is not the registration's employee and holds NONE of RegistrationAllRegistrations, RegistrationEmployeesInMyOwnLegalEntity, RegistrationEmployeesInMyOwnDepartmentAndSubDepartments. Holding any one of them is enough for ANY employee - the department / legal-entity scope is not checked. — Fix: Update as the owner, or with a user holding a registration privilege.
+            - **Code 37828** — The caller is not the registration's employee and holds NONE of RegistrationAllRegistrations, RegistrationEmployeesInMyOwnLegalEntity, RegistrationEmployeesInMyOwnDepartmentAndSubDepartments.
 
             - **Code 37955** — The registration is approved (IsApproved = true).
 
@@ -2402,8 +2363,6 @@ paths:
             - **Code 60103** — Distance <= 0. On create the body validator rejects this first (400); the update validator has no effective Distance rule.
 
             - **Code 37945** — TravelTimeRegistration.TaskID is not a task of the mileage's ProjectID. — Fix: Pick a travel-time task of the same project (`GET /v1/task/travel-time-task-for-time-tracking`).
-
-            - **Code 37827** — Date falls in a closed accounting period of the owner's employee projection. — Fix: Use a date in an open period, or ask finance to reopen the period.
 
             - **Code 37846** — The resolved contract (explicit or default) is closed. — When: The registration's (unchanged) contract is closed. — Fix: Book on an open contract.
 
@@ -2440,7 +2399,6 @@ paths:
         - Not idempotent.
         - A second delete of the same ID fails with 500 Code 100 (row gone).
         - Safe to retry only under a condition. Safe in effect — a retry after success fails with Code 100 but changes nothing.
-        - Side effect: Deletes the registration, its financial data, invoicing potential and employee reimbursement postings; recalculates the contract's estimated values; clears the cache.
         - Side effect: Path (b): deletes the linked travel-time registration in the same transaction.
         - Changes are visible to the next read immediately.
         - Path (a) runs in one transaction scope; path (b) inside the time-registration delete transaction.
@@ -2503,8 +2461,6 @@ paths:
 
             - **Code 37834** — The registration's employee reimbursement posting has already been transferred to the salary system. Raised on its own, BEFORE the other delete violations are returned.
 
-            - **Code 37827** — Date falls in a closed accounting period of the owner's employee projection. — When: Not approved / invoiced, but the date is in a closed accounting period. — Fix: Use a date in an open period, or ask finance to reopen the period.
-
             - **Code 37846** — The resolved contract (explicit or default) is closed. — When: Not approved / invoiced, but the contract is closed. — Fix: Book on an open contract.
           content:
             application/json:
@@ -2549,7 +2505,6 @@ paths:
         - Idempotent.
         - Safe to retry.
         - Changes are visible to the next read immediately.
-        - Read straight from the procedure (no cache).
 
         **Call first:** `GET /v1/mileage-registration`, `POST /v1/mileage-registration`
 
@@ -2650,16 +2605,12 @@ paths:
       operationId: listPaymentMethodsByStatus
       summary: List payment methods by status
       description: |-
-        Lists the payment methods the caller may use on expenses — the shared ones plus the caller's own personal credit cards — filtered by active / inactive, ordered by name.
-
-        The value set for PaymentMethodID on employee and project expenses. A payment method says who paid (IsPaidByEmployee = reimburse the employee; otherwise a company card, supplier invoice, …) and which method is preselected per expense kind. Personal credit cards assigned to OTHER users are excluded; there is no legal-entity filter. Paged ($pagesize 10 by default); TotalRecord uses the same filter as the page.
+        The value set for PaymentMethodID on employee and project expenses. A payment method says who paid and which method is preselected per expense kind. Paged ($pagesize 10 by default); TotalRecord uses the same filter as the page.
 
         **Use it to:**
         - Payment-method picker in a receipt-capture client (preselect IsDefaultForEmployeeExpense)
-        - Card-feed integration: map a corporate card to its PaymentMethodID before creating expenses
 
         **Not for:**
-        - Other users' personal credit cards (not returned)
 
         **Behaviour:**
         - Idempotent.
@@ -2688,7 +2639,7 @@ paths:
             operators:
             - eq
         description: |-
-          ActiveStatus. Also bound from the member name (enum type converter; not tested live).
+          ActiveStatus. Also bound from the member name.
 
           Filters on `PaymentMethodRead.IsActive` (eq).
 
@@ -2776,7 +2727,7 @@ paths:
       operationId: listProducts
       summary: List product numbers
       description: |-
-        Lists ALL product numbers of the tenant (the invoice-line / finance product codes with their VAT setting), newest first — despite the route name, not the product catalogue.
+        Lists ALL product numbers of the account (the invoice-line / finance product codes with their VAT setting), newest first — despite the route name, not the product catalogue.
 
         Returns the rows of Settings → Product numbers: a code (ProductNumber), a name, whether VAT applies and at which percentage, the legal entity, and the active flag. Product numbers carry NO price. Every legal entity's numbers and inactive ones are included; there is no filter or status parameter. The sellable products with cost and sales price are returned by GET /v1/project-product (`GET /v1/project-product`), whose ProductNumberID references this list.
 
@@ -3010,15 +2961,13 @@ paths:
         - R2: ProjectSubContractID must be an open contract of ProjectID.
         - R3: IsBillable must be true when the contract is fixed-price.
         - R4: Without ProjectExpenseExchangeRate, the currency matrix must hold an intercompany rate for PurchaseDate (purchase currency → caller's and project's legal-entity currency).
-        - R5: PurchaseDate must not be in a closed accounting period of the CALLER's employee projection.
 
         **Behaviour:**
         - Not idempotent.
         - Not safe to retry blindly. Each call creates a new expense with a new GUID; ExternalID is not deduplicated. After a lost response, list the project's expenses and match ExternalID before retrying.
         - Side effect: Recalculates the project's estimation figures for the expense (TSP_EstimationRecalculate_Expense).
-        - Side effect: Writes registration currency data for the expense, raises the ProjectExpenseCreated event and invalidates the project and expense caches.
         - Side effect: When the payment method is the employee's own money, the cost is also recorded as a reimbursement to the caller.
-        - On failure: No transaction wraps the insert and the follow-up writes; a failure after the insert (currency data, read-back) returns 500 while the expense row stays (src_only).
+        - On failure: No transaction wraps the insert and the follow-up writes; a failure after the insert (currency data, read-back) returns 500 while the expense row stays.
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v1/contract`, `GET /v1/expense-type/all/list`, `GET /v1/currency/{status}`, `POST /v1/project-expense/validate-project-expense`
@@ -3080,7 +3029,7 @@ paths:
 
             - **Code 37014** — The projectID in the path (update, update-status) or ProjectID in the payment body does not exist (0 and negative included). Not a 404. — When: ProjectID does not exist (adapter, first business rule). — Fix: Use a ProjectID from `GET /v1/project/get-all`.
 
-            - **Code 30020** — ExpenseCurrencyISO is not a currency abbreviation known to the tenant. Raised by the adapter before any other business rule. — Fix: Send a CurrencyABB from GET /v1/currency.
+            - **Code 30020** — ExpenseCurrencyISO is not a currency abbreviation known to the account. Raised by the adapter before any other business rule. — Fix: Send a CurrencyABB from GET /v1/currency.
 
             - **Code 37019** — ExpenseTypeID does not exist. — Fix: Use an expense type ID of the owner's legal entity.
 
@@ -3095,8 +3044,6 @@ paths:
             - **Code 37018** — PaymentMethodID does not exist. — Fix: Use an existing payment method ID.
 
             - **Code 37042** — ProjectSubContractID (> 0) is not a contract of ProjectID (or does not exist). — Fix: Send a contract of the same project, or 0 / omit it to use the project's default contract.
-
-            - **Code 37699** — Date falls in a closed accounting period of the owner's employee projection. — When: PurchaseDate in a closed accounting period of the CALLER. — Fix: Use a date in an open period.
 
             - **Code 37806** — The resolved contract is closed. — Fix: Book on an open contract.
           content:
@@ -3120,7 +3067,7 @@ paths:
       description: |-
         Dry-runs the business rules of project-expense creation on a body, without saving anything.
 
-        Takes the same body as POST /v1/project-expense and checks input validation, project existence, currency code, and the expense business rules (expense type, active project, contract on project and not closed, fixed-price → billable, supplier, payment method, closed accounting period of the caller). Answers 200 with a literal null when they pass. It does NOT check the caller's licence, does not look up a missing exchange rate and does not exercise the database insert — create can still fail on those.
+        Takes the same body as POST /v1/project-expense and checks input validation, project existence, currency code, and the expense business rules (expense type, active project, contract on project and not closed, fixed-price → billable, supplier, payment method, closed accounting period of the caller). Answers 200 with a literal null when they pass.
 
         **Use it to:**
         - BPP / AP automation pre-checking each supplier-invoice line before posting, to route failures to a human queue
@@ -3177,7 +3124,7 @@ paths:
 
             - **Code 37014** — The projectID in the path (update, update-status) or ProjectID in the payment body does not exist (0 and negative included). Not a 404. — When: ProjectID does not exist. — Fix: Use a ProjectID from `GET /v1/project/get-all`.
 
-            - **Code 30020** — ExpenseCurrencyISO is not a currency abbreviation known to the tenant. Raised by the adapter before any other business rule. — Fix: Send a CurrencyABB from GET /v1/currency.
+            - **Code 30020** — ExpenseCurrencyISO is not a currency abbreviation known to the account. Raised by the adapter before any other business rule. — Fix: Send a CurrencyABB from GET /v1/currency.
 
             - **Code 37019** — ExpenseTypeID does not exist. — Fix: Use an expense type ID of the owner's legal entity.
 
@@ -3192,8 +3139,6 @@ paths:
             - **Code 37018** — PaymentMethodID does not exist. — Fix: Use an existing payment method ID.
 
             - **Code 37042** — ProjectSubContractID (> 0) is not a contract of ProjectID (or does not exist). — Fix: Send a contract of the same project, or 0 / omit it to use the project's default contract.
-
-            - **Code 37699** — Date falls in a closed accounting period of the owner's employee projection. — When: PurchaseDate in a closed accounting period of the CALLER. — Fix: Use a date in an open period.
 
             - **Code 37806** — The resolved contract is closed. — Fix: Book on an open contract.
           content:
@@ -3221,7 +3166,6 @@ paths:
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Side effect: Each call mints new 15-minute SAS read URLs for the attached PDFs (no state change).
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v1/project-expense`, `POST /v1/project-expense`
@@ -3240,7 +3184,7 @@ paths:
       responses:
         '200':
           description: |-
-            The object, wrapped in the TAF envelope (`Properties`). The expense with a self link and the project-expense TAF actions (create, validate, attach / delete file and image). FileUrls holds 15-minute SAS URLs of the attached PDFs.
+            The object, wrapped in the TAF envelope (`Properties`). The expense with a self link and the project-expense TAF actions (create, validate, attach / delete file and image).
 
             Order: none
 
@@ -3298,7 +3242,7 @@ paths:
       description: |-
         Removes one or more attachments from a project expense and deletes the files from storage.
 
-        Pass each attachment to remove as a fileUrl query parameter (repeat it for several), exactly as returned in FileUrls of GET /v1/project-expense/&#123;id&#125; — the SAS query string may stay on, it is stripped before matching. Every URL must be absolute and must belong to the expense, otherwise the call returns 400 and NOTHING is deleted. After that check the URLs are deleted one at a time (blob first, then the saved list), so a storage or DB failure part-way keeps the earlier deletions. Duplicate URLs in one call are collapsed. Despite the name, this route also deletes images (same code as deleteimage).
+        Every URL must be absolute and must belong to the expense, otherwise the call returns 400 and NOTHING is deleted. Duplicate URLs in one call are collapsed. Despite the name, this route also deletes images (same code as deleteimage).
 
         **Use it to:**
         - Accounts-payable integration replacing a wrong supplier-invoice PDF: delete the old URL, then attach the new file
@@ -3308,11 +3252,8 @@ paths:
         - Repeating a successful call answers 400 (the URL no longer belongs to the expense); nothing changes.
         - Safe to retry only under a condition. After a lost response, GET the expense: a URL that is gone was deleted. A retry of an already-applied call is harmless (400, nothing deleted).
         - Duplicates: Duplicate URLs in one call are normalised and collapsed before deleting.
-        - Side effect: Deletes the blob (DeleteIfExists) and rewrites the expense's attachment list without it, per URL; refreshes the cached expense.
         - On failure: A foreign or malformed URL: nothing is deleted (batch pre-check).
-        - On failure: A storage / DB failure after the pre-check: URLs before the failing one stay deleted (each is saved separately).
         - Changes are visible to the next read immediately.
-        - Batch: All-or-nothing for validation (ownership of every URL), partial for storage / DB failures.
 
         **Call first:** `GET /v1/project-expense/{expenseID}`
 
@@ -3339,7 +3280,7 @@ paths:
             type: string
             format: uri
         description: An attachment URL of this expense (from FileUrls), absolute and URL-encoded. Repeat the parameter for
-          several. Matched on scheme + host + path; the query string (SAS) is ignored; duplicates are collapsed.
+          several. Matched on scheme + host + path; the query string is ignored; duplicates are collapsed.
       responses:
         '200':
           description: |-
@@ -3375,10 +3316,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ResponseError'
         '500':
-          description: |-
-            - **Code 37684** — A fileUrl / imageUrl (compared without its query string) is not in the expense's attachment list. — When: Only on a storage / DB / cache failure while deleting a URL that passed the batch check. — Fix: Send a URL taken from the expense's ImageUrls / FileUrls (GET /v1/employee-expense/{id}); the SAS query string may stay on.
-
-            - **Code 100** — Unhandled server error.
+          description: '- **Code 100** — Unhandled server error.'
           content:
             application/json:
               schema:
@@ -3390,7 +3328,7 @@ paths:
       description: |-
         Uploads one or more PDF files (e.g. the supplier invoice) to an existing project expense.
 
-        The supplier-invoice write path of accounts-payable integrations. Send multipart/form-data with one part per PDF; every part is treated as a file (no form fields). Each part must carry a PDF signature, else the whole call fails and nothing is stored. The files go to TimeLog's Azure blob storage under a random name with Content-Type application/pdf and are appended to the expense's attachment list; the response is JSON null — GET the expense to obtain the (15-minute) download URLs in FileUrls. The expense must already exist: create it first, then attach.
+        The supplier-invoice write path of accounts-payable integrations. Send multipart/form-data with one part per PDF; every part is treated as a file (no form fields). Each part must carry a PDF signature, else the whole call fails and nothing is stored. The expense must already exist: create it first, then attach.
 
         **Use it to:**
         - BPP / accounts-payable integration attaching the supplier-invoice PDF to the project cost line it booked
@@ -3401,12 +3339,9 @@ paths:
 
         **Behaviour:**
         - Not idempotent.
-        - Not safe to retry blindly. Each call appends new blobs under new random names; a retried upload stores the file twice. After a lost response, GET the expense and compare FileUrls before retrying.
+        - Not safe to retry blindly. After a lost response, GET the expense and compare FileUrls before retrying.
         - Duplicates: Not deduplicated: the same PDF uploaded twice becomes two attachments.
-        - Side effect: Uploads each PDF to the tenant blob container (tlp-&lt;CustomerProductId>) as ProjectExpense-&lt;random GUID>.pdf with Content-Type application/pdf.
-        - Side effect: Rewrites the expense's attachment list with the new private URLs; refreshes the cached expense.
-        - On failure: All parts are checked before any upload, so an invalid part stores nothing now — but earlier valid parts stay queued on the (possibly cached) expense object and are uploaded by the next attach.
-        - On failure: A storage or DB failure after some uploads leaves orphan blobs that are not in the attachment list (src_only).
+        - On failure: All parts are checked before any upload, so an invalid part stores nothing now — but earlier valid parts stay queued on the expense object and are uploaded by the next attach.
         - Changes are visible to the next read immediately.
         - Batch: For validation of the current call only. Not transactional for storage failures.
 
@@ -3465,7 +3400,7 @@ paths:
                 $ref: '#/components/schemas/ResponseError'
         '500':
           description: |-
-            - **Code 37938** — A multipart part does not have a PDF signature (DropzoneUtility.IsPDFFile). Every part is treated as a file. — When: Any part lacks a PDF signature — including a text form field. — Fix: Send only PDF parts; send images to POST /v1/employee-expense/{id}/image.
+            - **Code 37938** — A multipart part does not have a PDF signature. Every part is treated as a file. — When: Any part lacks a PDF signature — including a text form field. — Fix: Send only PDF parts; send images to POST /v1/employee-expense/{id}/image.
 
             - **Code 100** — Unhandled server error.
           content:
@@ -3490,11 +3425,8 @@ paths:
         - Repeating a successful call answers 400; nothing changes.
         - Safe to retry only under a condition. A retry of an already-applied call is harmless (400, nothing deleted).
         - Duplicates: Duplicate URLs in one call are collapsed.
-        - Side effect: Deletes the blob (DeleteIfExists) and rewrites the expense's attachment list without it, per URL; refreshes the cached expense.
         - On failure: A foreign or malformed URL: nothing is deleted.
-        - On failure: A storage / DB failure after the check: earlier URLs stay deleted.
         - Changes are visible to the next read immediately.
-        - Batch: All-or-nothing for validation, partial for storage / DB failures.
 
         **Call first:** `GET /v1/project-expense/{expenseID}`
 
@@ -3518,7 +3450,7 @@ paths:
             type: string
             format: uri
         description: An attachment URL of this expense (image or PDF), absolute and URL-encoded. Repeat the parameter for
-          several. Matched on scheme + host + path; the SAS query string is ignored; duplicates are collapsed.
+          several.
       responses:
         '200':
           description: |-
@@ -3553,10 +3485,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ResponseError'
         '500':
-          description: |-
-            - **Code 37684** — A fileUrl / imageUrl (compared without its query string) is not in the expense's attachment list. — When: Only on a storage / DB / cache failure after the batch check. — Fix: Send a URL taken from the expense's ImageUrls / FileUrls (GET /v1/employee-expense/{id}); the SAS query string may stay on.
-
-            - **Code 100** — Unhandled server error.
+          description: '- **Code 100** — Unhandled server error.'
           content:
             application/json:
               schema:
@@ -3568,7 +3497,7 @@ paths:
       description: |-
         Uploads one or more images (JPEG, PNG, GIF, BMP, TIFF …) to an existing project expense, e.g. a scanned supplier invoice.
 
-        Send multipart/form-data with one part per image; every part is treated as a file (no form fields). Each part must decode as an image, else the whole call fails and nothing is stored. The files go to TimeLog's Azure blob storage under a random name and are appended to the expense's attachment list; the response is JSON null. WARNING: unlike employee expenses, a project expense never lists its images — GET returns PDFs only in FileUrls — so an image attached here cannot be seen or deleted through the API afterwards. For supplier invoices, prefer the PDF endpoint. The expense must already exist: create it first, then attach.
+        Send multipart/form-data with one part per image; every part is treated as a file (no form fields). Each part must decode as an image, else the whole call fails and nothing is stored. WARNING: unlike employee expenses, a project expense never lists its images — GET returns PDFs only in FileUrls — so an image attached here cannot be seen or deleted through the API afterwards. For supplier invoices, prefer the PDF endpoint. The expense must already exist: create it first, then attach.
 
         **Use it to:**
         - Accounts-payable / BPP integration attaching a scanned supplier invoice to the cost line it booked
@@ -3580,12 +3509,8 @@ paths:
 
         **Behaviour:**
         - Not idempotent.
-        - Not safe to retry blindly. Each call appends new blobs under new random names; a retry stores the image twice. The API cannot show whether a lost call succeeded.
+        - Not safe to retry blindly. The API cannot show whether a lost call succeeded.
         - Duplicates: Not deduplicated: the same image uploaded twice becomes two attachments.
-        - Side effect: Uploads each image to the tenant blob container (tlp-&lt;CustomerProductId>) as ProjectExpense-&lt;random GUID>.&lt;format>; no Content-Type is set on image blobs.
-        - Side effect: Rewrites the expense's attachment list (stored as JSON on the expense row) with the new private URLs; refreshes the cached expense.
-        - On failure: All parts are decoded before any upload, so an invalid part stores nothing NOW — but the parts decoded before it stay queued on the expense object, which may be the process-wide cached instance; the next attach on the same expense uploads them too.
-        - On failure: A storage or DB failure after some uploads leaves orphan blobs that are not in the attachment list (src_only).
         - Changes are visible to the next read immediately.
         - Batch: For validation of the current call only. Not transactional for storage failures.
 
@@ -3656,9 +3581,9 @@ paths:
       operationId: listProjectProducts
       summary: List products (catalogue)
       description: |-
-        Lists ALL products of the tenant's product catalogue (Settings → Products) with cost and sales price, newest first — despite the route name, not the products of a project.
+        Lists ALL products of the account's product catalogue (Settings → Products) with cost and sales price, newest first — despite the route name, not the products of a project.
 
-        A product is a sellable item or service with a unit (pieces, hours, km, …), a COST in the product's own currency (CurrencyID), a SALES PRICE in the tenant's system (base) currency, and the defaults used when it is added to a project or posted as an expense (product number, expense type, payment method, supplier). Every legal entity's products and inactive ones are returned; there is no project, legal-entity or status parameter. Prices are per unit; no VAT field is returned (VAT comes from the product number — `GET /v1/product`). The products actually added to a project (quantities, project prices, recurring sales) are NOT exposed by this operation.
+        A product is a sellable item or service with a unit (pieces, hours, km, …), a COST in the product's own currency (CurrencyID), a SALES PRICE in the account's system (base) currency, and the defaults used when it is added to a project or posted as an expense (product number, expense type, payment method, supplier). Every legal entity's products and inactive ones are returned; there is no project, legal-entity or status parameter. Prices are per unit; no VAT field is returned (VAT comes from the product number — `GET /v1/product`). The products actually added to a project (quantities, project prices, recurring sales) are NOT exposed by this operation.
 
         **Use it to:**
         - Syncing the product catalogue to an ERP / CPQ system (one-way read)
@@ -3698,7 +3623,7 @@ paths:
 
             Order: ProductID descending
 
-            Empty result: 200 with no Entities (captured on a tenant without products)
+            Empty result: 200 with no Entities (captured on a account without products)
           content:
             application/json:
               schema:
@@ -3812,7 +3737,7 @@ components:
 
             | Value | Name | Meaning |
             |---|---|---|
-            | `0` | Internal | The tenant's own company address (the CRM customer set as the application's own company, FirmaID) — the 'work' address of GET /address/home-work and the project-based search. |
+            | `0` | Internal | The account's own company address (the CRM customer set as the application's own company, FirmaID) — the 'work' address of GET /address/home-work and the project-based search. |
             | `1` | Project | The address of the project's customer (GET /address/search?projectId=). |
             | `2` | Home | The CALLER's home address from their user profile (GET /address/home-work and the project-based search). Returned even when empty. |
             | `3` | Customer | A CRM customer whose name or address matches the phrase (GET /address/search?addressPhrase=). |
@@ -3876,7 +3801,7 @@ components:
           readOnly: true
           description: Country name.
       description: 'One address suggestion for an address field (typically a mileage StartAddress / EndAddress). From the
-        Address operations it is an address TimeLog already holds: the caller''s home address (Home), the tenant''s own company
+        Address operations it is an address TimeLog already holds: the caller''s home address (Home), the account''s own company
         address (Internal), the project''s customer (Project) or a matching CRM customer (Customer). FullDetailAddress is
         always the one-line text to store. No coordinates and no place ID are returned — geocode the chosen text if you need
         them.'
@@ -3960,8 +3885,6 @@ components:
             Null: null = company car (no owner).
 
             Contains personal data.
-
-            > **Not yet documented:** identity → references → lookup op.
         EmployeeUser:
           $ref: '#/components/schemas/UserRead'
           readOnly: true
@@ -4027,11 +3950,9 @@ components:
             id_format: string
           maxLength: 10
           description: |-
-            Currency code, e.g. "EUR", "DKK". ISO 4217 for system currencies; a tenant-created currency can carry any unique code.
+            Currency code, e.g. "EUR", "DKK". ISO 4217 for system currencies; a account-created currency can carry any unique code.
 
             Alternate key, unique per TimeLog site.
-
-            Not accepted as input by any curated operation; map to CurrencyID on your side.
         DescriptiveName:
           type: string
           readOnly: true
@@ -4042,15 +3963,9 @@ components:
           format: double
           readOnly: true
           description: |-
-            Today's exchange rate between this currency and the caller's legal-entity currency, quoted per 100 (100 = same value as the legal-entity currency), rounded to the tenant's invoice decimals. Computed per request from the exchange-rate service (cached per legal entity, day and currency pair); for a tenant-created currency it is derived from the stored rates of both currencies.
+            Today's exchange rate between this currency and the caller's legal-entity currency, quoted per 100 (100 = same value as the legal-entity currency), rounded to the account's invoice decimals. Computed per request from the exchange-rate service; for a account-created currency it is derived from the stored rates of both currencies.
 
             Unit: rate per 100 units (100 = parity with the caller's legal-entity currency)
-
-            - Rate for (legal entity, today, currency, LE currency) already cached — Cached value is returned.
-
-            - Not cached, system currency — Exchange-rate service factor × 100; stored in the long-expiration cache.
-
-            - Not cached, currency created by the tenant — stored rate(currency) × 100 / stored rate(LE currency).
 
             - That stored rate is not computed against the legal-entity currency.
 
@@ -4063,12 +3978,12 @@ components:
           type: boolean
           readOnly: true
           description: |-
-            Whether the currency is active in the tenant. Filter with the {status} path segment.
+            Whether the currency is active in the account. Filter with the {status} path segment.
 
             Filterable via `status` (eq).
 
             Obsolete currencies are not excluded and the flag is not returned.
-      description: A currency of the tenant, with today's exchange rate towards the caller's legal-entity currency. The value
+      description: A currency of the account, with today's exchange rate towards the caller's legal-entity currency. The value
         set for CurrencyID on customer create/update.
     CustomerRead:
       type: object
@@ -4119,7 +4034,7 @@ components:
             id_format: string
           maxLength: 255
           description: |-
-            Customer number. Unique only when the tenant feature UniqueCustomerNumber is on, and then only by an application check (no database constraint). When the customer-number series (auto number) is active and create sends no number, the next number in the series is assigned.
+            Customer number. Unique only when the account feature UniqueCustomerNumber is on, and then only by an application check. When the customer-number series (auto number) is active and create sends no number, the next number in the series is assigned.
 
             Alternate key, unique per TimeLog site.
 
@@ -4137,11 +4052,11 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            The customer's status. Statuses are tenant-defined; their group (customer, supplier, lead, multi-customer project) is CustomerStatusRead.CustomerStatusType. There is no status filter: list and get return suppliers and partners too.
+            The customer's status. Statuses are account-defined; their group (customer, supplier, lead, multi-customer project) is CustomerStatusRead.CustomerStatusType. There is no status filter: list and get return suppliers and partners too.
 
             Refers to `CustomerStatusRead.CustomerStatusID`. Look up valid values with `GET /v1/customerstatus`.
 
-            The "Multi customer project" pseudo-customer carries a status (AssociationFlags 16) that GET /v1/customerstatus does not list, so its CustomerStatusID cannot be resolved through the API. A NULL status in the database is returned as 0.
+            The "Multi customer project" pseudo-customer carries a status (AssociationFlags 16) that GET /v1/customerstatus does not list, so its CustomerStatusID cannot be resolved through the API.
 
             Valid values come from `GET /v1/customerstatus`.
         VATNo:
@@ -4154,9 +4069,7 @@ components:
           readOnly: true
           maxLength: 255
           description: Company registration number.
-      description: 'A customer as the REST v1 API returns it: the identifiers, name, number, status and tax numbers only.
-        Every row of the customer table is a "customer" here, whatever its status: suppliers, partners, the tenant''s own
-        company and the system "Multi customer project" row are included (see CustomerStatusID).'
+      description: 'A customer as the REST v1 API returns it: the identifiers, name, number, status and tax numbers only.'
     EmployeeExpenseCreate:
       type: object
       properties:
@@ -4258,7 +4171,7 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            How the employee paid (e.g. own card, company card).
+            How the employee paid.
 
             Refers to `PaymentMethodRead.PaymentMethodID`. Look up valid values with `GET /v1/payment-method/{status}`.
         ProjectID:
@@ -4344,7 +4257,7 @@ components:
           format: double
           readOnly: true
           description: |-
-            Sum INCLUDING VAT. by-date / range: in the SYSTEM (base) currency — CurrencyID / CurrencyABB name it. all-time-total: in the EMPLOYEE'S LEGAL-ENTITY currency (cost + VAT columns), named by CurrencyABB only.
+            Sum INCLUDING VAT. by-date / range: in the SYSTEM (base) currency — CurrencyID / CurrencyABB name it. all-time-total: in the EMPLOYEE'S LEGAL-ENTITY currency, named by CurrencyABB only.
 
             Unit: by-date/range: system currency, VAT incl.; all-time-total: employee legal-entity currency, VAT incl.
 
@@ -4409,8 +4322,6 @@ components:
             Integer identifier of the expense. Use it in every other /employee-expense route.
 
             Identifier of this object, unique per TimeLog site.
-
-            IDENTITY column: sequential, so IDs of other employees' expenses are guessable.
         Date:
           type: string
           format: date-time
@@ -4449,8 +4360,6 @@ components:
             The expense number assigned by TimeLog, e.g. "U26.0128".
 
             The API create sends an empty number; the captured values (U<yy>.<nnnn>) show a number is assigned during the save.
-
-            > **Not yet documented:** identity.
         Comment:
           type:
           - string
@@ -4514,7 +4423,7 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            How the expense was paid (e.g. own money, company card).
+            How the expense was paid.
 
             Refers to `PaymentMethodRead.PaymentMethodID`. Look up valid values with `GET /v1/payment-method/{status}`.
         ProjectID:
@@ -4547,11 +4456,9 @@ components:
           items: {}
           readOnly: true
           description: |-
-            Download URLs of the PDF attachments ONLY (images are in ImageUrls). Each URL is the receipt's Azure blob URL plus a read-only SAS token valid from 15 minutes before to 15 minutes after the response was built. Anyone holding the URL can download the file without a TimeLog token until it expires; re-read the expense for a fresh URL. Empty list when the expense has no PDF.
+            Download URLs of the PDF attachments ONLY (images are in ImageUrls). Anyone holding the URL can download the file without a TimeLog token until it expires; re-read the expense for a fresh URL. Empty list when the expense has no PDF.
 
             Contains financial data.
-
-            - always — Filtered to URLs whose path ends in .pdf; the blob name is EmployeeExpense-<random GUID>.pdf in the tenant container tlp-<CustomerProductId>.
 
             > **Not yet documented:** description.
         IsFileUrlLoaded:
@@ -4564,7 +4471,7 @@ components:
           items: {}
           readOnly: true
           description: |-
-            Download URLs (same SAS rules as FileUrls) of the IMAGE attachments — every attachment whose path does not end in .pdf.
+            Download URLs of the IMAGE attachments — every attachment whose path does not end in .pdf.
 
             Contains financial data.
         IsImageUrlLoaded:
@@ -4982,7 +4889,7 @@ components:
           - 'null'
           readOnly: true
           maxLength: 50
-          description: Payroll export code for the reimbursement — the 'code for non-taxable share' when the tenant splits
+          description: Payroll export code for the reimbursement — the 'code for non-taxable share' when the account splits
             taxable / non-taxable shares, otherwise the single salary-system code. Empty or null when not set.
         SalaryCodeTaxable:
           type:
@@ -4991,7 +4898,7 @@ components:
           readOnly: true
           maxLength: 50
           description: |-
-            Payroll export code for the TAXABLE share of the reimbursement (only used when the tenant splits shares). Null when not set.
+            Payroll export code for the TAXABLE share of the reimbursement (only used when the account splits shares). Null when not set.
 
             > **Not yet documented:** description.
         AccountNumber:
@@ -5038,7 +4945,7 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            Currency the employee is reimbursed in: with MultiLegalEntityWithMultiCurrency the rate's legal-entity currency, otherwise the tenant base currency (set when the rate is saved).
+            Currency the employee is reimbursed in: with MultiLegalEntityWithMultiCurrency the rate's legal-entity currency, otherwise the account base currency (set when the rate is saved).
 
             Refers to `CurrencyRead.CurrencyID`. Look up valid values with `GET /v1/currency/{status}`.
         LegalEntityID:
@@ -5207,7 +5114,7 @@ components:
           description: |-
             Whether the mileage is billable to the customer.
 
-            - tenant features Billable AND BillableExpense are on — applied
+            - account features Billable AND BillableExpense are on — applied
 
             - either feature is off — Replaced by the resolved contract's IsMileageBillable.
 
@@ -5238,8 +5145,6 @@ components:
             Integer identifier. Use it in GET / DELETE /v1/mileage-registration/{id} and as MileageRegistrationID of PUT.
 
             Identifier of this object, unique per TimeLog site.
-
-            IDENTITY column: sequential, so other employees' IDs are guessable.
         ID:
           type: string
           format: uuid
@@ -5370,7 +5275,7 @@ components:
 
             Refers to `ContractRead.ProjectSubContractID`.
 
-            Added to the read model on 2026-08-06 (bf586e2644); captures from 2026-05-27 do not show it. After an update that changes ProjectID it can belong to the OLD project.
+            After an update that changes ProjectID it can belong to the OLD project.
 
             > **Not yet documented:** values → lookup op.
         UserID:
@@ -5411,7 +5316,7 @@ components:
 
             Refers to `MileageRateRead.MileageRateID`. Look up valid values with `GET /v1/mileage-rate`.
 
-            The rate defines the amount per unit (per period) and the reimbursement currency — the legal entity's currency when MultiLegalEntityWithMultiCurrency is on, else the tenant base currency.
+            The rate defines the amount per unit (per period) and the reimbursement currency — the legal entity's currency when MultiLegalEntityWithMultiCurrency is on, else the account base currency.
         IsBillable:
           type: boolean
           description: Whether the mileage is invoiced to the customer.
@@ -5566,10 +5471,6 @@ components:
           - Unknown source
           readOnly: true
           description: |-
-            Channel that created the registration (SourceInterface). 50 = WebApi (this API); UI-created mileage shows 58.
-
-            The column is nullable but read without a null check; a legacy row with NULL would fail the read (not observed).
-
             Allowed values:
 
             | Value | Name | Meaning |
@@ -5599,7 +5500,7 @@ components:
             | `23` | MoveTaskToOtherProject | Move task to other project modal |
             | `24` | ProjectEditSetting | Project edit setting page |
             | `25` | HolidayCalendar | Holiday calendar changes |
-            | `26` | IntegrationSetupPages | Special source interface that should avoid additional events being fired |
+            | `26` | IntegrationSetupPages | — |
             | `27` | EventEngine | Event Engine executes these |
             | `28` | EmployeeNew | New Employee page |
             | `29` | EmployeeEdit | Edit Employee page (source note: old value: 27) |
@@ -5612,12 +5513,12 @@ components:
             | `36` | OutlookIntegration | For outlook integration |
             | `37` | EditCustomer | EditCustomer (no source comment; meaning from the name only) |
             | `38` | EditContact | EditContact (no source comment; meaning from the name only) |
-            | `39` | ProjectPlanAdjustTimePlan | For the adjust time plan from project plan. ALSO: TimeRegistrationSync = 39 is commented out in the source (The time registration synchronize Obsolete, using the time registration source interface instead of this generic one); rows written before that may still carry 39 with that meaning. |
+            | `39` | ProjectPlanAdjustTimePlan | For the adjust time plan from project plan. |
             | `40` | UpdateProjectDates | For update project dates modal from task plan (when it deviates) |
             | `41` | AdjustAllocationWithStandardHourlyRate | AdjustAllocationWithStandardHourlyRate (no source comment; meaning from the name only) |
             | `42` | CopyTimeRegistrations | Copy time registrations from last week functionality - do not change this ID or let me know IMO |
             | `43` | TimeTrackingBar | TimeTrackingBar (no source comment; meaning from the name only) |
-            | `44` | ApprovalEventHandler | ApprovalEventHandler (no source comment; meaning from the name only) |
+            | `44` | ApprovalEventHandler | — |
             | `45` | UpdateHardBookingToTimeRegistration | UpdateHardBookingToTimeRegistration (no source comment; meaning from the name only) |
             | `46` | CalendarEvent | CalendarEvent (no source comment; meaning from the name only) |
             | `47` | LinkCustomerModal | LinkCustomerModal (no source comment; meaning from the name only) |
@@ -5783,7 +5684,7 @@ components:
           - Unknown source
           readOnly: true
           description: |-
-            Channel that last modified the registration (SourceInterface).
+            Channel that last modified the registration.
 
             Allowed values:
 
@@ -5814,7 +5715,7 @@ components:
             | `23` | MoveTaskToOtherProject | Move task to other project modal |
             | `24` | ProjectEditSetting | Project edit setting page |
             | `25` | HolidayCalendar | Holiday calendar changes |
-            | `26` | IntegrationSetupPages | Special source interface that should avoid additional events being fired |
+            | `26` | IntegrationSetupPages | — |
             | `27` | EventEngine | Event Engine executes these |
             | `28` | EmployeeNew | New Employee page |
             | `29` | EmployeeEdit | Edit Employee page (source note: old value: 27) |
@@ -5827,12 +5728,12 @@ components:
             | `36` | OutlookIntegration | For outlook integration |
             | `37` | EditCustomer | EditCustomer (no source comment; meaning from the name only) |
             | `38` | EditContact | EditContact (no source comment; meaning from the name only) |
-            | `39` | ProjectPlanAdjustTimePlan | For the adjust time plan from project plan. ALSO: TimeRegistrationSync = 39 is commented out in the source (The time registration synchronize Obsolete, using the time registration source interface instead of this generic one); rows written before that may still carry 39 with that meaning. |
+            | `39` | ProjectPlanAdjustTimePlan | For the adjust time plan from project plan. |
             | `40` | UpdateProjectDates | For update project dates modal from task plan (when it deviates) |
             | `41` | AdjustAllocationWithStandardHourlyRate | AdjustAllocationWithStandardHourlyRate (no source comment; meaning from the name only) |
             | `42` | CopyTimeRegistrations | Copy time registrations from last week functionality - do not change this ID or let me know IMO |
             | `43` | TimeTrackingBar | TimeTrackingBar (no source comment; meaning from the name only) |
-            | `44` | ApprovalEventHandler | ApprovalEventHandler (no source comment; meaning from the name only) |
+            | `44` | ApprovalEventHandler | — |
             | `45` | UpdateHardBookingToTimeRegistration | UpdateHardBookingToTimeRegistration (no source comment; meaning from the name only) |
             | `46` | CalendarEvent | CalendarEvent (no source comment; meaning from the name only) |
             | `47` | LinkCustomerModal | LinkCustomerModal (no source comment; meaning from the name only) |
@@ -5862,8 +5763,7 @@ components:
         Car:
           $ref: '#/components/schemas/CarRead'
           readOnly: true
-          description: The car. Filled only with $expand=car on GET /{id}; null otherwise (the list procedure cannot expand
-            it).
+          description: The car. Filled only with $expand=car on GET /{id}; null otherwise.
         MileageRate:
           $ref: '#/components/schemas/MileageRateRead'
           readOnly: true
@@ -6043,8 +5943,7 @@ components:
         IsPaidByEmployee:
           type: boolean
           readOnly: true
-          description: '"Reimburse employee": the employee paid out of pocket and is reimbursed. false = paid by the company
-            (company card, supplier invoice, …).'
+          description: '"Reimburse employee": the employee paid out of pocket and is reimbursed. false = paid by the company.'
         IsDefaultForEmployeeExpense:
           type: boolean
           readOnly: true
@@ -6070,7 +5969,7 @@ components:
         IsPersonalCreditCard:
           type: boolean
           readOnly: true
-          description: '"Personal credit card": the method is a company card assigned to one user (CreditCardEmployeeUserID).'
+          description: ''
         CreditCardEmployeeUserID:
           type:
           - integer
@@ -6079,13 +5978,9 @@ components:
           readOnly: true
           x-timelog-identity:
             role: reference
-          description: |-
-            User the personal credit card belongs to; null for shared methods. The list only returns cards of the caller.
-
-            Refers to `UserRead.UserID`. Look up valid values with `GET /v1/user`.
+          description: Refers to `UserRead.UserID`. Look up valid values with `GET /v1/user`.
       description: 'A payment method: how an expense was paid. It decides whether the employee is reimbursed (IsPaidByEmployee)
-        and which method is preselected for employee expenses, project expenses and expense import. A method can be a PERSONAL
-        credit card assigned to one user; those are only listed to that user.'
+        and which method is preselected for employee expenses, project expenses and expense import.'
     ProductNumberRead:
       type: object
       properties:
@@ -6108,10 +6003,7 @@ components:
           type: string
           readOnly: true
           maxLength: 50
-          description: |-
-            The product number code as used in the finance system (free text, up to 50 characters).
-
-            > **Not yet documented:** identity.
+          description: The product number code as used in the finance system (free text, up to 50 characters).
         ProductName:
           type: string
           readOnly: true
@@ -6153,8 +6045,6 @@ components:
             GUID of the product number. Not used by other REST v1 operations.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         LegalEntityID:
           type: integer
           format: int32
@@ -6205,8 +6095,6 @@ components:
 
             - fixed-price contract and IsBillable false — 31140.
 
-            Unlike employee expenses, a project expense is NOT checked for an inactive (non-closed) or prepaid-services contract, and the project's default-for-expenses contract is never used: the adapter marks the expense as a data import, which sends ExpenseProjectIsValid down the explicit-contract branch.
-
             Valid values come from `GET /v1/contract`.
         PurchaseDate:
           type: string
@@ -6216,11 +6104,7 @@ components:
 
             Date only — no time component.
 
-            - omitted or outside SQL datetime range — 400 "Purchase date is not valid date."
-
             - a time component is sent — NOT truncated: stored in a SMALLDATETIME (minute precision). Send a date without time — the per-day expense totals match on the exact value.
-
-            Must not fall in a closed accounting period of the CALLER's employee projection (37699) — the caller, because the caller is the expense's employee.
         PaymentMethodID:
           type: integer
           format: int32
@@ -6262,7 +6146,7 @@ components:
 
             Unit: currency ExpenseCurrencyISO (purchase currency), VAT included
 
-            - more decimals than the tenant's invoice setting — 400 "Number of decimals are wrong on AmountIncludingVatExpenseCurrency…"
+            - more decimals than the account's invoice setting — 400 "Number of decimals are wrong on AmountIncludingVatExpenseCurrency…"
 
             - 0 — A zero-cost line: the sales price is taken from SalesPriceAmountProjectCurrency as is (pure re-invoicing).
 
@@ -6282,7 +6166,7 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            ISO code of the purchase currency (e.g. "DKK", "EUR") — a currency abbreviation known to the tenant.
+            ISO code of the purchase currency (e.g. "DKK", "EUR") — a currency abbreviation known to the account.
 
             Refers to `CurrencyRead.CurrencyABB`. Look up valid values with `GET /v1/currency/{status}`.
 
@@ -6309,7 +6193,7 @@ components:
 
             - omitted and SalesPriceAmountProjectCurrency sent — The profit ratio is computed with a rate of 0 → stored as 0.
 
-            The project-side conversion (cost and sales price in project currency, project legal-entity cost) does NOT use this value: it uses the tenant's live / matrix rates for the date.
+            The project-side conversion (cost and sales price in project currency, project legal-entity cost) does NOT use this value: it uses the account's live / matrix rates for the date.
         IsBillable:
           type: boolean
           default: false
@@ -6344,7 +6228,7 @@ components:
           description: |-
             Mark-up in percent on the net cost: sales price = cost × (1 + ProfitRatio / 100). Alternative to SalesPriceAmountProjectCurrency.
 
-            Null: Null → 0 % (the adapter always sends a ratio, so the tenant's default ExpenseProfitPercent is NOT applied to API-created project expenses).
+            Null: Null → 0 % (the adapter always sends a ratio, so the account's default ExpenseProfitPercent is NOT applied to API-created project expenses).
 
             Unit: percent
 
@@ -6354,10 +6238,7 @@ components:
           - string
           - 'null'
           maxLength: 255
-          description: |-
-            Free-text description of the cost; also used in the invoice line text.
-
-            - longer than 255 characters — Silently cut to 255 by the procedure parameter.
+          description: Free-text description of the cost; also used in the invoice line text.
         ExpenseNo:
           type:
           - string
@@ -6369,8 +6250,6 @@ components:
             - ExpenseNo feature off, or the series auto-generates — Adapter drops the value.
 
             - ExpenseNumberSeries on — Next number from the series.
-
-            - series off and AllowEmptyExpenseNo off — The procedure stores NULL.
 
             > **Not yet documented:** behaviour.
         SupplierID:
@@ -6461,8 +6340,6 @@ components:
 
             - fixed-price contract and IsBillable false — 31140.
 
-            Unlike employee expenses, a project expense is NOT checked for an inactive (non-closed) or prepaid-services contract, and the project's default-for-expenses contract is never used: the adapter marks the expense as a data import, which sends ExpenseProjectIsValid down the explicit-contract branch.
-
             Valid values come from `GET /v1/contract`.
         PurchaseDate:
           type: string
@@ -6472,11 +6349,7 @@ components:
 
             Date only — no time component.
 
-            - omitted or outside SQL datetime range — 400 "Purchase date is not valid date."
-
             - a time component is sent — NOT truncated: stored in a SMALLDATETIME (minute precision). Send a date without time — the per-day expense totals match on the exact value.
-
-            Must not fall in a closed accounting period of the CALLER's employee projection (37699) — the caller, because the caller is the expense's employee.
         PaymentMethodID:
           type: integer
           format: int32
@@ -6518,7 +6391,7 @@ components:
 
             Unit: currency ExpenseCurrencyISO (purchase currency), VAT included
 
-            - more decimals than the tenant's invoice setting — 400 "Number of decimals are wrong on AmountIncludingVatExpenseCurrency…"
+            - more decimals than the account's invoice setting — 400 "Number of decimals are wrong on AmountIncludingVatExpenseCurrency…"
 
             - 0 — A zero-cost line: the sales price is taken from SalesPriceAmountProjectCurrency as is (pure re-invoicing).
 
@@ -6538,7 +6411,7 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            ISO code of the purchase currency (e.g. "DKK", "EUR") — a currency abbreviation known to the tenant.
+            ISO code of the purchase currency (e.g. "DKK", "EUR") — a currency abbreviation known to the account.
 
             Refers to `CurrencyRead.CurrencyABB`. Look up valid values with `GET /v1/currency/{status}`.
 
@@ -6565,7 +6438,7 @@ components:
 
             - omitted and SalesPriceAmountProjectCurrency sent — The profit ratio is computed with a rate of 0 → stored as 0.
 
-            The project-side conversion (cost and sales price in project currency, project legal-entity cost) does NOT use this value: it uses the tenant's live / matrix rates for the date.
+            The project-side conversion (cost and sales price in project currency, project legal-entity cost) does NOT use this value: it uses the account's live / matrix rates for the date.
         IsBillable:
           type: boolean
           default: false
@@ -6606,7 +6479,7 @@ components:
 
             **Conditional.** Must be null when SalesPriceAmountProjectCurrency is sent.
 
-            Null: Null → 0 % (the adapter always sends a ratio, so the tenant's default ExpenseProfitPercent is NOT applied to API-created project expenses).
+            Null: Null → 0 % (the adapter always sends a ratio, so the account's default ExpenseProfitPercent is NOT applied to API-created project expenses).
 
             Unit: percent
 
@@ -6616,10 +6489,7 @@ components:
           - string
           - 'null'
           maxLength: 255
-          description: |-
-            Free-text description of the cost; also used in the invoice line text.
-
-            - longer than 255 characters — Silently cut to 255 by the procedure parameter.
+          description: Free-text description of the cost; also used in the invoice line text.
         ExpenseNo:
           type:
           - string
@@ -6635,8 +6505,6 @@ components:
             - ExpenseNo feature off, or the series auto-generates — Adapter drops the value.
 
             - ExpenseNumberSeries on — Next number from the series.
-
-            - series off and AllowEmptyExpenseNo off — The procedure stores NULL.
 
             > **Not yet documented:** behaviour.
         SupplierID:
@@ -6741,8 +6609,6 @@ components:
             Refers to `UserRead.UserID`.
 
             Contains personal data.
-
-            > **Not yet documented:** identity → references.
         PurchaseDate:
           type: string
           format: date-time
@@ -6932,9 +6798,7 @@ components:
         IsApproved:
           type: boolean
           readOnly: true
-          description: UNRELIABLE — true for ANY non-zero stored approval status, including the column default 25 that every
-            new expense gets. A just-created, unapproved project expense therefore reads true. Do not use it to select approved
-            costs.
+          description: A just-created, unapproved project expense therefore reads true. Do not use it to select approved costs.
         ApprovedBy:
           type: integer
           format: int32
@@ -6945,8 +6809,6 @@ components:
             Identifier of the approver; 0 when none.
 
             Refers to `UserRead.UserID`.
-
-            > **Not yet documented:** identity → references.
         InvoiceLineID:
           type: integer
           format: int32
@@ -6987,7 +6849,7 @@ components:
             | `2` | Minutes | Minutes. |
             | `3` | Days | Days. |
             | `4` | Km | Kilometres. |
-            | `6` | Pieces | Pieces (5 = Miles is commented out in source). |
+            | `6` | Pieces | Pieces. |
             | `7` | Liters | Litres. |
             | `8` | Meters | Metres. |
             | `9` | Kilograms | Kilograms. |
@@ -7008,8 +6870,6 @@ components:
             The expense's GUID — generated by the API on create. No API operation looks an expense up by it.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         ExternalID:
           type: string
           readOnly: true
@@ -7053,7 +6913,7 @@ components:
           items: {}
           readOnly: true
           description: |-
-            GET by ID only: download URLs of the attached PDFs, each with a read-only SAS token valid ~15 minutes after the call. Attached IMAGES are not listed anywhere in this model. Always empty on the list and on create.
+            Attached IMAGES are not listed anywhere in this model. Always empty on the list and on create.
 
             Contains financial data.
         IsFileUrlLoaded:
@@ -7084,8 +6944,6 @@ components:
             Integer identifier of the project. Use it as ProjectID on the two POST operations of this controller.
 
             Identifier of this object, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         ID:
           type: string
           format: uuid
@@ -7099,33 +6957,29 @@ components:
             The project's GUID.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         Name:
           type: string
           readOnly: true
           description: |-
-            Project name. Null in the database is returned as "".
+            Project name.
 
             Filterable via `searchText` (contains).
         'No':
           type: string
           readOnly: true
           description: |-
-            Project number. Null in the database is returned as "".
+            Project number.
 
             Filterable via `searchText` (contains).
-
-            > **Not yet documented:** identity → role.
         ExpenseIsBillable:
           type:
           - boolean
           - 'null'
           readOnly: true
-          description: |-
-            The billable default for an expense or mileage registration on this project. Meaning depends on the operation: on the time-tracking searches and the allocation-scoped expense/travel search it is the IsBillable of the first ACTIVE contract (status 2) in this order — the default-for-expenses contract, else the project's main contract, else the active contract with the lowest ID; null when the project has no active contract. On the expense/travel search with searchAll=true it is the project's own ExpenseIsBillable column instead.
-
-            Null: No active contract on the project (contract-derived variants), or NULL column (searchAll expense/travel variant).
+          description: 'The billable default for an expense or mileage registration on this project. Meaning depends on the
+            operation: on the time-tracking searches and the allocation-scoped expense/travel search it is the IsBillable
+            of the first ACTIVE contract (status 2) in this order — the default-for-expenses contract, else the project''s
+            main contract, else the active contract with the lowest ID; null when the project has no active contract.'
         CustomerID:
           type: integer
           format: int32
@@ -7161,13 +7015,10 @@ components:
             A contract (ProjectSubContractID) of the project. Meaning depends on the operation: on the time-tracking "order-by-recent-registration" searches (with or without searchAll) and on the expense/travel searches without searchAll, it is the contract an expense would default to — the ACTIVE default-for-expenses contract, else the main contract if active, else the active contract with the lowest ID (0 when there is none). On search-for-time-tracking, search-for-time-tracking-by-customer-id and the expense/travel searches with searchAll=true it is the project's stored main contract, whatever its status.
 
             Refers to `ContractRead.ProjectSubContractID`.
-
-            > **Not yet documented:** identity → references.
       description: 'A short project representation for pickers: the project''s IDs, name and number, its customer, and the
-        contract and billable default an expense or mileage registration on the project would get. It is not the full project
-        (rest.v1 project GET, not curated yet). The TAF self link points to GET /v1/project/{ProjectID}; every entity also
-        carries two TAF actions, create-employee-expense and create-mileage-registration, that describe the two POST operations
-        of this controller.'
+        contract and billable default an expense or mileage registration on the project would get. It is not the full project.
+        The TAF self link points to GET /v1/project/{ProjectID}; every entity also carries two TAF actions, create-employee-expense
+        and create-mileage-registration, that describe the two POST operations of this controller.'
     ProjectProductRead:
       type: object
       properties:
@@ -7197,8 +7048,6 @@ components:
             GUID of the product. Not used by other REST v1 operations.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         ProductName:
           type: string
           readOnly: true
@@ -7266,7 +7115,7 @@ components:
           format: double
           readOnly: true
           description: |-
-            Sales price PER UNIT in the tenant's SYSTEM (base) currency — not in CurrencyID. Used as the default price when the product is sold on a project.
+            Sales price PER UNIT in the account's SYSTEM (base) currency — not in CurrencyID. Used as the default price when the product is sold on a project.
 
             Unit: currency: system base currency, per UnitTypeID
 
@@ -7342,10 +7191,10 @@ components:
             Refers to `CurrencyRead.CurrencyID`. Look up valid values with `GET /v1/currency/{status}`.
 
             > **Not yet documented:** description.
-      description: 'A product of the tenant catalogue: name, unit, per-unit COST in the product''s own currency (CurrencyID)
-        and per-unit SALES PRICE in the tenant''s system (base) currency, plus the defaults applied when it is sold on a project
-        or booked as an expense (product number, expense type, payment method, supplier). No VAT field — VAT belongs to the
-        product number (ProductNumberRead.UseVAT / VATPercentage).'
+      description: 'A product of the account catalogue: name, unit, per-unit COST in the product''s own currency (CurrencyID)
+        and per-unit SALES PRICE in the account''s system (base) currency, plus the defaults applied when it is sold on a
+        project or booked as an expense (product number, expense type, payment method, supplier). No VAT field — VAT belongs
+        to the product number (ProductNumberRead.UseVAT / VATPercentage).'
     ResponseError:
       type: object
       description: Error body for validation (400), privilege (403), business-rule (422/500) and other server errors. `Details`
@@ -7424,10 +7273,7 @@ components:
           type: integer
           format: int32
           readOnly: true
-          description: |-
-            Stored minutes column of the time registration.
-
-            Unit: minutes
+          description: 'Unit: minutes'
         Comment:
           type:
           - string
@@ -7515,7 +7361,7 @@ components:
           readOnly: true
           maxLength: 50
           description: |-
-            First name. Empty for the technical users.
+            First name.
 
             Contains personal data.
 
@@ -7568,7 +7414,7 @@ components:
 
             | Value | Name | Meaning |
             |---|---|---|
-            | `Employee` | Employee | A person working in the tenant (the normal case). Integer 0 in the database. |
+            | `Employee` | Employee | A person working in the account (the normal case). |
             | `ApiUser` | ApiUser | Technical account created by TimeLog (e.g. SYSTEM, ECNuser); not a person. Integer 1. |
             | `ExternalRessource` | ExternalRessource | Obsolete external-resource type (integer 2). Saving such a user converts it to Employee, so it only appears on rows not saved since. |
             | `AnonymizedEmployee` | AnonymizedEmployee | Placeholder account that anonymized (GDPR) employee data is moved to. Integer 3. |
@@ -7590,11 +7436,10 @@ components:
           readOnly: true
           maxLength: 255
           description: |-
-            E-mail address. Empty for the technical users.
+            E-mail address.
 
             Contains personal data.
       description: 'A TimeLog user as REST v1 returns it: identifiers, name, initials, e-mail, active flag, user type and
         legal entity. In TimeLog a user and an employee are the same person seen from two sides: the user is the login, the
-        employee record carries the HR data. Every row of the user table is returned, including the inactive technical users
-        "SYSTEM" and "ECNuser" (UserType ApiUser) and anonymized former employees.'
+        employee record carries the HR data.'
 x-timelog-service: Expenses

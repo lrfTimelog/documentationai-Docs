@@ -17,10 +17,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -357,15 +355,13 @@ components:
           - object
           - 'null'
           readOnly: true
-          description: The task, only with $expand=task and EntityType Task; otherwise null. No V2 task schema is curated
-            yet.
+          description: The task, only with $expand=task and EntityType Task; otherwise null.
         AbsenceCode:
           type:
           - object
           - 'null'
           readOnly: true
-          description: The absence code, only with $expand=absenceCode and EntityType AbsenceCode; otherwise null. No V2 absence-code
-            schema is curated yet.
+          description: The absence code, only with $expand=absenceCode and EntityType AbsenceCode; otherwise null.
         TimeRegistrationId:
           type:
           - integer
@@ -384,7 +380,7 @@ components:
           - 'null'
           readOnly: true
           description: V2 only. The linked registration, filled only with $expand=timeRegistration AND a non-null TimeRegistrationId;
-            otherwise null. No V2 registration schema is curated yet.
+            otherwise null.
         Comment:
           type: string
           readOnly: true
@@ -444,10 +440,7 @@ components:
         Factor:
           type: number
           readOnly: true
-          description: |-
-            Overtime factor carried to the registration; 100.0 when the column is NULL.
-
-            Unit: percent
+          description: 'Unit: percent'
       description: The caller's running time tracker (stopwatch) in the REST v2 shape. Same data as TimeTrackerRead, with
         v2 property casing, string enums and an optional nested TimeRegistration (the registration the tracker is linked to,
         filled with $expand=timeRegistration).

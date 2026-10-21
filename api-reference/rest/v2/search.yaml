@@ -17,10 +17,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -64,7 +62,7 @@ paths:
             operators:
             - starts_with
         description: |-
-          Text the name / number must START with (SQL LIKE 'text%'). '[' is escaped; '%' and '_' are NOT, so they act as wildcards ('%' matches everything). Matching uses the database collation (case-insensitive in practice). Omitted → 404 'No action was found' (captured), not 400.
+          Text the name / number must START with. '[' is escaped; '%' and '_' are NOT, so they act as wildcards ('%' matches everything). Omitted → 404 'No action was found' (captured), not 400.
 
           Filters on `SearchItemRead.Name` (starts_with).
       - name: categories
@@ -254,7 +252,6 @@ paths:
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Side effect: Writes the caller's user setting MainSearchCategory (UpdateUserSetting) and notifies the user-default cache.
         - Side effect: Raises event UserSettingConfigurationUpdated.
         - Changes are visible to the next read immediately.
 
@@ -433,7 +430,7 @@ components:
           type: string
           readOnly: true
           description: |-
-            Display label built by TSP_SuperSearch. Customers: "Name (CustomerNo)" or "CustomerNo Name". Contacts: "First Last (Customer)" or "Last, First (Customer)". Projects: "Project (Customer)" or "ContractNo Project (Customer)". Invoices: "InvoiceNo Header (Customer)". Employees: "First Last (Department or company name)" or "Initials (First Last - company name)". The variant depends on which column matched the search text.
+            Display label built by TSP_SuperSearch. Customers: "Name (CustomerNo)" or "CustomerNo Name". Contacts: "First Last (Customer)" or "Last, First (Customer)". Projects: "Project (Customer)" or "ContractNo Project (Customer)". Invoices: "InvoiceNo Header (Customer)". Employees: "First Last (Department or company name)" or "Initials (First Last - company name)".
 
             Contains personal data.
         ImageUrl:
@@ -442,17 +439,14 @@ components:
           - 'null'
           format: uri
           readOnly: true
-          description: 'Contacts: a Gravatar URL built from the MD5 hash of the contact''s e-mail, or the site''s NoAvatar
-            image. Employees: the user''s profile-picture URL (29 px). Other categories: null.'
+          description: 'Employees: the user''s profile-picture URL (29 px). Other categories: null.'
         PageUrl:
           type: string
           format: uri
           readOnly: true
           description: 'Link to the record in the TimeLog web UI: CRM/Customer/Edit, CRM/Contact/Edit, ProjectManagement/Plan/Task,
             Financial/Invoicing/Edit or Employee/EmployeeOverview/Index, with the Id.'
-      description: 'One search hit: the record''s integer ID, a display label built by the search procedure, an optional avatar
-        URL and a link to the record''s page in the TimeLog web UI. What the Id refers to depends on the category array the
-        item is in.'
+      description: What the Id refers to depends on the category array the item is in.
     SearchResultRead:
       type: object
       properties:

@@ -17,10 +17,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -34,14 +32,14 @@ paths:
       operationId: getAllExternalSystems
       summary: List external systems
       description: |-
-        Lists the external systems registered in the tenant, ordered by name.
+        Lists the external systems registered in the account, ordered by name.
 
-        Returns every external system of the tenant — the ones TimeLog's built-in integrations created (one per integration handler, e.g. "e-conomic &lt;site>_v1", "Microsoft Dynamics 365 Business Central &lt;site>_v1") and any an integrator registered itself. This is the lookup for the ExternalSystemID used by the external-key endpoints of time registrations, projects and tasks, and by integration conflicts.
+        Returns every external system of the account — the ones TimeLog's built-in integrations created (one per integration handler, e.g. "e-conomic &lt;site>_v1", "Microsoft Dynamics 365 Business Central &lt;site>_v1") and any an integrator registered itself. This is the lookup for the ExternalSystemID used by the external-key endpoints of time registrations, projects and tasks, and by integration conflicts.
 
         **Use it to:**
         - At integration start-up: find the ExternalSystemID your integration registered earlier (match on the ID you stored, not on the name — names are not unique).
         - Check whether your system is already registered before calling create, so a restart does not register a duplicate.
-        - Build an admin view of which systems hold keys in this tenant.
+        - Build an admin view of which systems hold keys in this account.
 
         **Not for:**
         - Reading the key mappings themselves → the external-keys endpoints of time registrations, projects and tasks.
@@ -49,7 +47,7 @@ paths:
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Duplicates: Several systems may share a name (four 'Microsoft Outlook Calendar …' rows in the capture).
+        - Duplicates: Several systems may share a name.
         - Changes are visible to the next read immediately.
 
         **Next:** `GET /v1/external-systems/{externalSystemID}`, `POST /v1/external-systems`
@@ -122,7 +120,7 @@ paths:
       description: |-
         Registers a new external system and returns it with its new ID.
 
-        Creates the "other side" an integration links TimeLog objects to. Do this once per integration (per tenant), store the returned ID, and use it as ExternalSystemID when you write external keys on time registrations, projects and tasks. TimeLog does not deduplicate: every call creates a new system, even with a name that already exists.
+        Creates the "other side" an integration links TimeLog objects to. Do this once per integration (per account), store the returned ID, and use it as ExternalSystemID when you write external keys on time registrations, projects and tasks. TimeLog does not deduplicate: every call creates a new system, even with a name that already exists.
 
         **Use it to:**
         - First run of a new integration: register your system, persist Properties.ID in your own configuration.
@@ -279,8 +277,8 @@ paths:
                 $ref: '#/components/schemas/ResponseError'
         '500':
           description: '- **Code 37045** — externalSystemID (query) or ExternalSystemID (body) is not an external system of
-            the tenant. Checked before the project / task exists. — Fix: Use an ExternalSystemID from the external-systems
-            list (not curated yet), or create the external system first.'
+            the account. Checked before the project / task exists. — Fix: Use an ExternalSystemID from the external-systems
+            list, or create the external system first.'
           content:
             application/json:
               schema:
@@ -390,7 +388,7 @@ paths:
                 $ref: '#/components/schemas/ResponseError'
         '500':
           description: |-
-            - **Code 37045** — externalSystemID (query) or ExternalSystemID (body) is not an external system of the tenant. Checked before the project / task exists. — When: externalSystemID does not exist — Fix: Use an ExternalSystemID from the external-systems list (not curated yet), or create the external system first.
+            - **Code 37045** — externalSystemID (query) or ExternalSystemID (body) is not an external system of the account. Checked before the project / task exists. — When: externalSystemID does not exist — Fix: Use an ExternalSystemID from the external-systems list, or create the external system first.
 
             - **Code 100** — Unhandled server error.
           content:
@@ -416,7 +414,7 @@ paths:
       description: |-
         Lists integration conflicts, newest first, optionally only those in one status.
 
-        Returns the conflicts recorded in the tenant — changes from an external system that TimeLog refused on a business rule and parked for a decision — with the resolve options TimeLog offers for each. Filter on conflictStatusType=1 to get the open (Active) ones.
+        Returns the conflicts recorded in the account — changes from an external system that TimeLog refused on a business rule and parked for a decision — with the resolve options TimeLog offers for each. Filter on conflictStatusType=1 to get the open (Active) ones.
 
         **Use it to:**
         - Poll for open conflicts (conflictStatusType=1) and surface them in your integration's monitoring.
@@ -530,8 +528,6 @@ paths:
         - Not idempotent.
         - Not safe to retry blindly. Every call inserts a new conflict; there is no deduplication on ErrorCode / ExternalSystemID / message. List Active conflicts before retrying.
         - Duplicates: None.
-        - Side effect: Clears the IntegrationConflict cache.
-        - Side effect: Raises the TLP event IntegrationConflictCreated (event type 594), with the conflict as JSON.
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v1/external-systems`
@@ -585,7 +581,7 @@ paths:
           description: |-
             - **Code 37985** — ErrorCode is not a code TimeLog can turn into a conflict. At this commit only 37886 is accepted. — When: ErrorCode is not 37886 — Fix: Send ErrorCode 37886 (task in a completed task-driven revenue contract cannot be deleted); other refusals cannot be recorded as conflicts.
 
-            - **Code 37045** — externalSystemID (query) or ExternalSystemID (body) is not an external system of the tenant. Checked before the project / task exists. — When: ExternalSystemID does not exist — Fix: Use an ExternalSystemID from the external-systems list (not curated yet), or create the external system first.
+            - **Code 37045** — externalSystemID (query) or ExternalSystemID (body) is not an external system of the account. Checked before the project / task exists. — When: ExternalSystemID does not exist — Fix: Use an ExternalSystemID from the external-systems list, or create the external system first.
 
             - **Code 100** — Unhandled server error.
           content:
@@ -660,7 +656,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ResponseError'
         '500':
-          description: '- **Code 37048** — integrationConflictID is not a conflict of the tenant (also 0 and negative values).
+          description: '- **Code 37048** — integrationConflictID is not a conflict of the account (also 0 and negative values).
             Not a 404. — Fix: Use a ConflictID from GET /v1/integration-conflicts.'
           content:
             application/json:
@@ -728,12 +724,10 @@ components:
           description: |-
             Marks a system-owned external system. The REST API does not honour it: such a system can still be updated and deleted through these endpoints.
 
-            - column is NULL — Returned as false.
-
-            No TLP code path at this commit sets it to true: the domain constructor sets false, the upsert procedure never writes the column, and the seeded OTT row (ID 5) is NULL. Every row in the captured tenant is false.
+            Every row in the captured account is false.
 
             > **Not yet documented:** description.
-      description: 'An external system registered in the tenant: a named "other side" (ERP, payroll, calendar, CRM …) that
+      description: 'An external system registered in the account: a named "other side" (ERP, payroll, calendar, CRM …) that
         TimeLog objects can be linked to through external keys (ExternalKey.ExternalSystemID) and that integration conflicts
         are raised against. TimeLog''s own built-in integrations create one per integration handler (named after the handler,
         e.g. "e-conomic <site>_v1"); an integrator can register its own with POST /v1/external-systems.'
@@ -873,7 +867,7 @@ components:
           description: |-
             When TimeLog recorded the conflict (the create call), not when the change happened in the external system.
 
-            Time zone: server local time (DateTime.Now on the TimeLog web server), no offset in the value
+            Time zone: server local time, no offset in the value
 
             > **Not yet documented:** constraints → timezone.
         ConflictType:

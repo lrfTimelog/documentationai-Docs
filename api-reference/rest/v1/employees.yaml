@@ -17,10 +17,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -36,7 +34,7 @@ paths:
       description: |-
         Returns, for each requested day, where one employee's timesheet is in the approval flow.
 
-        For every date in `dates` returns one ApprovalTimesheetDayRead: the day's approval status (Empty, Open, PendingApproval, Approved, Rejected, PartiallyApproved), the hours registered, whether rejected time was resubmitted, and — for rejected days — the latest rejection comment and, with $expand=RejectedRegistrations, the rejected registrations. Days need not be consecutive. Status is computed live per day; long lists cost several database calls per day.
+        For every date in `dates` returns one ApprovalTimesheetDayRead: the day's approval status (Empty, Open, PendingApproval, Approved, Rejected, PartiallyApproved), the hours registered, whether rejected time was resubmitted, and — for rejected days — the latest rejection comment and, with $expand=RejectedRegistrations, the rejected registrations. Days need not be consecutive.
 
         **Use it to:**
         - Payroll export: before exporting a day's hours, check that every day of the pay period is Approved.
@@ -185,7 +183,7 @@ paths:
       description: |-
         Returns the approval status of every day of a period of one employee's timesheet, plus an aggregated period status.
 
-        Computes ApprovalTimesheetDayRead for each day from startDate to endDate (inclusive) and wraps them in an ApprovalTimesheetPeriodRead with PeriodStatus and, when the period has rejected days, the latest rejection comment. PeriodStatus is a mechanical aggregate that can mislead — decide on WeekDays, not on PeriodStatus. There is no limit on the period length; every day costs several database calls.
+        Computes ApprovalTimesheetDayRead for each day from startDate to endDate (inclusive) and wraps them in an ApprovalTimesheetPeriodRead with PeriodStatus and, when the period has rejected days, the latest rejection comment. PeriodStatus is a mechanical aggregate that can mislead — decide on WeekDays, not on PeriodStatus.
 
         **Use it to:**
         - Payroll cut-off: confirm every day of a pay period is Approved before exporting hours (check each WeekDays entry).
@@ -788,7 +786,6 @@ paths:
         - Not idempotent.
         - Safe to retry only under a condition. As submit-time-registrations: partly failed calls have already resubmitted the valid registrations.
         - Side effect: Valid registrations: status Closed; approval status 'rejected and resubmitted' on their approval context items.
-        - Side effect: One approval-dialogue entry (SubmitTimeRegistration) spanning the registration dates; projection flags recalculated per date.
         - On failure: Valid registrations are resubmitted even when the call returns 500 Code 102 for others.
         - Changes are visible to the next read immediately.
         - Batch: partial
@@ -870,7 +867,7 @@ paths:
       description: |-
         Closes the listed days of an employee's timesheet and sends each one for approval.
 
-        Like submit-period, but for an explicit set of days that need not be consecutive. The close checks (running time tracker, tenant zero-hours / below-standard-time rule) are evaluated once over all listed days together; if they pass, each day is then closed and announced separately — one dialogue entry and one TimesheetClosed* event per day.
+        Like submit-period, but for an explicit set of days that need not be consecutive. The close checks (running time tracker, account zero-hours / below-standard-time rule) are evaluated once over all listed days together; if they pass, each day is then closed and announced separately — one dialogue entry and one TimesheetClosed* event per day.
 
         **Use it to:**
         - Submit only the working days that the source system has finalised.
@@ -883,7 +880,6 @@ paths:
         - Not idempotent.
         - Safe to retry only under a condition. Re-submitting adds another dialogue entry and event per day; nothing checks that a day is already submitted.
         - Duplicates: Not deduplicated.
-        - Side effect: Per listed day: the employee's project-time and absence registrations get status Closed; the projection day is marked closed; the time tracker is notified.
         - Side effect: Per listed day: an approval-dialogue entry with Comment; approval context items set to Submitted.
         - On failure: Days are closed one at a time after the up-front checks; an unexpected failure on a later day leaves the earlier days submitted.
         - Changes are visible to the next read immediately.
@@ -939,9 +935,9 @@ paths:
 
             - **Code 37992** — The employee has a running time tracker that started on one of the days being submitted. — When: A running time tracker started on one of the dates — Fix: Stop (or delete) the running time tracker, then submit again.
 
-            - **Code 37654** — Tenant setting 'timetracking warning' = do not close with zero hours, and the submitted days hold no hours (project time and absence together). The message says 'this week' whatever days were sent. — When: Tenant forbids closing with zero hours and the listed days have none in total — Fix: Register time on the days first, or submit a range that contains registrations.
+            - **Code 37654** — Account setting 'timetracking warning' = do not close with zero hours, and the submitted days hold no hours (project time and absence together). The message says 'this week' whatever days were sent. — When: Account forbids closing with zero hours and the listed days have none in total — Fix: Register time on the days first, or submit a range that contains registrations.
 
-            - **Code 37655** — Tenant setting 'timetracking warning' = do not close below standard time, and the submitted days hold fewer hours (or minutes, per the site's time format) than the employee's normal working time on those days. — When: Tenant forbids closing below standard time and the listed days are short in total — Fix: Register the missing time (or absence) on the days, then submit again.
+            - **Code 37655** — Account setting 'timetracking warning' = do not close below standard time, and the submitted days hold fewer hours (or minutes, per the site's time format) than the employee's normal working time on those days. — When: Account forbids closing below standard time and the listed days are short in total — Fix: Register the missing time (or absence) on the days, then submit again.
 
             - **Code 100** — Unhandled server error.
           content:
@@ -965,7 +961,7 @@ paths:
       description: |-
         Closes every day from StartDate to EndDate of an employee's timesheet and sends it for approval.
 
-        The API equivalent of the employee pressing "submit" on a week or month. All the employee's project time and absence registrations in the period are closed (no longer editable by the employee), the days are marked closed in the employee's projection, a submit entry with the optional comment is added to the approval dialogue, and a TimesheetClosed event (or its project-manager-approval variant) starts the approval workflow. Refused as a whole when the employee has a time tracker running on one of the days, or when the tenant forbids closing a period with zero hours / below standard time. Can be called for another employee by a user with the rights described below.
+        The API equivalent of the employee pressing "submit" on a week or month. Refused as a whole when the employee has a time tracker running on one of the days, or when the account forbids closing a period with zero hours / below standard time. Can be called for another employee by a user with the rights described below.
 
         **Use it to:**
         - Auto-submit timesheets at the end of the week for employees whose hours come from another system.
@@ -983,7 +979,6 @@ paths:
         - Safe to retry only under a condition. Re-submitting closes nothing new but adds another dialogue entry and raises the event again (no 'already submitted' check on this path).
         - Duplicates: Not deduplicated (see safe_to_retry_detail).
         - Side effect: Every project-time and absence registration of the employee in the period gets status Closed (employee can no longer edit).
-        - Side effect: The employee's projection days in the period are marked closed; the time tracker is notified of the closed period.
         - Side effect: An approval-dialogue entry (CloseTimeTrackingPeriod) with Comment is stored; approval context items are set to Submitted.
         - Changes are visible to the next read immediately.
         - Batch: all_or_nothing
@@ -1038,9 +1033,9 @@ paths:
 
             - **Code 37992** — The employee has a running time tracker that started on one of the days being submitted. — When: A time tracker of the employee started on a day of the period — Fix: Stop (or delete) the running time tracker, then submit again.
 
-            - **Code 37654** — Tenant setting 'timetracking warning' = do not close with zero hours, and the submitted days hold no hours (project time and absence together). The message says 'this week' whatever days were sent. — When: Tenant forbids closing with zero hours and the period has none — Fix: Register time on the days first, or submit a range that contains registrations.
+            - **Code 37654** — Account setting 'timetracking warning' = do not close with zero hours, and the submitted days hold no hours (project time and absence together). The message says 'this week' whatever days were sent. — When: Account forbids closing with zero hours and the period has none — Fix: Register time on the days first, or submit a range that contains registrations.
 
-            - **Code 37655** — Tenant setting 'timetracking warning' = do not close below standard time, and the submitted days hold fewer hours (or minutes, per the site's time format) than the employee's normal working time on those days. — When: Tenant forbids closing below standard time and the period is short — Fix: Register the missing time (or absence) on the days, then submit again.
+            - **Code 37655** — Account setting 'timetracking warning' = do not close below standard time, and the submitted days hold fewer hours (or minutes, per the site's time format) than the employee's normal working time on those days. — When: Account forbids closing below standard time and the period is short — Fix: Register the missing time (or absence) on the days, then submit again.
 
             - **Code 100** — Unhandled server error.
           content:
@@ -1078,7 +1073,6 @@ paths:
         - Duplicates: A registration already submitted is refused with 37971.
         - Side effect: Valid registrations: status Closed; approval status Submitted on their approval context items.
         - Side effect: One approval-dialogue entry (SubmitTimeRegistration) spanning the first to last registration date.
-        - Side effect: Per registration date: projection IsApproved cleared and HasRejectedTime recalculated.
         - On failure: All of the above for the registrations that passed, even though the call returns 500 Code 102 for the others.
         - Changes are visible to the next read immediately.
         - Batch: partial
@@ -1159,7 +1153,7 @@ paths:
       operationId: listEmployeeTypes
       summary: List employee types
       description: |-
-        Lists all employee types of the tenant (HR classifications such as full time / part time), by name.
+        Lists all employee types of the account (HR classifications such as full time / part time), by name.
 
         The value set for EmployeeTypeID on user create. Returns every employee type, active or not, in one response (no paging).
 
@@ -1244,7 +1238,7 @@ paths:
       operationId: listNormalWorkingTimes
       summary: List normal working times
       description: |-
-        Lists the tenant's normal working time definitions (working-hour norms), active and inactive.
+        Lists the account's normal working time definitions (working-hour norms), active and inactive.
 
         The value set for NormalWorkingTimeId on assign-to-employee and NormalWorkingTimeID on user create. Returns the header of each norm (ID, name, one- or two-week pattern, active, default) — not the hours per day, so the norm cannot be inspected or matched by hours through this API. Inactive norms are included; filter on IsActive before assigning.
 
@@ -1287,7 +1281,7 @@ paths:
 
             Order: NormalWorkingTimeID descending (newest first)
 
-            Empty result: 200 with TotalRecord "0" and no Entities (not expected: a tenant always has a default norm)
+            Empty result: 200 with TotalRecord "0" and no Entities (not expected: a account always has a default norm)
           content:
             application/json:
               schema:
@@ -1337,7 +1331,7 @@ paths:
       description: |-
         Puts an employee on a normal working time (working-hour norm) from a given date, past or future.
 
-        Adds an entry to the employee's working-norm history: "from StartsAt, this employee works NormalWorkingTimeId". It is the API equivalent of changing the norm on the employee card in TimeLog. Effective-date semantics (the integrator-critical part): - Only the date of StartsAt counts. The entry runs from that date until the day before the next entry. - The new entry REPLACES every history entry that starts on or after the same date: those entries are marked obsolete (kept in the table, no longer in force). Assigning norm C from 1 March to an employee who had A since January and a scheduled change to B from 1 May leaves A (Jan - 28 Feb) and C (from 1 March) — the May change to B is gone. There is never an overlap; the latest call wins for its date onwards. - Backdating is allowed without limit and without any check against submitted, approved or payroll-exported periods. The employee's daily expected hours (projection) and flex norm postings are regenerated from the effective date (or the employment / calculation start date, if later), so flex balances of past weeks change retroactively. - StartsAt today or earlier: the employee's current norm switches immediately. StartsAt in the future: only the history entry is stored now; the nightly user update switches the current norm on that date. - There is no delete: to undo, assign the previous norm again with the same StartsAt.
+        Adds an entry to the employee's working-norm history: "from StartsAt, this employee works NormalWorkingTimeId". Effective-date semantics (the integrator-critical part): - Only the date of StartsAt counts. The entry runs from that date until the day before the next entry. - The new entry REPLACES every history entry that starts on or after the same date: those entries are marked obsolete (kept in the table, no longer in force). Assigning norm C from 1 March to an employee who had A since January and a scheduled change to B from 1 May leaves A (Jan - 28 Feb) and C (from 1 March) — the May change to B is gone. There is never an overlap; the latest call wins for its date onwards. - Backdating is allowed without limit and without any check against submitted, approved or payroll-exported periods. The employee's daily expected hours and flex norm postings are regenerated from the effective date (or the employment / calculation start date, if later), so flex balances of past weeks change retroactively. - StartsAt today or earlier: the employee's current norm switches immediately. - There is no delete: to undo, assign the previous norm again with the same StartsAt.
 
         **Use it to:**
         - HR system pushes a contract change (e.g. 37 h to 30 h per week) with its effective date.
@@ -1352,11 +1346,8 @@ paths:
         - Same effective state on a repeat, but each call writes a new history row, obsoletes the previous identical one, raises the events and triggers the recalculation again.
         - Safe to retry.
         - Duplicates: A repeat call supersedes the previous identical entry (see idempotent_detail).
-        - Side effect: If StartsAt &lt;= today: the employee's profile norm is switched now; otherwise on StartsAt by the nightly user update.
-        - Side effect: Background (after the response): the employee projection (expected hours per day) and flex norm postings are regenerated from StartsAt (not before the employment / calculation start date); the salary-account posting aggregation is re-run.
-        - Side effect: Resource Planner capacity of the employee is updated (EmployeeCapacitiesUpdated events from the projection regeneration).
+        - Side effect: Resource Planner capacity of the employee is updated.
         - On failure: None expected: both checks run before the first write. If a later history update or the profile update fails, rows already written stay (no transaction around the loop).
-        - Consistency: eventual — the response returns before the projection, flex postings and aggregations are regenerated (background work item); the profile norm itself is immediate when StartsAt &lt;= today
 
         **Call first:** `GET /v1/normal-working-time`, `GET /v1/user`
 
@@ -1813,8 +1804,6 @@ components:
 
             - $expand does not contain RejectedRegistrations (case-insensitive) — Empty array.
 
-            - $page / $pagesize sent — Passed to the rejected-registrations procedure for EVERY day, so the per-day list is paged by the request's paging parameters.
-
             > **Not yet documented:** multiple.
         HasResubmittedRejectedRegistration:
           type: boolean
@@ -2097,11 +2086,9 @@ components:
             uniqueness_enforced: unknown
             id_format: guid
           description: |-
-            GUID of the employee type (database default NEWID()). Not accepted by any REST v1 operation read so far.
+            Not accepted by any REST v1 operation read so far.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         IsActive:
           type: boolean
           readOnly: true
@@ -2116,7 +2103,7 @@ components:
           readOnly: true
           maxLength: 500
           description: Display name, as entered by the administrator (not translated).
-      description: An employee type of the tenant — an HR classification such as "Full time employee", "Part time employee",
+      description: An employee type of the account — an HR classification such as "Full time employee", "Part time employee",
         "Student assistant", maintained by the administrator. It is the value set for EmployeeTypeID on user create.
     MessageError:
       type: object
@@ -2140,7 +2127,7 @@ components:
 
             - 0, omitted or not an existing user — 500 Code 102, ErrorCode 37040 "No user with UserID: {0} exist" (captured for an empty body).
 
-            - inactive user — Expected to be accepted: the existence check tests for null only (the user DAO procedure was not read).
+            - inactive user — Expected to be accepted: the existence check tests for null only.
 
             > **Not yet documented:** behaviour.
         NormalWorkingTimeId:
@@ -2168,11 +2155,9 @@ components:
 
             Date only — no time component.
 
-            - date is today or in the past — The employee's current norm is switched immediately, and the projection / flex postings are regenerated from this date (asynchronously).
+            - Projections from that date are regenerated now.
 
-            - date is in the future — Only the history entry is stored; the nightly user update switches the employee's current norm on that date. Projections from that date are regenerated now.
-
-            - omitted — Binds to 0001-01-01. No validator: the history row insert into a DATETIME column is expected to fail -> 500 Code 100.
+            - omitted — Binds to 0001-01-01.
 
             > **Not yet documented:** behaviour.
       required:
@@ -2203,7 +2188,7 @@ components:
           - 'null'
           readOnly: true
           maxLength: 255
-          description: Display name given by the tenant administrator, e.g. "Normal week 1", "50 hours bi weeks". Free text;
+          description: Display name given by the account administrator, e.g. "Normal week 1", "50 hours bi weeks". Free text;
             the name is not guaranteed to describe the hours.
         ID:
           type:
@@ -2220,8 +2205,6 @@ components:
             GUID of the norm. Not accepted by any operation of this service (assign takes the integer ID).
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         NormalWorkingTimeType:
           type: integer
           enum:
@@ -2248,13 +2231,13 @@ components:
           type: boolean
           readOnly: true
           description: |-
-            Marks the tenant's default norm. On editions limited to one norm only the default may be used (error 37923 on user create).
+            Marks the account's default norm. On editions limited to one norm only the default may be used (error 37923 on user create).
 
             > **Not yet documented:** description.
-      description: 'A normal working time ("norm") definition of the tenant: a named, repeating pattern of expected working
+      description: 'A normal working time ("norm") definition of the account: a named, repeating pattern of expected working
         hours per day, either one week (7 days) or two alternating weeks (14 days). An employee has exactly one norm in force
-        on any date; it drives the employee''s daily expected hours (projection), flex balance, the "less than standard time"
-        submit check and the capacity Resource Planner shows. Assign one to an employee with `POST /v1/normal-working-time/assign-to-employee`.
+        on any date; it drives the employee''s daily expected hours, flex balance, the "less than standard time" submit check
+        and the capacity Resource Planner shows. Assign one to an employee with `POST /v1/normal-working-time/assign-to-employee`.
         The model carries only the header — the hours per day are not returned by any operation of this service.'
     ResponseError:
       type: object
@@ -2427,7 +2410,7 @@ components:
           type: boolean
           readOnly: true
           description: |-
-            Computed in the procedure: true when the billable flag may be shown/changed for this row — i.e. the task is NOT fixed-price (false for fixed-price tasks, where registrations are always billable). Always false on absence rows.
+            Always false on absence rows.
 
             > **Not yet documented:** description.
         AllocatedHour:
@@ -2453,8 +2436,6 @@ components:
             The registration's integer ID — the same ID TimeRegistrationRead exposes and GET /v1/time-tracking-item/{timeRegistrationID} takes. The registration's GUID is read but NOT exposed by this model.
 
             Identifier of this object, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         EntityID:
           type: integer
           format: int32
@@ -2545,8 +2526,7 @@ components:
           type: boolean
           readOnly: true
           description: true when the registration is CLOSED — the employee has submitted (closed) the day in the timesheet;
-            false when open. The stored column is the TimeRegistrationStatus number (0 Open, 1 Closed) converted to a boolean
-            (any non-zero value = true). Note TimeRegistrationRead.Status exposes the same column as an integer.
+            false when open.
         Date:
           type: string
           format: date-time
@@ -2590,9 +2570,7 @@ components:
           type: boolean
           readOnly: true
           description: true when the registration has been added to a voucher OR to an invoice; false when it is still bookable.
-            The stored column is the 3-valued RegistrationInvoicedStatus (0 Bookable, 1 AddedToVoucher, 2 AddedToInvoice)
-            collapsed to a boolean, so voucher vs invoice cannot be told apart here. TimeRegistrationRead.InvoiceStatus exposes
-            the 3 values.
+            TimeRegistrationRead.InvoiceStatus exposes the 3 values.
         TimeRegistrationApprovalStatus:
           type: integer
           format: int32
@@ -2633,7 +2611,7 @@ components:
             | `3` | EmployeeManagerApproved | Approved by the employee manager. |
             | `4` | ProjectManagerRejected | Rejected by a project manager. |
             | `5` | ProjectManagerRejectedAndResolved | Rejected by a project manager, then edited; the timesheet is still open. |
-            | `6` | ProjectManagerApproved | Approved by the project manager. Depending on the tenant's approval setup the employee manager may still have to approve. |
+            | `6` | ProjectManagerApproved | Approved by the project manager. Depending on the account's approval setup the employee manager may still have to approve. |
             | `7` | Submitted | Closed / pending approval: submitted, no approval decision yet. Never stored — derived from Status = closed. |
             | `8` | EmployeeManagerRejectedAndResubmitted | Rejected by the employee manager, corrected and submitted again (stored value 7). |
             | `9` | ProjectManagerRejectedAndResubmitted | Rejected by a project manager, corrected and submitted again (stored value 8). |
@@ -2697,8 +2675,7 @@ components:
           type: boolean
           readOnly: true
           description: Whether the task / absence code is marked as a favourite in the timesheet (toggled with POST /v1/time-tracking-item/save-favourite).
-            For ABSENCE rows it is the owner's own favourite. For PROJECT rows it is true when ANY user has favourited the
-            task.
+            For ABSENCE rows it is the owner's own favourite.
         StartTime:
           type:
           - string
@@ -2826,7 +2803,7 @@ components:
           type: integer
           readOnly: true
           description: |-
-            Number of the week as stored on the tenant's weekly aggregation unit. Details are sorted by it, so a range across New Year lists week 1 before week 52 — sort by StartDate if order matters.
+            Number of the week as stored on the account's weekly aggregation unit. Details are sorted by it, so a range across New Year lists week 1 before week 52 — sort by StartDate if order matters.
 
             > **Not yet documented:** description.
         TimesheetStatus:
@@ -2897,8 +2874,6 @@ components:
 
             Date only — no time component.
 
-            - omitted or outside the SQL date range — 400 "EndDate is not a valid date."
-
             - before StartDate — 400 "EndDate must be after StartDate" (equal dates are allowed).
 
             > **Not yet documented:** constraints → timezone.
@@ -2907,7 +2882,7 @@ components:
           format: double
           writeOnly: true
           description: |-
-            Number of hours to book for the employee on the task in the period. Whether this is a total spread over the period or hours per day is decided by Resource Planner (the TLP UI calls the same value TotalHours).
+            Number of hours to book for the employee on the task in the period. Whether this is a total spread over the period or hours per day is decided by Resource Planner.
 
             Unit: hours
 
@@ -2928,8 +2903,6 @@ components:
             - 0, negative or omitted — 400 "'Employee Id' must not be empty." / "must be greater than '0'".
 
             - no such employee, or the employee's user is inactive — 500 Code 102, ErrorCode 37040 "No user with UserID: {EmployeeId} exist" — inactive is reported as not-existing.
-
-            > **Not yet documented:** identity → references.
         TaskId:
           type: integer
           format: int32

@@ -17,10 +17,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -321,7 +319,7 @@ paths:
 
             Order: Registration date, project number, task sort order (ascending).
 
-            Empty result: 200 with no Entities and TotalRegisteredHours 0 (src_only).
+            Empty result: 200 with no Entities and TotalRegisteredHours 0.
           content:
             application/json:
               schema:
@@ -350,8 +348,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: periodStartsAt /
-            periodEndsAt or a boolean switch not parseable (model binding, src_only). — Fix: Fix every item listed in Details
-            and resend.'
+            periodEndsAt or a boolean switch not parseable. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -384,7 +381,7 @@ paths:
       description: |-
         Moves one or more project time registrations to another task (of any project), keeping each registration's ID, hours and date.
 
-        For each ID in timeRegistrationIds, in order, the registration is re-pointed to TargetTaskId: the employee is allocated to the target task when not yet allocated, the registration's allocation (and so its rate) changes, billable duration is re-evaluated (billable-hours / rounding features), and the registration is saved in place — same TimeRegistrationId, GUID, hours, date, comment, factor and approval status (a rejected one becomes "rejected and resolved"). Attached mileage keeps its project and only its registration reference is updated; a running time tracker on the registration is notified as deleted. Refused per registration: absence registrations, target project Cancelled / Archived, target task closed or a parent task, invoiced, on a draft invoice, dated in a closed accounting period, outside the employee's employment, missing mandatory comment / additional text, exceeding allocated hours (feature). A closed (approved) timesheet does NOT block a move. Answers 204 when every registration moved, otherwise 422 with a bare array of MoveHoursResultRead (one entry per ID — moved ones included, and they STAY moved). An unknown or non-integer ID aborts the loop with 500 after earlier IDs were moved. The caller's rights over the registrations or projects are NOT checked.
+        For each ID in timeRegistrationIds, in order, the registration is re-pointed to TargetTaskId: the employee is allocated to the target task when not yet allocated, the registration's allocation (and so its rate) changes, billable duration is re-evaluated (billable-hours / rounding features), and the registration is saved in place — same TimeRegistrationId, GUID, hours, date, comment, factor and approval status (a rejected one becomes "rejected and resolved"). Attached mileage keeps its project and only its registration reference is updated; a running time tracker on the registration is notified as deleted. Refused per registration: absence registrations, target project Cancelled / Archived, target task closed or a parent task, invoiced, on a draft invoice, dated in a closed accounting period, outside the employee's employment, missing mandatory comment / additional text, exceeding allocated hours (feature). A closed (approved) timesheet does NOT block a move. Answers 204 when every registration moved, otherwise 422 with a bare array of MoveHoursResultRead (one entry per ID — moved ones included, and they STAY moved). An unknown or non-integer ID aborts the loop with 500 after earlier IDs were moved.
 
         **Use it to:**
         - Correct registrations booked on the wrong task or project before invoicing
@@ -394,13 +391,13 @@ paths:
 
         **Behaviour:**
         - Idempotent.
-        - Moving a registration to the task it is already on re-saves it unchanged in substance (src_only).
+        - Moving a registration to the task it is already on re-saves it unchanged in substance.
         - Safe to retry only under a condition. Yes after a 422 or 500 — re-read the registrations first (moved ones are already on the target) and resend the rest.
         - Duplicates: A duplicated ID is moved twice (second time a no-op move).
         - Side effect: Per registration: allocation on the target task created when missing; registration re-pointed to it (rate of the target allocation applies); billable duration re-evaluated.
         - Side effect: A running time tracker on the registration is notified as deleted.
         - On failure: Registrations before the failing ID stay moved (422 array, or 500 with no per-item result).
-        - On failure: An allocation created on the target task can remain even when the move is then refused by a later rule (src_only).
+        - On failure: An allocation created on the target task can remain even when the move is then refused by a later rule.
         - Changes are visible to the next read immediately.
         - Batch: Sequential; each registration in its own transaction; refusals are collected (422), any other error aborts the remainder (500).
 
@@ -505,7 +502,7 @@ paths:
 
             Order: None defined (SELECT DISTINCT without ORDER BY; captured in ProjectID order).
 
-            Empty result: 200 with no Entities (src_only).
+            Empty result: 200 with no Entities.
           content:
             application/json:
               schema:
@@ -659,7 +656,7 @@ paths:
       description: |-
         Lists the active hourly rates of a task's contract (plus one rate in use), cheapest first, for choosing an allocation's rate.
 
-        Resolves the task's contract and returns its ACTIVE contract hourly rates, ordered by amount then name, plus the rate given in suggestedHourlyRateId even when inactive (only if it belongs to the same contract) — so a rate already in use stays selectable. Unpaged. Amounts are in the rate's price-group currency, which is not returned. A contract with no matching rate answers 200 with the body null instead of an empty list. The caller's access is NOT checked.
+        Resolves the task's contract and returns its ACTIVE contract hourly rates, ordered by amount then name, plus the rate given in suggestedHourlyRateId even when inactive (only if it belongs to the same contract) — so a rate already in use stays selectable. Unpaged. Amounts are in the rate's price-group currency, which is not returned. A contract with no matching rate answers 200 with the body null instead of an empty list.
 
         **Use it to:**
         - Offer the rate choices when allocating a person to a task (default = SuggestedHourlyRateId from employee-unallocated)
@@ -670,7 +667,7 @@ paths:
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Consistency: immediate (manager result cached per request — src_only)
+        - Consistency: immediate
 
         **Call first:** `GET /v2/projects/{projectId}/employee-unallocated`
 
@@ -686,7 +683,7 @@ paths:
         schema:
           type: integer
           format: int32
-        description: Task whose contract's rates are listed. Omitted → 404 (captured); unknown → 500 (src_only).
+        description: Task whose contract's rates are listed. Omitted → 404 (captured); unknown → 500.
       - name: suggestedHourlyRateId
         in: query
         required: false
@@ -764,7 +761,7 @@ paths:
         - Remind a user of milestones that are due or overdue
 
         **Not for:**
-        - A project's milestone plan → not exposed in REST v2 (not curated)
+        - A project's milestone plan → not exposed in REST v2
 
         **Behaviour:**
         - Idempotent.
@@ -811,7 +808,7 @@ paths:
 
             Order: Due date ascending.
 
-            Empty result: 200 with no Entities (src_only).
+            Empty result: 200 with no Entities.
           content:
             application/json:
               schema:
@@ -841,8 +838,8 @@ paths:
                     items:
                       $ref: '#/components/schemas/TafLink'
         '400':
-          description: '- **Code 200** — The request body or parameters failed input validation. — When: dueDate not a date
-            (model binding; src_only). — Fix: Fix every item listed in Details and resend.'
+          description: '- **Code 200** — The request body or parameters failed input validation. — When: dueDate not a date.
+            — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -879,7 +876,6 @@ paths:
         - Idempotent.
         - Safe to retry.
         - Side effect: Recurring instance: IsCompleted, LastModifiedBy, LastModified updated (no event).
-        - Side effect: Milestone: completion set, parent task status refreshed, milestone saved, MilestoneChangeStatus event, task notified, cache cleared.
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v2/milestones/incomplete`
@@ -893,7 +889,7 @@ paths:
           type: integer
           format: int32
         description: 'MilestoneId from the list: a recurring-instance ID when isRecurring is true, otherwise a milestone ID.
-          Unknown → 500 (src_only).'
+          Unknown → 500.'
       - name: isCompleted
         in: query
         required: true
@@ -945,14 +941,14 @@ paths:
       description: |-
         Lists every non-template project the caller may see, filtered by up to 15 include/exclude ID lists and a text search, with hour aggregates.
 
-        Returns all matching non-template projects in ONE unpaged TAF list, ordered by project number then name, with list Properties: ProjectsCount, TotalBudgetWorkHours, TotalProjectActualHours, TotalTasksBudgetHours, TotalAllocationsBudgetHours (numbers as en-GB strings) and IsShowingProjectStage / IsShowingProjectCategory (tenant features, booleans). Every filter is an optional comma-separated ID list with an is…Inclusive switch (true = keep projects whose value is in the list, false = drop them); an empty list means no filter; filters AND together. searchText is a LIKE '%text%' over customer number and name, project number, name and description. Rows are limited in SQL to the projects the caller's project privilege package covers: all projects, or the union of projects where the caller is project manager / account manager, projects of the caller's department subtree, restricted to the caller's legal entity when that privilege is set. A caller without project privileges gets an empty list.
+        Returns all matching non-template projects in ONE unpaged TAF list, ordered by project number then name, with list Properties: ProjectsCount, TotalBudgetWorkHours, TotalProjectActualHours, TotalTasksBudgetHours, TotalAllocationsBudgetHours (numbers as en-GB strings) and IsShowingProjectStage / IsShowingProjectCategory (account features, booleans). Every filter is an optional comma-separated ID list with an is…Inclusive switch (true = keep projects whose value is in the list, false = drop them); an empty list means no filter; filters AND together. searchText is a LIKE '%text%' over customer number and name, project number, name and description. A caller without project privileges gets an empty list.
 
         **Use it to:**
         - Project overview / portfolio list with the same filters as the TimeLog project list
         - Find the projectId values to pass to the bulk status / stage / resource-planner / delete operations
 
         **Not for:**
-        - Paging through large tenants — there is no paging; use `GET /v1/project/get-all`
+        - Paging through large accounts — there is no paging; use `GET /v1/project/get-all`
         - A project picker for time registration → `GET /v1/project-header/search-for-time-tracking-order-by-recent-registration`
 
         **Rules across fields:**
@@ -1368,7 +1364,7 @@ paths:
 
             Order: Project number, then project name (ascending; projects without a number first).
 
-            Empty result: 200 with ProjectsCount "0" and no Entities (src_only).
+            Empty result: 200 with ProjectsCount "0" and no Entities.
           content:
             application/json:
               schema:
@@ -1416,7 +1412,7 @@ paths:
       description: |-
         Returns the bulk actions the project list offers, each with the endpoint and ready-made body to call.
 
-        Names are code names, not translated, except stage names, which are the tenant's own.
+        Names are code names, not translated, except stage names, which are the account's own.
 
         **Use it to:**
         - Build the bulk-action menu of a project list; resolve the active stage IDs for PUT /v2/projects/stage
@@ -1555,7 +1551,7 @@ paths:
       description: |-
         Makes the listed projects available in the Resource Planner, or takes them out, and tells the Resource Planner service.
 
-        Loads the headers of all listed projects in one call (IDs that do not exist are silently skipped), then for each project whose IsAvailableInResourcePlanner differs from the requested value: writes the flag and raises IsAvailableInResourcePlannerChecked or …Unchecked, both published to the project-plan service-bus topic the Resource Planner service consumes. Projects already in the requested state are skipped (no write, no event). Answers 200 with an empty TAF list whose Properties.UpdatedProjectsCount counts only the projects actually changed. What the Resource Planner service does with a deactivation (keep or drop the project's plans) is RP-side, unknown.
+        Projects already in the requested state are skipped (no write, no event). Answers 200 with an empty TAF list whose Properties.UpdatedProjectsCount counts only the projects actually changed. What the Resource Planner service does with a deactivation (keep or drop the project's plans) is RP-side, unknown.
 
         **Use it to:**
         - Choose which projects are planned in the Resource Planner
@@ -1565,7 +1561,7 @@ paths:
         - Projects already in the requested state are skipped: a repeat call changes nothing and raises no events (UpdatedProjectsCount 0).
         - Safe to retry.
         - On failure: Projects processed before a failing write keep their new flag and their events were published.
-        - Consistency: eventual for the Resource Planner (service-bus topic); immediate in TimeLog
+        - Consistency: eventual for the Resource Planner; immediate in TimeLog
         - Batch: Unknown IDs are skipped silently; a failing write aborts the rest with 500 after earlier projects were switched.
 
         **Call first:** `GET /v2/projects`
@@ -1653,7 +1649,7 @@ paths:
       description: |-
         Sets the current project stage of every listed project, one project after another.
 
-        Project stages are a tenant-configured, ordered sequence (e.g. Initiation, Planning, Execution & Controlling, Closing). For each project: the chosen stage gets Date (or keeps its date when the project is already in that stage, else today), every LATER stage's date is cleared, the dates are normalised by the stage date rule, and the project's current stage is re-derived. Answers 200 with an empty TAF list whose Properties.UpdatedProjectsCount is the number of IDs processed. The first invalid project or stage aborts with 500 and earlier projects keep the new stage. Stage 0 / clearing is not possible. The ProjectStage feature is not checked here.
+        Project stages are a account-configured, ordered sequence (e.g. Initiation, Planning, Execution & Controlling, Closing). For each project: the chosen stage gets Date (or keeps its date when the project is already in that stage, else today), every LATER stage's date is cleared, the dates are normalised by the stage date rule, and the project's current stage is re-derived. Answers 200 with an empty TAF list whose Properties.UpdatedProjectsCount is the number of IDs processed. The first invalid project or stage aborts with 500 and earlier projects keep the new stage. Stage 0 / clearing is not possible.
 
         **Use it to:**
         - Move a batch of projects to the next lifecycle stage from a portfolio tool
@@ -1883,7 +1879,7 @@ paths:
       description: |-
         Returns one user's allocation on one task — allocated and registered hours and the hourly rate it uses — or 204 when there is none.
 
-        Looks up the allocation of userId's employee on taskId. Found → 200 with a single EmployeeAllocationOnTaskRead: AllocationId, allocated hours, all hours registered on it (all dates), and the allocation's contract hourly rate (ID, name, amount) with the currency abbreviation of the PATH project. No allocation — or an allocation whose rate row is missing — answers 204 with no body. The caller's access is NOT checked.
+        Looks up the allocation of userId's employee on taskId. Found → 200 with a single EmployeeAllocationOnTaskRead: AllocationId, allocated hours, all hours registered on it (all dates), and the allocation's contract hourly rate (ID, name, amount) with the currency abbreviation of the PATH project. No allocation — or an allocation whose rate row is missing — answers 204 with no body.
 
         **Use it to:**
         - Show whether a person is already on a task and at which rate before re-planning
@@ -1925,7 +1921,7 @@ paths:
         schema:
           type: integer
           format: int32
-        description: The user. Unknown → 500 (src_only).
+        description: The user. Unknown → 500.
       responses:
         '200':
           description: |-
@@ -1983,7 +1979,7 @@ paths:
       description: |-
         For a user not yet allocated to a task, returns the contract hourly rate TimeLog would assign and whether a rate can be chosen.
 
-        Returns at most ONE entity: when userId is an active user without an allocation on taskId (and not an inactive member of the project's resource group) and the task is neither Completed nor Cancelled, the rate TimeLog resolves for that employee on the task (task rate → contract team member → resource group → project standard rate → employee's standard rate by service → the contract's first rate), with its amount, the PATH project's currency abbreviation and IsShownHourlyRateDropDown. Otherwise an empty list. Resolving can CREATE a project-specific rate on the contract when the employee's service is missing. projectId is used only for the currency label and is not checked against the task. The caller's access is NOT checked.
+        Returns at most ONE entity: when userId is an active user without an allocation on taskId (and not an inactive member of the project's resource group) and the task is neither Completed nor Cancelled, the rate TimeLog resolves for that employee on the task (task rate → contract team member → resource group → project standard rate → employee's standard rate by service → the contract's first rate), with its amount, the PATH project's currency abbreviation and IsShownHourlyRateDropDown. Otherwise an empty list.
 
         **Use it to:**
         - Pre-fill the hourly rate when allocating a person to a task
@@ -2012,14 +2008,14 @@ paths:
         schema:
           type: integer
           format: int32
-        description: Project whose currency abbreviation is returned. Not checked against taskId. Unknown → 500 (src_only).
+        description: Project whose currency abbreviation is returned. Not checked against taskId. Unknown → 500.
       - name: taskId
         in: query
         required: true
         schema:
           type: integer
           format: int32
-        description: The task. Omitted → 404 (captured); unknown → 500 (src_only).
+        description: The task. Omitted → 404 (captured); unknown → 500.
       - name: userId
         in: query
         required: true
@@ -2040,7 +2036,7 @@ paths:
 
             Order: Not applicable (at most one entity).
 
-            Empty result: 200 with no Entities: user unknown / inactive / already allocated, or task Completed / Cancelled (src_only).
+            Empty result: 200 with no Entities: user unknown / inactive / already allocated, or task Completed / Cancelled.
           content:
             application/json:
               schema:
@@ -2096,7 +2092,7 @@ paths:
       description: |-
         Returns up to 30 active tasks of a project that a user has no allocation on, optionally filtered by text.
 
-        Lists the project's active (Aktiv), non-recurring tasks on which the user has no allocation row — active or inactive — ordered by task tree order and WBS, at most 30 (fixed; no paging, no total). Task status is not filtered: completed or cancelled tasks still marked active are listed. searchText matches task name, task number or task type name (contains). Parent tasks are excluded unless isIncludeParentTask=true. An unknown userId returns every active task (no allocation can match). The caller's access to the project is NOT checked.
+        Lists the project's active (Aktiv), non-recurring tasks on which the user has no allocation row — active or inactive — ordered by task tree order and WBS, at most 30 (fixed; no paging, no total). Task status is not filtered: completed or cancelled tasks still marked active are listed. searchText matches task name, task number or task type name (contains). Parent tasks are excluded unless isIncludeParentTask=true. An unknown userId returns every active task (no allocation can match).
 
         **Use it to:**
         - Offer the tasks a person can still be allocated to
@@ -2123,7 +2119,7 @@ paths:
         schema:
           type: integer
           format: int32
-        description: 'The project (no route constraint: a non-integer value fails model binding). Unknown → empty list (src_only).'
+        description: 'The project (no route constraint: a non-integer value fails model binding). Unknown → empty list.'
       - name: userId
         in: query
         required: true
@@ -2164,7 +2160,7 @@ paths:
 
             Order: Task sort order, then WBS.
 
-            Empty result: 200 with no Entities (src_only).
+            Empty result: 200 with no Entities.
           content:
             application/json:
               schema:
@@ -2193,7 +2189,7 @@ paths:
                       $ref: '#/components/schemas/TafLink'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: projectId / userId
-            not an integer (model binding; src_only). — Fix: Fix every item listed in Details and resend.'
+            not an integer. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -2221,7 +2217,7 @@ paths:
       description: |-
         Returns every time registration on a project — all employees, all dates — with hours, rate, amount, billability and invoicing state.
 
-        Runs the time-registration drill-down report for one project with no other filter and no date range: every registration on every task of the project, of every employee, ordered by date, task name, last change and ID, in one unpaged TAF list. List Properties: AdditionalCommentFieldName (the tenant's label of the additional text field, "" when that feature is off), TimeRegistrationsTotalActualHours and TimeRegistrationsTotalActualAmount (sums over the rows, en-GB number strings; the amount sum adds the rows' amounts as they are, in each row's Currency).
+        Runs the time-registration drill-down report for one project with no other filter and no date range: every registration on every task of the project, of every employee, ordered by date, task name, last change and ID, in one unpaged TAF list. List Properties: AdditionalCommentFieldName (the account's label of the additional text field, "" when that feature is off), TimeRegistrationsTotalActualHours and TimeRegistrationsTotalActualAmount (sums over the rows, en-GB number strings; the amount sum adds the rows' amounts as they are, in each row's Currency).
 
         **Use it to:**
         - Show who registered what on a project, and whether it is invoiced
@@ -2254,7 +2250,7 @@ paths:
 
             Order: Date, project name, task name, last modified, registration ID (ascending).
 
-            Empty result: 200 with no Entities and totals "0" for a project without registrations (src_only).
+            Empty result: 200 with no Entities and totals "0" for a project without registrations.
           content:
             application/json:
               schema:
@@ -2586,7 +2582,7 @@ components:
           - 'null'
           readOnly: true
           description: |-
-            Ready-to-show project label: "<number> <name>" when the tenant's ProjectNumber feature is on, otherwise "<name> (<number>)".
+            Ready-to-show project label: "<number> <name>" when the account's ProjectNumber feature is on, otherwise "<name> (<number>)".
 
             Set by TimeLog.
         DueDate:
@@ -2659,7 +2655,7 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            ID of the milestone type (tenant-defined list).
+            ID of the milestone type (account-defined list).
 
             Set by TimeLog.
 
@@ -2697,8 +2693,6 @@ components:
             Set by TimeLog.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         TimeRegistrationId:
           type: integer
           format: int32
@@ -2918,7 +2912,7 @@ components:
 
             Refers to `TaskRead.TaskID`. Look up valid values with `GET /v2/adjustments/move-hours/projects/{projectId}/tasks`.
 
-            - Omitted or 0 / negative — Validator GreaterThan(0) — 400 Invalid model state (src_only).
+            - Omitted or 0 / negative — Validator GreaterThan(0) — 400 Invalid model state.
 
             Valid values come from `GET /v2/adjustments/move-hours/projects/{projectId}/tasks`.
       required:
@@ -2931,7 +2925,7 @@ components:
           type: string
           readOnly: true
           description: |-
-            Code name of the action or group, NOT translated. Top level: DeleteAction (item), ChangeStatusTo, ChangeStageTo, ResourcePlanner (groups). Inside ChangeStatusTo: the OrderStatus names Quote … Cancelled. Inside ChangeStageTo: the tenant's stage NAMES as configured (e.g. "Planning", captured). Inside ResourcePlanner: EnableResourcePlanner, DisableResourcePlanner.
+            Code name of the action or group, NOT translated. Top level: DeleteAction (item), ChangeStatusTo, ChangeStageTo, ResourcePlanner (groups). Inside ChangeStatusTo: the OrderStatus names Quote … Cancelled. Inside ChangeStageTo: the account's stage NAMES as configured (e.g. "Planning", captured). Inside ResourcePlanner: EnableResourcePlanner, DisableResourcePlanner.
 
             Set by TimeLog.
         Uri:
@@ -2994,7 +2988,7 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            The project stage ID (one of the tenant's project stages; the stage items of GET /v2/projects/actions carry them). Non-nullable: an omitted Stage is 0 → 500.
+            The project stage ID (one of the account's project stages; the stage items of GET /v2/projects/actions carry them). Non-nullable: an omitted Stage is 0 → 500.
 
             Refers to `ProjectStageID`. Look up valid values with `GET /v2/projects/actions`.
 
@@ -3153,7 +3147,7 @@ components:
           type: string
           readOnly: true
           description: |-
-            The registration's additional text field; its tenant label is returned as the list property AdditionalCommentFieldName.
+            The registration's additional text field; its account label is returned as the list property AdditionalCommentFieldName.
 
             Set by TimeLog.
         Currency:
@@ -3714,7 +3708,7 @@ components:
           type: string
           readOnly: true
           description: |-
-            The status name translated into the caller's language (OrderStatus resource text), e.g. "Approved" (captured, English tenant).
+            The status name translated into the caller's language (OrderStatus resource text), e.g. "Approved" (captured, English account).
 
             Set by TimeLog.
         HasAccountingIssues:
@@ -3746,9 +3740,7 @@ components:
             Filterable via `contractModelIds` (in).
 
             Valid values come from `GET /v1/ContractModel`.
-      description: 'A non-template project as listed on the project overview: identity, customer, people, classification,
-        stage and status, plus hour aggregates (task budgets, allocations, registered hours) and the contract models used.
-        Delivered as the Properties of a TAF list entity.'
+      description: Delivered as the Properties of a TAF list entity.
     TafAction:
       type: object
       description: A hypermedia action the caller may take on the object. Present only where the operation registers actions.
@@ -3830,7 +3822,7 @@ components:
           type: boolean
           readOnly: true
           description: |-
-            false only for a fixed-price task with the Calculated hourly-rate model (unless the tenant is StarterPSA with Invoicing) — the rate is then not chosen per allocation.
+            false only for a fixed-price task with the Calculated hourly-rate model (unless the account is StarterPSA with Invoicing) — the rate is then not chosen per allocation.
 
             Set by TimeLog.
       description: 'The suggested hourly rate for allocating one (not yet allocated) user to a task: the contract hourly rate
@@ -3932,5 +3924,5 @@ components:
 
             Filterable via `isIncludeParentTask` (eq).
       description: An active, non-recurring task of a project that a given user is NOT yet allocated to — a candidate for
-        "assign this person to a task". Carries the task's identity, position in the task tree, plan dates and hour budget.
+        "assign this person to a task".
 x-timelog-service: ProjectManagement
