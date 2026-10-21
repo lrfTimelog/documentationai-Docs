@@ -493,7 +493,7 @@ paths:
 
         **Use it to:**
         - Read back an allocation before changing it (GET-modify-PUT)
-        - Resolve the AllocationID returned in a 409 from POST /v1/task/{taskID}/allocation
+        - Resolve the AllocationID returned in a 409 from POST /v1/task/&#123;taskID&#125;/allocation
 
         **Not for:**
         - All allocations of a task → `GET /v1/task/{taskID}/allocation`
@@ -583,7 +583,7 @@ paths:
         **Use it to:**
         - Re-plan hours of a staffed user from a resource-planning or PSA tool
         - Move an allocation's period (AllocationDates feature)
-        - Resolve a 409 from POST /v1/task/{taskID}/allocation by updating the existing allocation
+        - Resolve a 409 from POST /v1/task/&#123;taskID&#125;/allocation by updating the existing allocation
 
         **Not for:**
         - Allocating a new user → `POST /v1/task/{taskID}/allocation`
@@ -2417,7 +2417,7 @@ paths:
       description: |-
         Deletes a contract payment (billing-plan instalment) that is not on an invoice.
 
-        Removes one instalment from its project's billing plan and re-saves the project. Refused (400) when the contract model does not allow deleting payments, or when the instalment is booked, on a draft invoice, or (unbooked) has auto expenses on a draft invoice. Deleting a task's fixed-price instalment switches that task's payment recognition to the overall payment plan. Answers 200 with `null`. Requires access to the payment's project (same gate as GET /v1/payment/{paymentID}).
+        Removes one instalment from its project's billing plan and re-saves the project. Refused (400) when the contract model does not allow deleting payments, or when the instalment is booked, on a draft invoice, or (unbooked) has auto expenses on a draft invoice. Deleting a task's fixed-price instalment switches that task's payment recognition to the overall payment plan. Answers 200 with `null`. Requires access to the payment's project (same gate as GET /v1/payment/&#123;paymentID&#125;).
 
         **Use it to:**
         - Remove an instalment that was created by mistake or is no longer agreed
@@ -2499,7 +2499,7 @@ paths:
       description: |-
         Returns one contract payment (billing-plan instalment) by its integer PaymentID, if the caller may see its project.
 
-        Reads one instalment (PaymentRead). Unknown IDs and instalments without a project answer 404. The caller needs access to the payment's project under the same rule as GET /v1/project/{projectID}.
+        Reads one instalment (PaymentRead). Unknown IDs and instalments without a project answer 404. The caller needs access to the payment's project under the same rule as GET /v1/project/&#123;projectID&#125;.
 
         **Use it to:**
         - Read back a payment after POST /v1/payment
@@ -2576,7 +2576,7 @@ paths:
       description: |-
         Changes the name, amount, invoice date and/or quantity of a contract payment (billing-plan instalment) and returns it.
 
-        Partial update (PaymentUpdate): only the fields you send change; an empty object is accepted and changes nothing. Quantity recalculates the amount from the unit rate; Amount recalculates the unit rate (and wins when both are sent); a new invoice date refreshes the exchange rate to system currency. Refused (400) for payments without a contract, booked or on a draft invoice, on contract models that do not allow editing payments, for an amount that cannot be derived (quantity 0, discount 100 %), and for an invoice-date change on a Time & Material Basic contract. Answers 200 with the payment re-read as PaymentRead. Requires access to the payment's project (same gate as GET /v1/payment/{paymentID}).
+        Partial update (PaymentUpdate): only the fields you send change; an empty object is accepted and changes nothing. Quantity recalculates the amount from the unit rate; Amount recalculates the unit rate (and wins when both are sent); a new invoice date refreshes the exchange rate to system currency. Refused (400) for payments without a contract, booked or on a draft invoice, on contract models that do not allow editing payments, for an amount that cannot be derived (quantity 0, discount 100 %), and for an invoice-date change on a Time & Material Basic contract. Answers 200 with the payment re-read as PaymentRead. Requires access to the payment's project (same gate as GET /v1/payment/&#123;paymentID&#125;).
 
         **Use it to:**
         - Re-schedule an instalment (InvoiceDate) or change its amount from an ERP / PSA billing plan
@@ -2863,7 +2863,7 @@ paths:
       description: |-
         Creates an employee expense (out-of-pocket cost to be reimbursed) on a project, for the caller or on behalf of another user.
 
-        Registers an expense an employee paid — amount, VAT, currency, expense type, payment method — on a project, optionally billable to its customer. The contract is the one you send, or the project's default expense contract. On success the API does not return the expense: it answers 302 with a Location header pointing to GET /v1/employee-expense/{id}. Receipts cannot be attached here.
+        Registers an expense an employee paid — amount, VAT, currency, expense type, payment method — on a project, optionally billable to its customer. The contract is the one you send, or the project's default expense contract. On success the API does not return the expense: it answers 302 with a Location header pointing to GET /v1/employee-expense/&#123;id&#125;. Receipts cannot be attached here.
 
         **Use it to:**
         - Expense app submitting a receipt line after the user picked a project from search-for-expense-travel-registration-…
@@ -2975,7 +2975,7 @@ paths:
       description: |-
         Creates a mileage (car travel) registration on a project, for the caller or on behalf of another user.
 
-        Registers a trip by car on a project so it is reimbursed to the employee and, when billable, invoiced to the customer at the mileage rate. The contract is the one you send, or the project's default mileage contract. On success the API does not return the registration: it answers 302 with a Location header pointing to GET /v1/mileage-registration/{id}.
+        Registers a trip by car on a project so it is reimbursed to the employee and, when billable, invoiced to the customer at the mileage rate. The contract is the one you send, or the project's default mileage contract. On success the API does not return the registration: it answers 302 with a Location header pointing to GET /v1/mileage-registration/&#123;id&#125;.
 
         **Use it to:**
         - Mobile or expense app posting a trip after the user picked a project from search-for-expense-travel-registration-…
@@ -4096,7 +4096,7 @@ paths:
       description: |-
         Lists the active (or inactive) non-template projects the caller may see, optionally for one customer, by project number.
 
-        Returns one page of ProjectRead. Filtered in the database by the caller's project privileges (same privilege set as GET /v1/project/{id}), by the active flag (default active only) and optionally by customer. Template projects are never listed. Customer is always null, even with $expand=customer.
+        Returns one page of ProjectRead. Filtered in the database by the caller's project privileges (same privilege set as GET /v1/project/&#123;id&#125;), by the active flag (default active only) and optionally by customer. Template projects are never listed. Customer is always null, even with $expand=customer.
 
         **Use it to:**
         - Sync the project register into an ERP / PSA
@@ -4358,7 +4358,7 @@ paths:
       description: |-
         Updates a project's header fields (name, customer, people, type, dates, budgets).
 
-        MIXED replace / patch semantics: Name, CustomerID, ContactID, Description and ProjectManagerID are always written; the nullable fields are written only when sent. Answers 200 with the body `null`; read the project back with GET. Status is changed with PUT /v1/project/{projectID}/status.
+        MIXED replace / patch semantics: Name, CustomerID, ContactID, Description and ProjectManagerID are always written; the nullable fields are written only when sent. Answers 200 with the body `null`; read the project back with GET. Status is changed with PUT /v1/project/&#123;projectID&#125;/status.
 
         **Use it to:**
         - Sync name, project manager or budget changes from a CRM / PSA
@@ -5198,7 +5198,7 @@ paths:
       description: |-
         Searches all tasks of the tenant by project, task, status, active / billable flag and plan dates.
 
-        A paged task search over EVERY task of the tenant, returning the extended task model (status, dates, project number, parent). Filter semantics worth knowing: - startDate / endDate select tasks that lie INSIDE the window (start >= startDate, end <= endDate) — not tasks that overlap it. Tasks without a start (or end) date never match a startDate (endDate) filter. - isBillable filters the task's NonBillable column (inverted); the response shows default_billable as IsDefaultBillable — a different column. - taskStatus takes the INTEGER 0-4; the response returns the status NAME.
+        A paged task search over EVERY task of the tenant, returning the extended task model (status, dates, project number, parent). Filter semantics worth knowing: - startDate / endDate select tasks that lie INSIDE the window (start >= startDate, end &lt;= endDate) — not tasks that overlap it. Tasks without a start (or end) date never match a startDate (endDate) filter. - isBillable filters the task's NonBillable column (inverted); the response shows default_billable as IsDefaultBillable — a different column. - taskStatus takes the INTEGER 0-4; the response returns the status NAME.
 
         **Use it to:**
         - Incremental task sync by project: ?projectId=… (each page re-read with $page)
@@ -7288,7 +7288,7 @@ paths:
 
         **Behaviour:**
         - Not idempotent.
-        - Safe to retry only under a condition. A second DELETE answers 500 / 37001. After a 500 or a timeout, GET /v1/task/{taskID}: a 500 / 37001 there means the task is gone.
+        - Safe to retry only under a condition. A second DELETE answers 500 / 37001. After a 500 or a timeout, GET /v1/task/&#123;taskID&#125;: a 500 / 37001 there means the task is gone.
         - Side effect: Deletes every allocation on the task (audit log + e-mail event per allocation) and clears the task's HasAllocations flag.
         - Side effect: Time-and-material-basic tasks (not fixed price) and TDR fixed-price-payment tasks: deletes the task's instalments from the billing plan. TDR overall-payment-plan tasks: releases the payment linked to the task.
         - Side effect: Deletes the task row and its task search row; notifies invoicing; deletes Task external-ID mappings.

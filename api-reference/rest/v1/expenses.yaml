@@ -437,7 +437,7 @@ paths:
       description: |-
         Creates an employee expense (out-of-pocket cost to be reimbursed) for the caller or on behalf of another user, and returns it.
 
-        Registers an expense an employee paid — amount and VAT in the receipt currency, the exchange rate to the employee's legal-entity currency, expense type, payment method — on a project, optionally billable to its customer. The contract is the one you send, or the project's default expense contract. The response is the stored expense (EmployeeExpenseRead) with its new EmployeeExpenseID and assigned Number. Receipts are attached in a second call (POST …/{id}/image or …/{id}/file), so a receipt-capture integration is always create → attach.
+        Registers an expense an employee paid — amount and VAT in the receipt currency, the exchange rate to the employee's legal-entity currency, expense type, payment method — on a project, optionally billable to its customer. The contract is the one you send, or the project's default expense contract. The response is the stored expense (EmployeeExpenseRead) with its new EmployeeExpenseID and assigned Number. Receipts are attached in a second call (POST …/&#123;id&#125;/image or …/&#123;id&#125;/file), so a receipt-capture integration is always create → attach.
 
         **Use it to:**
         - Expense or receipt-capture app (e.g. a scan-and-submit flow) booking a receipt line, then uploading the receipt image/PDF to the returned ID
@@ -1310,7 +1310,7 @@ paths:
         - Not idempotent.
         - Not safe to retry blindly. Each call appends new blobs; a retry stores the PDF twice. GET the expense and compare FileUrls before retrying.
         - Duplicates: Not deduplicated.
-        - Side effect: Uploads each PDF to the tenant blob container as EmployeeExpense-<random GUID>.pdf with Content-Type application/pdf.
+        - Side effect: Uploads each PDF to the tenant blob container as EmployeeExpense-&lt;random GUID>.pdf with Content-Type application/pdf.
         - Side effect: Rewrites the expense's attachment list (ImageAsJson) with the new private URLs; refreshes the cached expense.
         - On failure: All parts are checked before any upload, so an invalid part stores nothing. A storage or DB failure after some uploads leaves orphan blobs (src_only).
         - Changes are visible to the next read immediately.
@@ -1488,7 +1488,7 @@ paths:
         - Not idempotent.
         - Not safe to retry blindly. Each call appends new blobs under new random names; a retried upload stores the receipt twice. After a lost response, GET the expense and compare ImageUrls before retrying.
         - Duplicates: Not deduplicated: the same image uploaded twice becomes two attachments.
-        - Side effect: Uploads each image to the tenant blob container (tlp-<CustomerProductId>) as EmployeeExpense-<random GUID>.<format>; no Content-Type is set on image blobs.
+        - Side effect: Uploads each image to the tenant blob container (tlp-&lt;CustomerProductId>) as EmployeeExpense-&lt;random GUID>.&lt;format>; no Content-Type is set on image blobs.
         - Side effect: Rewrites the expense's attachment list (ImageAsJson) with the new private URLs; refreshes the cached expense.
         - On failure: All parts are decoded before any upload, so an invalid part stores nothing. A storage or DB failure after some uploads leaves orphan blobs that are not in the attachment list (src_only).
         - Changes are visible to the next read immediately.
@@ -2161,7 +2161,7 @@ paths:
       description: |-
         Registers a car trip (mileage) on a project for the caller or on behalf of another user, optionally with its travel time.
 
-        Creates a mileage registration that is reimbursed to the employee and, when billable, invoiced to the customer at the mileage rate. Distance is one-way whole kilometres; IsRoundtrip doubles it. The contract is the one you send or the project's default mileage contract. With TravelTimeRegistration the same call also creates a TravelTime time registration on a travel-time task of the project and links it. Returns the created registration (same shape as GET /v1/mileage-registration/{id}).
+        Creates a mileage registration that is reimbursed to the employee and, when billable, invoiced to the customer at the mileage rate. Distance is one-way whole kilometres; IsRoundtrip doubles it. The contract is the one you send or the project's default mileage contract. With TravelTimeRegistration the same call also creates a TravelTime time registration on a travel-time task of the project and links it. Returns the created registration (same shape as GET /v1/mileage-registration/&#123;id&#125;).
 
         **Use it to:**
         - Fleet / travel integration registering trips for employees (UserID, on-behalf privileges)
@@ -2182,7 +2182,7 @@ paths:
         - Not idempotent.
         - Not safe to retry blindly. Every call creates a new registration (new GUID); nothing deduplicates. After a lost response, list your registrations (or the owner's, via GET by ID) before retrying.
         - Duplicates: Not deduplicated (except one mileage registration per TimeRegistrationID, 37825).
-        - Side effect: Creates the registration (source interface WebApi) with expense number (auto-number), travel product number and system text "<Mileage> (<owner name>) <start> » <end> <TotalDistance> km.".
+        - Side effect: Creates the registration (source interface WebApi) with expense number (auto-number), travel product number and system text "&lt;Mileage> (&lt;owner name>) &lt;start> » &lt;end> &lt;TotalDistance> km.".
         - Side effect: Creates mileage financial data and invoicing potential, recalculates the contract's estimated values, creates the employee reimbursement posting.
         - Side effect: With TravelTimeRegistration: creates a TravelTime time registration (owner, Date, Purpose as comment, billable hours = Hours when the task is billable) and links it.
         - On failure: With TravelTimeRegistration: the time registration is created first and deleted again if the mileage save throws (compensation, not one transaction).
@@ -3298,7 +3298,7 @@ paths:
       description: |-
         Removes one or more attachments from a project expense and deletes the files from storage.
 
-        Pass each attachment to remove as a fileUrl query parameter (repeat it for several), exactly as returned in FileUrls of GET /v1/project-expense/{id} — the SAS query string may stay on, it is stripped before matching. Every URL must be absolute and must belong to the expense, otherwise the call returns 400 and NOTHING is deleted. After that check the URLs are deleted one at a time (blob first, then the saved list), so a storage or DB failure part-way keeps the earlier deletions. Duplicate URLs in one call are collapsed. Despite the name, this route also deletes images (same code as deleteimage).
+        Pass each attachment to remove as a fileUrl query parameter (repeat it for several), exactly as returned in FileUrls of GET /v1/project-expense/&#123;id&#125; — the SAS query string may stay on, it is stripped before matching. Every URL must be absolute and must belong to the expense, otherwise the call returns 400 and NOTHING is deleted. After that check the URLs are deleted one at a time (blob first, then the saved list), so a storage or DB failure part-way keeps the earlier deletions. Duplicate URLs in one call are collapsed. Despite the name, this route also deletes images (same code as deleteimage).
 
         **Use it to:**
         - Accounts-payable integration replacing a wrong supplier-invoice PDF: delete the old URL, then attach the new file
@@ -3403,7 +3403,7 @@ paths:
         - Not idempotent.
         - Not safe to retry blindly. Each call appends new blobs under new random names; a retried upload stores the file twice. After a lost response, GET the expense and compare FileUrls before retrying.
         - Duplicates: Not deduplicated: the same PDF uploaded twice becomes two attachments.
-        - Side effect: Uploads each PDF to the tenant blob container (tlp-<CustomerProductId>) as ProjectExpense-<random GUID>.pdf with Content-Type application/pdf.
+        - Side effect: Uploads each PDF to the tenant blob container (tlp-&lt;CustomerProductId>) as ProjectExpense-&lt;random GUID>.pdf with Content-Type application/pdf.
         - Side effect: Rewrites the expense's attachment list with the new private URLs; refreshes the cached expense.
         - On failure: All parts are checked before any upload, so an invalid part stores nothing now — but earlier valid parts stay queued on the (possibly cached) expense object and are uploaded by the next attach.
         - On failure: A storage or DB failure after some uploads leaves orphan blobs that are not in the attachment list (src_only).
@@ -3582,7 +3582,7 @@ paths:
         - Not idempotent.
         - Not safe to retry blindly. Each call appends new blobs under new random names; a retry stores the image twice. The API cannot show whether a lost call succeeded.
         - Duplicates: Not deduplicated: the same image uploaded twice becomes two attachments.
-        - Side effect: Uploads each image to the tenant blob container (tlp-<CustomerProductId>) as ProjectExpense-<random GUID>.<format>; no Content-Type is set on image blobs.
+        - Side effect: Uploads each image to the tenant blob container (tlp-&lt;CustomerProductId>) as ProjectExpense-&lt;random GUID>.&lt;format>; no Content-Type is set on image blobs.
         - Side effect: Rewrites the expense's attachment list (stored as JSON on the expense row) with the new private URLs; refreshes the cached expense.
         - On failure: All parts are decoded before any upload, so an invalid part stores nothing NOW — but the parts decoded before it stay queued on the expense object, which may be the process-wide cached instance; the next attach on the same expense uploads them too.
         - On failure: A storage or DB failure after some uploads leaves orphan blobs that are not in the attachment list (src_only).

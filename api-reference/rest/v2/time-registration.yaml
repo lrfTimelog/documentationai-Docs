@@ -121,13 +121,13 @@ paths:
       description: |-
         Stops a running time tracker now and turns the tracked time into a time registration; answers 201 with a link to it.
 
-        Ends the tracker at the current server time, exactly like the v1 stop: a tracker that ran past midnight is split per day (start day plus at most the next day), the tracked time is saved as registration(s) — added to the linked registration when the tracker is linked to one — and the tracker is deleted. Unlike v1, the registration is NOT in the body: the response is 201 Created with body `null` and a Location header to GET /v1/time-registration/{id} of the LAST registration written (the v1 route, by design of the call — there is no v2 registration GET).
+        Ends the tracker at the current server time, exactly like the v1 stop: a tracker that ran past midnight is split per day (start day plus at most the next day), the tracked time is saved as registration(s) — added to the linked registration when the tracker is linked to one — and the tracker is deleted. Unlike v1, the registration is NOT in the body: the response is 201 Created with body `null` and a Location header to GET /v1/time-registration/&#123;id&#125; of the LAST registration written (the v1 route, by design of the call — there is no v2 registration GET).
 
         **Use it to:**
         - Stop button of a timer UI; follow Location to show the resulting registration.
 
         **Not for:**
-        - Discarding a tracker without registering time → DELETE /v1/time-tracker/{id}
+        - Discarding a tracker without registering time → DELETE /v1/time-tracker/&#123;id&#125;
 
         **Behaviour:**
         - Not idempotent.

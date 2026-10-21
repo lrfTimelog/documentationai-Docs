@@ -482,7 +482,7 @@ paths:
       description: |-
         Lists the active projects the caller can see by project privilege, as name / ID options for choosing a move target.
 
-        Returns every active (Aktiv), non-template project within the caller's project privileges (all projects, or projects where the caller is project manager / account manager / in the project's department subtree), any order status, as flat DropDownItemRead options: Value = ProjectID, Name = "<number> <name>" with the ProjectNumber feature, otherwise "<name> (<number>)" — a project without number reads "<name> ()" (captured). Unpaged; no defined order.
+        Returns every active (Aktiv), non-template project within the caller's project privileges (all projects, or projects where the caller is project manager / account manager / in the project's department subtree), any order status, as flat DropDownItemRead options: Value = ProjectID, Name = "&lt;number> &lt;name>" with the ProjectNumber feature, otherwise "&lt;name> (&lt;number>)" — a project without number reads "&lt;name> ()" (captured). Unpaged; no defined order.
 
         **Use it to:**
         - Pick the target project, then its tasks, before PUT /v2/adjustments/move-hours
@@ -547,7 +547,7 @@ paths:
       description: |-
         Returns a project's active leaf tasks with their parent tasks, as a nested name / ID tree for choosing a move target.
 
-        Selects the project's ACTIVE leaf tasks (any task status) and adds all their ancestor tasks, then nests them: root tasks are the entities, sub-tasks sit in Items (recursively). Value = TaskID; Name = the task name, plus " (<task number>)" when the TaskNo feature is on and the task has a number. Parent tasks appear only as containers — time cannot be moved onto them (move / split refuse a parent task). Ordered by the project's task sort order. Unpaged. An unknown, 0 or negative projectId answers 200 with no Entities (captured).
+        Selects the project's ACTIVE leaf tasks (any task status) and adds all their ancestor tasks, then nests them: root tasks are the entities, sub-tasks sit in Items (recursively). Value = TaskID; Name = the task name, plus " (&lt;task number>)" when the TaskNo feature is on and the task has a number. Parent tasks appear only as containers — time cannot be moved onto them (move / split refuse a parent task). Ordered by the project's task sort order. Unpaged. An unknown, 0 or negative projectId answers 200 with no Entities (captured).
 
         **Use it to:**
         - Pick TargetTaskId for PUT /v2/adjustments/move-hours or the split halves
@@ -1763,7 +1763,7 @@ paths:
       description: |-
         Moves every listed project to one status (Quote … Cancelled), one project after another.
 
-        For each ID in projectsIds, in the order given: loads the project, changes its status with TimeLog's status processing and saves it. InProgress opens the project for time registration; OnHold / Completed / Archived / Cancelled close it; Quote / Approved keep the project's current flag. Completed, Archived and Cancelled also mark every open milestone completed and move every open contract to Completed (Cancelled for Cancelled) — reopening later does NOT reopen contracts. Answers 200 with an empty TAF list whose Properties.UpdatedProjectsCount is the number of IDs processed. The first failing project aborts the call with 500 and the earlier projects KEEP their new status; there is no per-project result. Always send Status: {} moves every listed project to Quote.
+        For each ID in projectsIds, in the order given: loads the project, changes its status with TimeLog's status processing and saves it. InProgress opens the project for time registration; OnHold / Completed / Archived / Cancelled close it; Quote / Approved keep the project's current flag. Completed, Archived and Cancelled also mark every open milestone completed and move every open contract to Completed (Cancelled for Cancelled) — reopening later does NOT reopen contracts. Answers 200 with an empty TAF list whose Properties.UpdatedProjectsCount is the number of IDs processed. The first failing project aborts the call with 500 and the earlier projects KEEP their new status; there is no per-project result. Always send Status: &#123;&#125; moves every listed project to Quote.
 
         **Use it to:**
         - Close a batch of finished projects (Completed / Archived) from a portfolio tool

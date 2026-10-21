@@ -1219,7 +1219,7 @@ paths:
       description: |-
         Permanently deletes every competence of one employee, or every competence of one competence group.
 
-        Hard delete of the employee's competence rows — all of them, or with groupId > 0 only those whose competence belongs to that group. Nothing is kept and TimeLog offers no restore; the single event raised carries no detail of what was removed. groupId 0 or negative is treated as "no group" and deletes EVERYTHING (EMPV2-6). The call reaches this action only with userId in the query: without it the request falls through to DELETE /employee-competences/{id} and is rejected as "The value 'bulk' is not valid for Int32." (captured, EMPV2-7).
+        Hard delete of the employee's competence rows — all of them, or with groupId > 0 only those whose competence belongs to that group. Nothing is kept and TimeLog offers no restore; the single event raised carries no detail of what was removed. groupId 0 or negative is treated as "no group" and deletes EVERYTHING (EMPV2-6). The call reaches this action only with userId in the query: without it the request falls through to DELETE /employee-competences/&#123;id&#125; and is rejected as "The value 'bulk' is not valid for Int32." (captured, EMPV2-7).
 
         **Use it to:**
         - Reset an employee's skills profile before a full re-import
@@ -1232,7 +1232,7 @@ paths:
         - Idempotent.
         - A repeat deletes nothing more and answers 204.
         - Safe to retry.
-        - Side effect: Raises CompetenceValueBatchDeleted once, with no domain object (description 'CompetenceValueBatchDeletedForUser<userId>').
+        - Side effect: Raises CompetenceValueBatchDeleted once, with no domain object (description 'CompetenceValueBatchDeletedForUser&lt;userId>').
         - On failure: 403: nothing deleted (the check runs first).
         - Changes are visible to the next read immediately.
         - Batch: One DELETE statement.

@@ -97,7 +97,7 @@ paths:
       description: |-
         Returns TimeLog's news RSS feed for the caller's language, as raw XML.
 
-        Picks a feed URL from the tenant settings by the caller's profile language — Danish → RSSFeedUrl_DK, Swedish → RSSFeedUrl_SE, English and every other language → RSSFeedUrl_EN (defaults: http://help.timelog.com/<dk|en|se>/feed/) — downloads it server-side, parses it as XML and returns the document unchanged with Content-Type application/xml. The parsed document is kept in the application cache under "<url>-Xml", so later calls for the same URL do not download again. The body is NOT the TAF JSON envelope.
+        Picks a feed URL from the tenant settings by the caller's profile language — Danish → RSSFeedUrl_DK, Swedish → RSSFeedUrl_SE, English and every other language → RSSFeedUrl_EN (defaults: http://help.timelog.com/&lt;dk|en|se>/feed/) — downloads it server-side, parses it as XML and returns the document unchanged with Content-Type application/xml. The parsed document is kept in the application cache under "&lt;url>-Xml", so later calls for the same URL do not download again. The body is NOT the TAF JSON envelope.
 
         **Use it to:**
         - Show TimeLog product news on the front page.

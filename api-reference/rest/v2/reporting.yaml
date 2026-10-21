@@ -32,7 +32,7 @@ paths:
       operationId: getHourKpiPerMonthHoursOnlyWidgetV2
       summary: Get my added value per month, own hours only (Insights widget)
       description: |-
-        Insights endpoint hour-kpi-per-month-hours-only-widget-data (widget title 'Added value per month (only My hours)'). Help text: 'Shows the monthly value added for the fiscal year. It displays either the registered or the estimated value. All amounts are in {{currency}}, with invoices in other currencies being converted. Internal hours hold a zero value, and absence hours are omitted … accumulates the year-to-date values …'. Same body shape as hour-kpi-per-month. DIFFERENCE IN TLP from hour-kpi-per-month and hour-kpi-bar-per-month: only the Insights endpoint name and the declared (unenforced) feature — the frontend sends NO filter here, but TLP forwards any query string, so a caller-added ?filter= reaches Insights; whether Insights ignores it on this route is not established. PASS-THROUGH PROXY. Insights' HTTP status, headers and body are returned to the caller unchanged. The controller says it exists only so the React frontend can reach Insights and must not be used for anything else.
+        Insights endpoint hour-kpi-per-month-hours-only-widget-data (widget title 'Added value per month (only My hours)'). Help text: 'Shows the monthly value added for the fiscal year. It displays either the registered or the estimated value. All amounts are in &#123;&#123;currency&#125;&#125;, with invoices in other currencies being converted. Internal hours hold a zero value, and absence hours are omitted … accumulates the year-to-date values …'. Same body shape as hour-kpi-per-month. DIFFERENCE IN TLP from hour-kpi-per-month and hour-kpi-bar-per-month: only the Insights endpoint name and the declared (unenforced) feature — the frontend sends NO filter here, but TLP forwards any query string, so a caller-added ?filter= reaches Insights; whether Insights ignores it on this route is not established. PASS-THROUGH PROXY. Insights' HTTP status, headers and body are returned to the caller unchanged. The controller says it exists only so the React frontend can reach Insights and must not be used for anything else.
 
         **Use it to:**
         - Show an employee the sales value of their own registered hours per month
@@ -409,7 +409,7 @@ paths:
 
         **Rules across fields:**
         - Each ID list acts only together with its is…Inclusive switch: list non-empty + switch null → filter silently ignored; switch set + list empty → ignored.
-        - Body omitted or JSON null → 500 Code 100. An empty object {} returns the first 100 projects (captured).
+        - Body omitted or JSON null → 500 Code 100. An empty object &#123;&#125; returns the first 100 projects (captured).
 
         **Behaviour:**
         - Idempotent.

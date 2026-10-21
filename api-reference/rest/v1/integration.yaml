@@ -36,7 +36,7 @@ paths:
       description: |-
         Lists the external systems registered in the tenant, ordered by name.
 
-        Returns every external system of the tenant — the ones TimeLog's built-in integrations created (one per integration handler, e.g. "e-conomic <site>_v1", "Microsoft Dynamics 365 Business Central <site>_v1") and any an integrator registered itself. This is the lookup for the ExternalSystemID used by the external-key endpoints of time registrations, projects and tasks, and by integration conflicts.
+        Returns every external system of the tenant — the ones TimeLog's built-in integrations created (one per integration handler, e.g. "e-conomic &lt;site>_v1", "Microsoft Dynamics 365 Business Central &lt;site>_v1") and any an integrator registered itself. This is the lookup for the ExternalSystemID used by the external-key endpoints of time registrations, projects and tasks, and by integration conflicts.
 
         **Use it to:**
         - At integration start-up: find the ExternalSystemID your integration registered earlier (match on the ID you stored, not on the name — names are not unique).

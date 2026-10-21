@@ -228,7 +228,7 @@ paths:
       description: |-
         Returns the on/off state of the resource-management features — today only Competences.
 
-        A one-entry list: { name: Competences, identifier: 470, enabled }. Tenant configuration only — the same answer for every user. The list is code-defined; new resource-management features appear only when the code adds them.
+        A one-entry list: &#123; name: Competences, identifier: 470, enabled &#125;. Tenant configuration only — the same answer for every user. The list is code-defined; new resource-management features appear only when the code adds them.
 
         **Use it to:**
         - Resource-management client deciding whether to show competence features
@@ -388,7 +388,7 @@ paths:
       description: |-
         Returns the calling user's front-page widgets in their personal display order.
 
-        The widgets the caller sees on the front page, first to last. A widget is listed only when one of the caller's roles grants the widget page AND it appears in the caller's stored widget order (front-page setting PersonalWidgetSettings, "{pageId}:{position};…"). Each item gives the widget's page id (the id to send to PATCH displayorder) and its PageIdentifier name.
+        The widgets the caller sees on the front page, first to last. A widget is listed only when one of the caller's roles grants the widget page AND it appears in the caller's stored widget order (front-page setting PersonalWidgetSettings, "&#123;pageId&#125;:&#123;position&#125;;…"). Each item gives the widget's page id (the id to send to PATCH displayorder) and its PageIdentifier name.
 
         **Use it to:**
         - Render the caller's front-page widgets in order; get WidgetID values for reordering
@@ -645,7 +645,7 @@ paths:
         - Not idempotent.
         - Safe to retry. Each call stores a new blob under a new random name; a retry only leaves an unused copy behind.
         - Duplicates: Not deduplicated: the same image uploaded twice becomes two blobs.
-        - Side effect: Writes the bytes to the tenant blob container (tlp-<CustomerProductId>) as FrontPageImage-<random GUID><extension of the uploaded file name>; no Content-Type is set on the blob (only .pdf blobs get one).
+        - Side effect: Writes the bytes to the tenant blob container (tlp-&lt;CustomerProductId>) as FrontPageImage-&lt;random GUID>&lt;extension of the uploaded file name>; no Content-Type is set on the blob (only .pdf blobs get one).
         - Side effect: Does NOT change the FrontPageInternalMessage setting — the caller must insert the URL into the HTML and save it.
         - On failure: 403 / 400 / 415 / 413: nothing is stored.
         - On failure: A failure while signing the URL after the write leaves an orphan blob (src_only).
@@ -908,7 +908,7 @@ paths:
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Side effect: Caches both segmentation maps per user id (TimelogCustomerSegmentationUser<id> / …Account<id>); later calls return the cached maps, so changes (role, department, integrations) may show only after the cache entry expires.
+        - Side effect: Caches both segmentation maps per user id (TimelogCustomerSegmentationUser&lt;id> / …Account&lt;id>); later calls return the cached maps, so changes (role, department, integrations) may show only after the cache entry expires.
 
         > **Not yet documented:** behaviour → consistency.
       responses:

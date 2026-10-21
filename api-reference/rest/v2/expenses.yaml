@@ -745,7 +745,7 @@ paths:
         - Not idempotent.
         - Not safe to retry blindly. Each call appends new blobs; a retry stores the PDF twice. GET the expense and compare FileUrls before retrying.
         - Duplicates: Not deduplicated.
-        - Side effect: Uploads each PDF to the tenant blob container as EmployeeExpense-<random GUID>.pdf with Content-Type application/pdf.
+        - Side effect: Uploads each PDF to the tenant blob container as EmployeeExpense-&lt;random GUID>.pdf with Content-Type application/pdf.
         - Side effect: Rewrites the expense's attachment list (ImageAsJson) with the new private URLs; refreshes the cached expense.
         - On failure: All parts are checked before any upload, so an invalid part stores nothing. A storage or DB failure after some uploads leaves orphan blobs (src_only).
         - Changes are visible to the next read immediately.
@@ -923,7 +923,7 @@ paths:
         - Not idempotent.
         - Not safe to retry blindly. Each call appends new blobs under new random names; a retried upload stores the receipt twice. After a lost response, GET the expense and compare ImageUrls before retrying.
         - Duplicates: Not deduplicated: the same image uploaded twice becomes two attachments.
-        - Side effect: Uploads each image to the tenant blob container (tlp-<CustomerProductId>) as EmployeeExpense-<random GUID>.<format>; no Content-Type is set on image blobs.
+        - Side effect: Uploads each image to the tenant blob container (tlp-&lt;CustomerProductId>) as EmployeeExpense-&lt;random GUID>.&lt;format>; no Content-Type is set on image blobs.
         - Side effect: Rewrites the expense's attachment list (ImageAsJson) with the new private URLs; refreshes the cached expense.
         - On failure: All parts are decoded before any upload, so an invalid part stores nothing. A storage or DB failure after some uploads leaves orphan blobs that are not in the attachment list (src_only).
         - Changes are visible to the next read immediately.
@@ -1010,7 +1010,7 @@ paths:
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Side effect: One outbound HTTP GET {CurrencyExchangeServiceAddress}/api/CurrencyExchange/{fromISO}/{toISO}/{yyyy-MM-dd} per try, with the TimeLog-Authorization header; each failure is written to the error log.
+        - Side effect: One outbound HTTP GET &#123;CurrencyExchangeServiceAddress&#125;/api/CurrencyExchange/&#123;fromISO&#125;/&#123;toISO&#125;/&#123;yyyy-MM-dd&#125; per try, with the TimeLog-Authorization header; each failure is written to the error log.
         - Changes are visible to the next read immediately.
         - Not cached: a live provider rate on every call, which can differ from what the tenant stored for the same date in its currency matrix.
 

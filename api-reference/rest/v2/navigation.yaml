@@ -111,7 +111,7 @@ paths:
       description: |-
         Adds a page to the caller's own bookmarks; the server names the bookmark and stores the URL relative to the Referer's origin.
 
-        Bookmarks a page for the CALLER (the owner is always the current user — there is no user parameter). The caller sends the page GUID, the page's absolute URL and, for entity pages, the entity ID. The server checks that the URL starts with the origin of the request's Referer header, stores the URL relative to that origin, and names the bookmark itself: the page's name in the caller's language, or for entity pages "<page name>: <entity name>" (project, customer, contact, CRM event / opportunity, employee) or "<prefix> <number>" (invoice, voucher, credit note, reminder). If the caller already has a bookmark for the same page (non-entity pages) or a URL ending with the same path, nothing is created. The response is `null` — re-list to obtain the new bookmark's ID.
+        Bookmarks a page for the CALLER (the owner is always the current user — there is no user parameter). The caller sends the page GUID, the page's absolute URL and, for entity pages, the entity ID. The server checks that the URL starts with the origin of the request's Referer header, stores the URL relative to that origin, and names the bookmark itself: the page's name in the caller's language, or for entity pages "&lt;page name>: &lt;entity name>" (project, customer, contact, CRM event / opportunity, employee) or "&lt;prefix> &lt;number>" (invoice, voucher, credit note, reminder). If the caller already has a bookmark for the same page (non-entity pages) or a URL ending with the same path, nothing is created. The response is `null` — re-list to obtain the new bookmark's ID.
 
         **Use it to:**
         - "Bookmark this page" in the web app's page header
@@ -830,9 +830,9 @@ paths:
       operationId: filtersContractModelContentGetV2
       summary: List contract model filter options
       description: |-
-        Returns the fixed list of the eight non-system contract models as filter options, labelled "<invoicing type> - <model>" in the caller's language.
+        Returns the fixed list of the eight non-system contract models as filter options, labelled "&lt;invoicing type> - &lt;model>" in the caller's language.
 
-        - <contract model text>" from the enum resources. In en-GB: 1 "Time & material - Standard contract", 3 "Time & material - On account with end-balancing", 5 "Time & material - Prepaid hours", 4 "Time & material - Continuous on-account invoicing with period balancing", 2 "Fixed price - Standard contract", 7 "Fixed price - Continuous service", 6 "Fixed price - Task-driven revenue", 8 "Fixed price - Continuous item invoicing". The list is the same for every tenant and caller. Search text and skip / take are applied in memory; the search is a CASE-SENSITIVE substring match.
+        - &lt;contract model text>" from the enum resources. In en-GB: 1 "Time & material - Standard contract", 3 "Time & material - On account with end-balancing", 5 "Time & material - Prepaid hours", 4 "Time & material - Continuous on-account invoicing with period balancing", 2 "Fixed price - Standard contract", 7 "Fixed price - Continuous service", 6 "Fixed price - Task-driven revenue", 8 "Fixed price - Continuous item invoicing". The list is the same for every tenant and caller. Search text and skip / take are applied in memory; the search is a CASE-SENSITIVE substring match.
 
         **Behaviour:**
         - Idempotent.

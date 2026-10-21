@@ -1352,11 +1352,11 @@ paths:
         - Same effective state on a repeat, but each call writes a new history row, obsoletes the previous identical one, raises the events and triggers the recalculation again.
         - Safe to retry.
         - Duplicates: A repeat call supersedes the previous identical entry (see idempotent_detail).
-        - Side effect: If StartsAt <= today: the employee's profile norm is switched now; otherwise on StartsAt by the nightly user update.
+        - Side effect: If StartsAt &lt;= today: the employee's profile norm is switched now; otherwise on StartsAt by the nightly user update.
         - Side effect: Background (after the response): the employee projection (expected hours per day) and flex norm postings are regenerated from StartsAt (not before the employment / calculation start date); the salary-account posting aggregation is re-run.
         - Side effect: Resource Planner capacity of the employee is updated (EmployeeCapacitiesUpdated events from the projection regeneration).
         - On failure: None expected: both checks run before the first write. If a later history update or the profile update fails, rows already written stay (no transaction around the loop).
-        - Consistency: eventual — the response returns before the projection, flex postings and aggregations are regenerated (background work item); the profile norm itself is immediate when StartsAt <= today
+        - Consistency: eventual — the response returns before the projection, flex postings and aggregations are regenerated (background work item); the profile norm itself is immediate when StartsAt &lt;= today
 
         **Call first:** `GET /v1/normal-working-time`, `GET /v1/user`
 

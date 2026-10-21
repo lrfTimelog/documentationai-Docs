@@ -1015,7 +1015,7 @@ paths:
         - Changing the employee → `PUT /v1/time-registration` (PUT, full replace)
 
         **Rules across fields:**
-        - R1: StartTime and EndTime both sent → StartTime < EndTime and (EndTime − StartTime) in minutes = round(Hours × 60).
+        - R1: StartTime and EndTime both sent → StartTime &lt; EndTime and (EndTime − StartTime) in minutes = round(Hours × 60).
 
         **Behaviour:**
         - Idempotent.
@@ -1171,7 +1171,7 @@ paths:
 
         **Behaviour:**
         - Not idempotent.
-        - Safe to retry only under a condition. A retry after a lost response returns 500 Code 100 — the same as an unknown ID. Confirm with GET /{id} (also 500 Code 100 when gone) or your own records before treating it as success.
+        - Safe to retry only under a condition. A retry after a lost response returns 500 Code 100 — the same as an unknown ID. Confirm with GET /&#123;id&#125; (also 500 Code 100 when gone) or your own records before treating it as success.
         - Side effect: Hard delete (row removed).
         - Side effect: Removes approval items; deletes work unit; updates invoicing/salary; recalculates financials.
         - Side effect: External keys of the registration are NOT removed (orphaned).
