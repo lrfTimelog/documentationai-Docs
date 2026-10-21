@@ -17,7 +17,7 @@
         "icon": "book",
         "groups": [
           {
-            "group": "Getting Started",
+            "group": "Get started",
             "icon": "rocket",
             "pages": [
               {
@@ -26,31 +26,35 @@
                 "icon": "home"
               },
               {
-                "title": "Quickstart",
+                "title": "Choose an API",
+                "path": "choose-an-api",
+                "icon": "compass"
+              },
+              {
+                "title": "Your first API call",
                 "path": "quickstart",
                 "icon": "zap"
               }
             ]
           },
           {
-            "group": "Core Concepts",
-            "icon": "layers",
+            "group": "Set up access",
+            "icon": "key-round",
             "pages": [
               {
-                "title": "Features",
-                "path": "features",
-                "icon": "star"
-              }
-            ]
-          },
-          {
-            "group": "Guides",
-            "icon": "compass",
-            "pages": [
+                "title": "What you need",
+                "path": "get-access",
+                "icon": "list-checks"
+              },
               {
-                "title": "Integrations",
-                "path": "integrations",
-                "icon": "plug"
+                "title": "Find your base URL",
+                "path": "base-url",
+                "icon": "link"
+              },
+              {
+                "title": "Authentication overview",
+                "path": "authentication",
+                "icon": "shield"
               }
             ]
           }

@@ -1,0 +1,86 @@
+---
+title: "Choose an API"
+description: "TimeLog has three APIs. Compare them side by side and pick the one that fits what your integration does."
+---
+
+TimeLog has three APIs. They differ in what they can do, who a call acts as and how they report errors, so choosing the
+right one first saves you from rebuilding later. Answer three questions:
+
+1. **Do you need to write data, or only read it?** The Reporting API is read-only.
+2. **Do you read one record at a time, or extract in bulk?** The Reporting API returns whole sets in one call.
+3. **Should the integration see what one user sees, or the whole account?** REST and Transactional act as a user. The
+   Reporting API sees the whole account.
+
+## At a glance
+
+| | REST API | Transactional API | Reporting API |
+|---|---|---|---|
+| Protocol and format | JSON over HTTPS | SOAP 1.1, XML | SOAP, XML documents |
+| Reads or writes | Both | Both | **Read-only** |
+| Who the call acts as | The token's TimeLog user | The user who requested the token | No user: the account |
+| Credential | Personal access token | Token from GetToken (user name and password) | `siteCode`, `apiID`, `apiPassword` |
+| Data scope | What the user's privileges cover | What the user's permissions cover | All matching records of the account |
+| Versioning | `v1` and `v2` in the URL | One endpoint per service version | Not versioned: one endpoint |
+| Paging | See [Pagination](/rest/conventions/pagination) | Per operation, for example `page` and `pageSize` | Mostly none: all matching records in one response |
+| Errors | HTTP status code | HTTP 200, check `ResponseState` | HTTP status code |
+| Try it | Playground in the [REST API](/rest/overview) tab | [Bruno collection](/transactional/guides/try-it-with-bruno) | [Bruno collection](/reporting/guides/try-it-with-bruno) |
+
+## When to use which
+
+### REST API
+
+Reads and changes data with JSON requests. Every request acts as the token's TimeLog user, and privileges are checked
+per operation.
+
+**Use it when**
+- Your integration acts on behalf of a TimeLog user, and should see and change what that user can.
+- You want JSON and standard HTTP status codes.
+- The operation you need is in the [REST API reference](/rest/overview#what-you-can-do).
+
+**Not for**
+- Extracting the whole account's data regardless of user privileges. Lists return only what the user may see.
+
+### Transactional API
+
+A SOAP API with separate services: CRM, Expenses, Financial, Invoicing, Organisation, Project management, Salary,
+Security and Transaction. Each service version has its own endpoint, and every call acts as the user who requested the
+token.
+
+**Use it when**
+- You need to create or change data through one of its services.
+- Your tooling works well with SOAP and WSDL.
+
+**Not for**
+- Reading results from the HTTP status alone. Almost every call returns HTTP 200, so always check `ResponseState`. See
+  [Responses and errors](/transactional/guides/responses-and-errors).
+
+### Reporting API
+
+A read-only SOAP API with one endpoint per account. It returns XML documents as **raw extracts** (full records) and
+**short lists** (IDs and names for look-ups).
+
+**Use it when**
+- You extract data in bulk, for example into a data warehouse or a reporting tool.
+- You need the whole account's data, not only what one user can see.
+
+**Not for**
+- Writing data. It has no write operations.
+- Calls that must respect a user's permissions. No user's permissions are applied.
+- Very large unfiltered reads. Most methods return all matching records in one response, with no paging, so narrow
+  the result with the method's filters. Time registrations have a paged extract.
+
+## Combining APIs
+
+One integration can use more than one API, each with its own credential. A common shape: read in bulk with the
+Reporting API, and write back with the Transactional or REST API. See [Authentication overview](/authentication) for
+the credential each one needs.
+
+## Versions
+
+The Transactional API keeps older service versions available next to the current one, and each version has its own XML
+namespace: you choose the version by the endpoint URL. The Reporting API is not versioned: new methods are added next
+to the existing ones. The REST API selects `v1` or `v2` in the URL; see
+[Base URL and versioning](/rest/conventions/versioning).
+
+<Callout kind="alert">**Not yet documented.** Which API is recommended for new integrations, whether any API is
+considered legacy, and the support period for each version are not yet documented.</Callout>
