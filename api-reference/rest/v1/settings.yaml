@@ -15,10 +15,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -32,7 +30,7 @@ paths:
       operationId: getBarriers
       summary: List barrier types
       description: |-
-        Barriers are the tenant-wide list of reasons that hold back a sales OPPORTUNITY (system administration → "Barrier management in TimeLog CRM"). They are not period or registration locks and block nothing. The Reporting API (GetBarriersShortlist) reads the same table and is the working alternative.
+        Barriers are the account-wide list of reasons that hold back a sales OPPORTUNITY (system administration → "Barrier management in TimeLog CRM"). They are not period or registration locks and block nothing. The Reporting API (GetBarriersShortlist) reads the same table and is the working alternative.
 
         **Not for:**
         - Locking time registration — barriers have nothing to do with it
@@ -109,13 +107,12 @@ paths:
         Adds a reason that can be attached to sales opportunities. Do not retry blindly — check the Reporting API's barrier list.
 
         **Use it to:**
-        - Seed the CRM barrier list of a new tenant
+        - Seed the CRM barrier list of a new account
 
         **Behaviour:**
         - Not idempotent.
         - Not safe to retry blindly. A 500 may follow a committed insert. Retrying with the SAME Id fails on the unique GUID (no duplicate); with a new Id it creates a duplicate.
-        - Duplicates: Names are not deduplicated; the caller-supplied Id is unique (database constraint).
-        - Side effect: Inserts the barrier and raises BarrierCreated; clears the barrier cache.
+        - Duplicates: Names are not deduplicated; the caller-supplied Id is unique.
         - Changes are visible to the next read immediately.
 
         **Next:** `PUT /v1/barrier`
@@ -409,7 +406,7 @@ paths:
         - Populate the car choice before `POST /v1/mileage-registration` (send the chosen CarID)
 
         **Not for:**
-        - Listing all cars of the tenant or of another employee (no such operation in REST v1)
+        - Listing all cars of the account or of another employee (no such operation in REST v1)
 
         **Behaviour:**
         - Idempotent.
@@ -448,8 +445,6 @@ paths:
           - Fill EmployeeUser (the owner's user record, incl. e-mail) on private cars.
           - Fill DefaultMileageRate (the car's default mileage rate).
         description: |-
-          Optional expansions; each value becomes procedure parameter Expand<Value>. Any other value adds a parameter the procedure does not declare (error not tested).
-
           Several values: one string, separated by `,`.
 
           Allowed values:
@@ -611,7 +606,7 @@ paths:
       description: |-
         Renames a car, changes its plate and sets or clears it as the caller's default car; returns the car.
 
-        Ordinary users can update only their OWN private cars. Users with access to the car administration page can update any car of the tenant (other employees' private cars and company cars). Name and LicensePlate are always overwritten, so send both. Owner, type, active state and mileage rate are not changeable here. IsDefault acts on the CALLER's default-car setting, even when the car belongs to someone else.
+        Ordinary users can update only their OWN private cars. Users with access to the car administration page can update any car of the account (other employees' private cars and company cars). Name and LicensePlate are always overwritten, so send both. Owner, type, active state and mileage rate are not changeable here. IsDefault acts on the CALLER's default-car setting, even when the car belongs to someone else.
 
         **Use it to:**
         - Employee corrects the plate of their car
@@ -798,7 +793,7 @@ paths:
       description: |-
         Permanently deletes a car that has never been used on a mileage registration.
 
-        Hard delete. Refused (37830) as soon as any mileage registration uses the car — a car with history can only be deactivated, which the API cannot do. Ordinary users can delete only their own private cars; users with access to the car administration page can delete any unused car of the tenant.
+        Hard delete. Refused (37830) as soon as any mileage registration uses the car — a car with history can only be deactivated, which the API cannot do. Ordinary users can delete only their own private cars; users with access to the car administration page can delete any unused car of the account.
 
         **Use it to:**
         - Remove a car added by mistake
@@ -878,7 +873,7 @@ paths:
       operationId: getCar
       summary: Get a car
       description: |-
-        Returns one car by its integer CarID or its GUID — any car of the tenant, active or not, whoever owns it.
+        Returns one car by its integer CarID or its GUID — any car of the account, active or not, whoever owns it.
 
         Resolves the CarID of a mileage registration (or a car GUID) to the car's name, plate, type, owner and default rate. IsDefault refers to the caller's own default car.
 
@@ -907,7 +902,7 @@ paths:
         schema:
           type: string
         description: |-
-          CarRead.CarID (integer) or CarRead.ID (GUID). The integer form is named carID in the source.
+          CarRead.CarID (integer) or CarRead.ID (GUID).
 
           Refers to `CarRead.CarID`. Look up valid values with `GET /v1/car`.
       - name: $expand
@@ -922,7 +917,7 @@ paths:
           - Fill EmployeeUser (owner's user record, incl. e-mail) on a private car. Both variants.
           - Fill DefaultMileageRate. Integer variant only — on the GUID variant the procedure has no such parameter.
         description: |-
-          Optional expansions (procedure parameter Expand<Value>).
+          Optional expansions.
 
           Several values: one string, separated by `,`.
 
@@ -931,7 +926,7 @@ paths:
           | Value | Name | Meaning |
           |---|---|---|
           | `owner` | owner | Fill EmployeeUser (owner's user record, incl. e-mail) on a private car. Both variants. |
-          | `mileagerate` | mileagerate | Fill DefaultMileageRate. Integer variant only — on the GUID variant the procedure has no such parameter. |
+          | `mileagerate` | mileagerate | Fill DefaultMileageRate. |
       responses:
         '200':
           description: |-
@@ -1009,25 +1004,24 @@ paths:
   /v1/feature:
     put:
       operationId: updateFeature
-      summary: Switch a tenant feature on or off
+      summary: Switch a account feature on or off
       description: |-
-        Turns one tenant-wide feature flag on or off (internal client only).
+        Turns one account-wide feature flag on or off (internal client only).
 
-        TENANT-WIDE CONFIGURATION WRITE. A feature is an on/off switch that changes TimeLog's behaviour for every user of the tenant. Examples: CurrencyMatrix (whether amounts are converted through the currency matrix, Settings service), UniqueCustomerNumber (customer-number uniqueness on customer create / update, CRM), ContractTypeIsRequired (contract creates, ProjectManagement), MandatoryComment (registration / absence comments, TimeRegistration and Salary), InvoiceMultilingual / OIOXML (customer invoice settings, CRM), MultiLegalEntities / Departments (user create rules, Organization), BillableOnTime (registration billable flag, TimeRegistration), AllocationDates (allocation dates, ProjectManagement). Only callable with a JWT issued to the OAuth client 'uitestmobile'. Setting a feature to its current value does nothing and still returns 200. A real change is validated, written, and then triggers the feature's side effects — some of which rewrite tenant data (see behaviour).
+        ACCOUNT-WIDE CONFIGURATION WRITE. A feature is an on/off switch that changes TimeLog's behaviour for every user of the account. Examples: CurrencyMatrix (whether amounts are converted through the currency matrix, Settings service), UniqueCustomerNumber (customer-number uniqueness on customer create / update, CRM), ContractTypeIsRequired (contract creates, ProjectManagement), MandatoryComment (registration / absence comments, TimeRegistration and Salary), InvoiceMultilingual / OIOXML (customer invoice settings, CRM), MultiLegalEntities / Departments (user create rules, Organization), BillableOnTime (registration billable flag, TimeRegistration), AllocationDates (allocation dates, ProjectManagement). Only callable with a JWT issued to the OAuth client 'uitestmobile'. Setting a feature to its current value does nothing and still returns 200. A real change is validated, written, and then triggers the feature's side effects — some of which rewrite account data (see behaviour).
 
         **Use it to:**
-        - Internal UI / test automation (client 'uitestmobile') switching features on a test tenant
+        - Internal UI / test automation (client 'uitestmobile') switching features on a test account
 
         **Not for:**
         - Integrations: the operation rejects every other OAuth client (400).
-        - Changing a typed tenant setting (number, date, enum) → `PUT /v1/setting`
+        - Changing a typed account setting (number, date, enum) → `PUT /v1/setting`
 
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
         - Duplicates: Same value again = no write, no events, 200.
-        - Side effect: Writes the feature value for the whole tenant; invalidates the cached system configuration.
-        - Side effect: Feature-specific pre / post actions, e.g.: StopwatchTimeTracking (pre-change handling of running timers); SalaryAccounts / approval features (menus, process and user caches flushed); SalaryGroups / SalarySpecification (may switch further features and change the system salary group's salary type); AllocationDates OFF (rewrites the dates of EVERY allocation to its task's dates — not reversible by switching back); CopyWeek (menus); NewResourcePlanner ON (publishes the Resource Planner onboarding event).
+        - Side effect: Feature-specific pre / post actions, e.g.: StopwatchTimeTracking (pre-change handling of running timers); SalaryAccounts / approval features; SalaryGroups / SalarySpecification (may switch further features and change the system salary group's salary type); AllocationDates OFF (rewrites the dates of EVERY allocation to its task's dates — not reversible by switching back); CopyWeek (menus); NewResourcePlanner ON (publishes the Resource Planner onboarding event).
         - Side effect: Dependent settings / templates updated, e.g. export types (Pdf / Xml / MSExcel / MSWord / TextFile), invoice print-template recipient fields (CustomerSalutation / Initials / ProfessionalTitle1-2), password rules (AdvancedPasswordSecurity), project sub-contract features.
         - Side effect: Post actions run TWICE per call — e.g. the onboarding event is published twice.
 
@@ -1078,14 +1072,14 @@ paths:
   /v1/setting:
     put:
       operationId: updateSetting
-      summary: Change a tenant setting
+      summary: Change a account setting
       description: |-
-        Changes one typed tenant-wide setting (internal client only).
+        Changes one typed account-wide setting (internal client only).
 
-        TENANT-WIDE CONFIGURATION WRITE. A setting is a typed configuration value (number, date, enum, text) that applies to the whole tenant, as opposed to an on/off feature (`PUT /v1/feature`). Only callable with a JWT issued to the OAuth client 'uitestmobile'. Every call writes — there is no "unchanged" short-cut — after validation.
+        ACCOUNT-WIDE CONFIGURATION WRITE. A setting is a typed configuration value (number, date, enum, text) that applies to the whole account, as opposed to an on/off feature (`PUT /v1/feature`). Only callable with a JWT issued to the OAuth client 'uitestmobile'. Every call writes — there is no "unchanged" short-cut — after validation.
 
         **Use it to:**
-        - Internal UI / test automation (client 'uitestmobile') configuring a test tenant
+        - Internal UI / test automation (client 'uitestmobile') configuring a test account
 
         **Not for:**
         - Integrations: the operation rejects every other OAuth client (400).
@@ -1097,7 +1091,6 @@ paths:
         **Behaviour:**
         - Safe to retry only under a condition.
         - Duplicates: Not short-circuited: re-sending the same value rewrites it and raises the events again.
-        - Side effect: Writes the sanitised value for the whole tenant, then invalidates the cached system configuration.
         - Side effect: Setting-specific post actions, e.g. CustomerDefaultCountry, TimeRegistrationPotentialTypeColumn, DefaultTimeSheetViewForNewUsers; FlexTruncationDate 1 (Today) / 2 (Yesterday) raises the events that create / delete today's flex postings for employees.
 
         **See also:** `PUT /v1/feature`
@@ -1192,8 +1185,7 @@ components:
             - Missing, null or empty — 400 Code 200 "'Name' must not be empty." (captured).
 
             > **Not yet documented:** behaviour.
-      description: A new CRM barrier type. The caller supplies the GUID; the integer BarrierID is assigned by the database.
-        New barriers are active.
+      description: A new CRM barrier type. New barriers are active.
     BarrierRead:
       type: object
       properties:
@@ -1231,7 +1223,7 @@ components:
             Display name of the barrier (free text as entered by the administrator, not localized).
 
             > **Not yet documented:** example.
-      description: 'A CRM barrier type: an entry of the tenant-wide list of reasons that hold back a sales opportunity (system
+      description: 'A CRM barrier type: an entry of the account-wide list of reasons that hold back a sales opportunity (system
         administration page "Barrier management in TimeLog CRM"). Opportunities reference barriers by BarrierID. A barrier
         is NOT a time-registration or period lock: it is stored only on opportunities and used as a filter of the Reporting
         API''s opportunity export. It blocks nothing. The active flag that exists in storage is not part of this model.'
@@ -1248,8 +1240,6 @@ components:
             GUID of the barrier to rename (BarrierRead.Id — not BarrierID).
 
             Refers to `BarrierRead.Id`. Look up valid values with `GET /v1/barrier`.
-
-            - Missing or unknown — 500 Code 100 — the cached-list lookup (First) throws (captured for {}).
 
             Valid values come from `GET /v1/barrier`.
         Name:
@@ -1276,8 +1266,6 @@ components:
             Can be set on create only.
 
             - Missing, null or empty — 400 Code 200 "'Name' must not be empty." (captured).
-
-            - Longer than 255 characters — Database error → 500 Code 100.
 
             > **Not yet documented:** behaviour.
         LicensePlate:
@@ -1386,8 +1374,6 @@ components:
             Null: null = company car (no owner).
 
             Contains personal data.
-
-            > **Not yet documented:** identity → references → lookup op.
         EmployeeUser:
           $ref: '#/components/schemas/UserRead'
           readOnly: true
@@ -1502,8 +1488,8 @@ components:
       required:
       - ID
       - Value
-      description: Switches one tenant feature flag on or off. A feature is a boolean, tenant-wide configuration switch that
-        turns a TimeLog capability or rule on for every user — e.g. CurrencyMatrix, UniqueCustomerNumber, ContractTypeIsRequired,
+      description: Switches one account feature flag on or off. A feature is a boolean, account-wide configuration switch
+        that turns a TimeLog capability or rule on for every user — e.g. CurrencyMatrix, UniqueCustomerNumber, ContractTypeIsRequired,
         AllocationDates.
     MessageError:
       type: object
@@ -1556,7 +1542,7 @@ components:
           - 'null'
           readOnly: true
           maxLength: 50
-          description: Payroll export code for the reimbursement — the 'code for non-taxable share' when the tenant splits
+          description: Payroll export code for the reimbursement — the 'code for non-taxable share' when the account splits
             taxable / non-taxable shares, otherwise the single salary-system code. Empty or null when not set.
         SalaryCodeTaxable:
           type:
@@ -1565,7 +1551,7 @@ components:
           readOnly: true
           maxLength: 50
           description: |-
-            Payroll export code for the TAXABLE share of the reimbursement (only used when the tenant splits shares). Null when not set.
+            Payroll export code for the TAXABLE share of the reimbursement (only used when the account splits shares). Null when not set.
 
             > **Not yet documented:** description.
         AccountNumber:
@@ -1612,7 +1598,7 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            Currency the employee is reimbursed in: with MultiLegalEntityWithMultiCurrency the rate's legal-entity currency, otherwise the tenant base currency (set when the rate is saved).
+            Currency the employee is reimbursed in: with MultiLegalEntityWithMultiCurrency the rate's legal-entity currency, otherwise the account base currency (set when the rate is saved).
 
             Refers to `CurrencyRead.CurrencyID`. Look up valid values with `GET /v1/currency/{status}`.
         LegalEntityID:
@@ -1675,7 +1661,7 @@ components:
       required:
       - ID
       - Value
-      description: Changes one tenant setting. A setting is a typed, tenant-wide configuration value — a number, date, enum
+      description: Changes one account setting. A setting is a typed, account-wide configuration value — a number, date, enum
         or text such as FlexTruncationDate, IntercompanyExchangeRateSelectedPollType or InvoiceSetting_NumberOfDecimals —
         as opposed to a feature, which is an on/off flag (FeatureUpdate).
     TafAction:
@@ -1734,7 +1720,7 @@ components:
           readOnly: true
           maxLength: 50
           description: |-
-            First name. Empty for the technical users.
+            First name.
 
             Contains personal data.
 
@@ -1787,7 +1773,7 @@ components:
 
             | Value | Name | Meaning |
             |---|---|---|
-            | `Employee` | Employee | A person working in the tenant (the normal case). Integer 0 in the database. |
+            | `Employee` | Employee | A person working in the account (the normal case). |
             | `ApiUser` | ApiUser | Technical account created by TimeLog (e.g. SYSTEM, ECNuser); not a person. Integer 1. |
             | `ExternalRessource` | ExternalRessource | Obsolete external-resource type (integer 2). Saving such a user converts it to Employee, so it only appears on rows not saved since. |
             | `AnonymizedEmployee` | AnonymizedEmployee | Placeholder account that anonymized (GDPR) employee data is moved to. Integer 3. |
@@ -1809,11 +1795,10 @@ components:
           readOnly: true
           maxLength: 255
           description: |-
-            E-mail address. Empty for the technical users.
+            E-mail address.
 
             Contains personal data.
       description: 'A TimeLog user as REST v1 returns it: identifiers, name, initials, e-mail, active flag, user type and
         legal entity. In TimeLog a user and an employee are the same person seen from two sides: the user is the login, the
-        employee record carries the HR data. Every row of the user table is returned, including the inactive technical users
-        "SYSTEM" and "ECNuser" (UserType ApiUser) and anonymized former employees.'
+        employee record carries the HR data.'
 x-timelog-service: Settings

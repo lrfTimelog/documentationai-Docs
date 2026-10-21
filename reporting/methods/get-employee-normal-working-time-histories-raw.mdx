@@ -1,0 +1,228 @@
+---
+title: "GetEmployeeNormalWorkingTimeHistoriesRaw"
+description: "Reporting API: Returns, per employee, from which date which normal-working-time scheme applies."
+---
+
+| | |
+|---|---|
+| API | Reporting API (raw extracts) |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/Service.asmx` |
+| SOAPAction | `http://www.timelog.com/ws/tlp/v4_4/GetEmployeeNormalWorkingTimeHistoriesRaw` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | `siteCode`, `apiID` and `apiPassword` as the first three parameters. See [Authentication](/reporting/guides/authentication) |
+| Changes data | No. Safe to retry. |
+| Paging | No: the whole result comes in one response. Narrow it with the filters. |
+
+## How it works
+
+Only the START is returned; a period ends one minute before the next period's start. Filters: employee USER id and employee status. No ORDER BY: sort by EmployeeUserID + ValidFromDate on the client.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="siteCode" field-type="string" required="true">
+Your account's site code, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiID" field-type="string" required="true">
+The Reporting API ID, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiPassword" field-type="string" required="true">
+The Reporting API password, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="employeeUserID" field-type="integer" required="true">
+USER id. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="employeeStatus" field-type="integer" required="true">
+0 = inactive employees, 1 = active, any other value = all.
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/Service.asmx HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetEmployeeNormalWorkingTimeHistoriesRaw"
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetEmployeeNormalWorkingTimeHistoriesRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:employeeUserID>0</tlp:employeeUserID>
+      <tlp:employeeStatus>-1</tlp:employeeStatus>
+    </tlp:GetEmployeeNormalWorkingTimeHistoriesRaw>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/Service.asmx" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetEmployeeNormalWorkingTimeHistoriesRaw"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/Service.asmx"
+SOAP_ACTION = '"http://www.timelog.com/ws/tlp/v4_4/GetEmployeeNormalWorkingTimeHistoriesRaw"'
+
+envelope = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetEmployeeNormalWorkingTimeHistoriesRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:employeeUserID>0</tlp:employeeUserID>
+      <tlp:employeeStatus>-1</tlp:employeeStatus>
+    </tlp:GetEmployeeNormalWorkingTimeHistoriesRaw>
+  </soap:Body>
+</soap:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=300,
+)
+rows = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The result is an XML document inside `GetEmployeeNormalWorkingTimeHistoriesRawResult`: a `tlp:EmployeeNormalWorkingTimeHistories` root with one `tlp:EmployeeNormalWorkingTimeHistory` element per record. Check the [response format](/reporting/guides/responses-and-errors) first: the same slot also carries the empty result and errors.
+
+Order: None - no ORDER BY.
+
+<ResponseField name="tlp:EmployeeNormalWorkingTimeHistory" field-type="EmployeeNormalWorkingTimeHistoriesRaw[]">
+One element per record. Fields without a value are left out of the element, so treat every field as optional.
+
+<Expandable title="EmployeeNormalWorkingTimeHistory fields">
+
+<ResponseField name="ID" field-type="integer (attribute)">
+**History entry ID.**
+</ResponseField>
+
+<ResponseField name="GUID" field-type="string (attribute)">
+**History entry GUID.**
+</ResponseField>
+
+<ResponseField name="EmployeeUserID" field-type="integer">
+**Employee user ID.** USER id of the employee.
+</ResponseField>
+
+<ResponseField name="ValidFromDate" field-type="string">
+**Valid from.** Changes before the employment date are moved to it.
+</ResponseField>
+
+<ResponseField name="NormalWorkingTimeID" field-type="integer">
+**Scheme ID.**
+</ResponseField>
+
+<ResponseField name="NormalWorkingTimeGUID" field-type="string">
+**Scheme GUID.**
+</ResponseField>
+
+<ResponseField name="NormalWorkingTimeName" field-type="string">
+**Scheme name.**
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - data,HTTP 200 - no rows" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetEmployeeNormalWorkingTimeHistoriesRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetEmployeeNormalWorkingTimeHistoriesRawResult>
+        <tlp:EmployeeNormalWorkingTimeHistories xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:EmployeeNormalWorkingTimeHistory ID="1001" GUID="3F2504E0-4F89-41D3-9A0C-0305E82C3307">
+            <tlp:EmployeeUserID>12</tlp:EmployeeUserID>
+            <tlp:ValidFromDate>2026-10-01T00:00:00</tlp:ValidFromDate>
+            <tlp:NormalWorkingTimeID>12</tlp:NormalWorkingTimeID>
+            <tlp:NormalWorkingTimeGUID>3F2504E0-4F89-41D3-9A0C-0305E82C3308</tlp:NormalWorkingTimeGUID>
+            <tlp:NormalWorkingTimeName>Example normal working time</tlp:NormalWorkingTimeName>
+          </tlp:EmployeeNormalWorkingTimeHistory>
+        </tlp:EmployeeNormalWorkingTimeHistories>
+      </GetEmployeeNormalWorkingTimeHistoriesRawResult>
+    </GetEmployeeNormalWorkingTimeHistoriesRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetEmployeeNormalWorkingTimeHistoriesRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetEmployeeNormalWorkingTimeHistoriesRawResult>
+        <tlp:EmployeeNormalWorkingTimeHistories resultEmpty="true" xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4"></tlp:EmployeeNormalWorkingTimeHistories>
+      </GetEmployeeNormalWorkingTimeHistoriesRawResult>
+    </GetEmployeeNormalWorkingTimeHistoriesRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</CodeGroup>
+
+### Example error
+
+Wrong credentials, or a call over plain HTTP:
+
+<CodeGroup tabs="HTTP 401 - access denied" show-lines={true}>
+
+```xml
+HTTP/1.1 401 Unauthorized
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetEmployeeNormalWorkingTimeHistoriesRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetEmployeeNormalWorkingTimeHistoriesRawResult>
+        <tlp:Errors xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Error>Access denied. Check siteCode, apiID, apiPassword and SSL settings</tlp:Error>
+        </tlp:Errors>
+      </GetEmployeeNormalWorkingTimeHistoriesRawResult>
+    </GetEmployeeNormalWorkingTimeHistoriesRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
+
+## Errors
+
+The errors every method can return (access denied, operation failed, invalid request) are listed once in [Responses and errors](/reporting/guides/responses-and-errors#errors).
+
+This method has no errors of its own beyond the shared ones.

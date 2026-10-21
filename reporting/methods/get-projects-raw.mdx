@@ -1,0 +1,500 @@
+---
+title: "GetProjectsRaw"
+description: "Reporting API: Returns the account's projects with customer, managers, classification, budgets and currency."
+---
+
+| | |
+|---|---|
+| API | Reporting API (raw extracts) |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/Service.asmx` |
+| SOAPAction | `http://www.timelog.com/ws/tlp/v4_4/GetProjectsRaw` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | `siteCode`, `apiID` and `apiPassword` as the first three parameters. See [Authentication](/reporting/guides/authentication) |
+| Changes data | No. Safe to retry. |
+| Paging | No: the whole result comes in one response. Narrow it with the filters. |
+
+## How it works
+
+Project templates are excluded. Includes project BUDGETS and the customer contact's name and e-mail.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="siteCode" field-type="string" required="true">
+Your account's site code, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiID" field-type="string" required="true">
+The Reporting API ID, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiPassword" field-type="string" required="true">
+The Reporting API password, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="projectID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+<ResponseField name="status" field-type="integer" required="true">
+Use `-2` for no filter.
+</ResponseField>
+
+<ResponseField name="customerID" field-type="integer" required="true">
+Project's customer. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="projectManagerID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/Service.asmx HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetProjectsRaw"
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetProjectsRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:projectID>0</tlp:projectID>
+      <tlp:status>-2</tlp:status>
+      <tlp:customerID>0</tlp:customerID>
+      <tlp:projectManagerID>0</tlp:projectManagerID>
+    </tlp:GetProjectsRaw>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/Service.asmx" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetProjectsRaw"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/Service.asmx"
+SOAP_ACTION = '"http://www.timelog.com/ws/tlp/v4_4/GetProjectsRaw"'
+
+envelope = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetProjectsRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:projectID>0</tlp:projectID>
+      <tlp:status>-2</tlp:status>
+      <tlp:customerID>0</tlp:customerID>
+      <tlp:projectManagerID>0</tlp:projectManagerID>
+    </tlp:GetProjectsRaw>
+  </soap:Body>
+</soap:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=300,
+)
+rows = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The result is an XML document inside `GetProjectsRawResult`: a `tlp:Projects` root with one `tlp:Project` element per record. Check the [response format](/reporting/guides/responses-and-errors) first: the same slot also carries the empty result and errors.
+
+Order: Project name, then project number.
+
+<ResponseField name="tlp:Project" field-type="ProjectRaw[]">
+One element per record. Fields without a value are left out of the element, so treat every field as optional.
+
+<Expandable title="Project fields">
+
+<ResponseField name="ID" field-type="integer (attribute)">
+**Project ID.**
+</ResponseField>
+
+<ResponseField name="GUID" field-type="string (attribute)">
+**Project GUID.**
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+**Project name.** Project name, cleaned of XML-forbidden characters.
+</ResponseField>
+
+<ResponseField name="No" field-type="string">
+**Project number.** Project number.
+</ResponseField>
+
+<ResponseField name="Status" field-type="integer">
+**Active status.** 1: 0). The status parameter filters on it.
+</ResponseField>
+
+<ResponseField name="Department" field-type="integer">
+**Department ID.** Owning department.
+</ResponseField>
+
+<ResponseField name="OrderedByDepartment" field-type="integer">
+**Ordered-by department ID.** Customer-side ordering department.
+</ResponseField>
+
+<ResponseField name="ProjectStartDate" field-type="string">
+**Project start.** Projektstart.
+</ResponseField>
+
+<ResponseField name="ProjectEndDate" field-type="string">
+**Project end.**
+</ResponseField>
+
+<ResponseField name="Link" field-type="string">
+**Link.** Project link.
+</ResponseField>
+
+<ResponseField name="Description" field-type="string">
+**Description.** Project description, cut to 255 characters + '...' when longer, XML-cleaned.
+</ResponseField>
+
+<ResponseField name="CustomerID" field-type="integer">
+**Customer ID.** The project's customer.
+</ResponseField>
+
+<ResponseField name="CustomerName" field-type="string">
+**Customer name.** Customer company name.
+</ResponseField>
+
+<ResponseField name="CustomerNo" field-type="string">
+**Customer number.** Customer number.
+</ResponseField>
+
+<ResponseField name="PMID" field-type="integer">
+**Project manager ID.**
+</ResponseField>
+
+<ResponseField name="PMInitials" field-type="string">
+**Project manager initials.**
+</ResponseField>
+
+<ResponseField name="PMFullName" field-type="string">
+**Project manager name.** First + last name; omitted when either part is NULL.
+</ResponseField>
+
+<ResponseField name="AccountManagerID" field-type="integer">
+**Account manager ID.**
+</ResponseField>
+
+<ResponseField name="AccountManagerInitials" field-type="string">
+**Account manager initials.** From the user profile.
+</ResponseField>
+
+<ResponseField name="AccountManagerFullName" field-type="string">
+**Account manager name.** From the user profile; omitted when either part is NULL.
+</ResponseField>
+
+<ResponseField name="PartnerID" field-type="integer">
+**Partner ID.** Project partner.
+</ResponseField>
+
+<ResponseField name="PartnerInitials" field-type="string">
+**Partner initials.** From the user profile.
+</ResponseField>
+
+<ResponseField name="PartnerFullName" field-type="string">
+**Partner name.** From the user profile.
+</ResponseField>
+
+<ResponseField name="ProjectTypeID" field-type="integer">
+**Project type ID.** Project type.
+</ResponseField>
+
+<ResponseField name="ProjectTypeName" field-type="string">
+**Project type.** Project type name.
+</ResponseField>
+
+<ResponseField name="ProjectCategoryID" field-type="integer">
+**Project category ID.** Project category.
+</ResponseField>
+
+<ResponseField name="ProjectCategoryName" field-type="string">
+**Project category.** Project category name.
+</ResponseField>
+
+<ResponseField name="BudgetAmountFixedPriceTasks" field-type="decimal">
+**Budget amount, fixed-price tasks (always 0).**
+</ResponseField>
+
+<ResponseField name="BudgetAmountFixedPriceProject" field-type="decimal">
+**Budget amount, fixed-price project (always 0).**
+</ResponseField>
+
+<ResponseField name="BudgetAmountTimeAndMaterial" field-type="decimal">
+**Budget amount, time & material.** CONVERT - four decimals; 0 when NULL. SENSITIVE: project budget.
+</ResponseField>
+
+<ResponseField name="BudgetAmountExpenses" field-type="decimal">
+**Budget amount, expenses.** CONVERT - four decimals; 0 when NULL. SENSITIVE: project budget.
+</ResponseField>
+
+<ResponseField name="BudgetAmountTravel" field-type="decimal">
+**Budget amount, travel.** CONVERT - four decimals; 0 when NULL. SENSITIVE: project budget.
+</ResponseField>
+
+<ResponseField name="BudgetAmountWorkCurrency" field-type="decimal">
+**Budget amount, work (project currency).** CONVERT - four decimals; 0 when NULL. SENSITIVE: project budget.
+</ResponseField>
+
+<ResponseField name="BudgetAmountExpenseCurrency" field-type="decimal">
+**Budget amount, expenses (project currency).** CONVERT - four decimals; 0 when NULL. SENSITIVE: project budget.
+</ResponseField>
+
+<ResponseField name="BudgetAmountTravelCurrency" field-type="decimal">
+**Budget amount, travel (project currency).** CONVERT - four decimals; 0 when NULL. SENSITIVE: project budget.
+</ResponseField>
+
+<ResponseField name="BudgetHoursFixedPriceTasks" field-type="decimal">
+**Budget hours, fixed-price tasks (always 0).**
+</ResponseField>
+
+<ResponseField name="BudgetHoursFixedPriceProject" field-type="decimal">
+**Budget hours, fixed-price project (always 0).**
+</ResponseField>
+
+<ResponseField name="BudgetHoursTimeAndMaterial" field-type="decimal">
+**Budget hours.**
+</ResponseField>
+
+<ResponseField name="BudgetAmount" field-type="decimal">
+**Budget amount.** SAME value as BudgetAmountTimeAndMaterial. CONVERT - four decimals; 0 when NULL. SENSITIVE: project budget.
+</ResponseField>
+
+<ResponseField name="BudgetHours" field-type="decimal">
+**Budget hours (duplicate).** SAME value as BudgetHoursTimeAndMaterial.
+</ResponseField>
+
+<ResponseField name="ForecastPercent" field-type="integer">
+**Forecast percent.** Forecastrate.
+</ResponseField>
+
+<ResponseField name="CreatedAt" field-type="string">
+**Created at.**
+</ResponseField>
+
+<ResponseField name="CreatedByEmployeeId" field-type="integer">
+**Created by (ID).** Creating employee.
+</ResponseField>
+
+<ResponseField name="CreatedBy" field-type="string">
+**Created by (initials).** Initials of the creator.
+</ResponseField>
+
+<ResponseField name="LastModifiedAt" field-type="string">
+**Last modified at.**
+</ResponseField>
+
+<ResponseField name="LastModifiedByEmployeeId" field-type="integer">
+**Last modified by (ID).** Last modifying employee.
+</ResponseField>
+
+<ResponseField name="LastModifiedBy" field-type="string">
+**Last modified by (initials).** Initials.
+</ResponseField>
+
+<ResponseField name="ProjectStatusName" field-type="string">
+**Order status.** Name of the project's current order status.
+</ResponseField>
+
+<ResponseField name="ContactID" field-type="integer">
+**Customer contact ID.** Customer contact on the project.
+</ResponseField>
+
+<ResponseField name="ContactFullName" field-type="string">
+**Customer contact name.** Contact first + last name; empty string when no contact. PERSONAL data of a customer contact.
+</ResponseField>
+
+<ResponseField name="ContactEmail" field-type="string">
+**Customer contact e-mail.** Contact e-mail; empty string when none. PERSONAL data.
+</ResponseField>
+
+<ResponseField name="InternalProject" field-type="integer">
+**Internal project.**
+</ResponseField>
+
+<ResponseField name="PONumber" field-type="string">
+**PO number.** Buyer's order id, XML-cleaned; empty string when none.
+</ResponseField>
+
+<ResponseField name="ProjectStage" field-type="string">
+**Project stage.** Name of the project stage.
+</ResponseField>
+
+<ResponseField name="CurrencyISOCode" field-type="string">
+**Currency.** Project currency abbreviation.
+</ResponseField>
+
+<ResponseField name="CurrencyRate" field-type="decimal">
+**Currency rate.**
+</ResponseField>
+
+<ResponseField name="IsMultiCustomerProject" field-type="integer">
+**Multi-customer project.** IsMultiCustomerProject.
+</ResponseField>
+
+<ResponseField name="LegalEntityID" field-type="integer">
+**Legal entity ID.** Legal entity of the project.
+</ResponseField>
+
+<ResponseField name="CreatedFromTemplateID" field-type="integer">
+**Created from template.** Project template the project was created from. Not in the published XSD.
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - data,HTTP 200 - no rows" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetProjectsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetProjectsRawResult>
+        <tlp:Projects xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Project ID="1001" GUID="3F2504E0-4F89-41D3-9A0C-0305E82C3316">
+            <tlp:Name>Example project</tlp:Name>
+            <tlp:No>1001</tlp:No>
+            <tlp:Status>1</tlp:Status>
+            <tlp:Department>0</tlp:Department>
+            <tlp:OrderedByDepartment>0</tlp:OrderedByDepartment>
+            <tlp:ProjectStartDate>2026-10-01T00:00:00</tlp:ProjectStartDate>
+            <tlp:ProjectEndDate>2026-12-31T00:00:00</tlp:ProjectEndDate>
+            <tlp:Link>Example text</tlp:Link>
+            <tlp:Description>Example text</tlp:Description>
+            <tlp:CustomerID>12</tlp:CustomerID>
+            <tlp:CustomerName>Example Customer A/S</tlp:CustomerName>
+            <tlp:CustomerNo>1001</tlp:CustomerNo>
+            <tlp:PMID>12</tlp:PMID>
+            <tlp:PMInitials>ABC</tlp:PMInitials>
+            <tlp:PMFullName>Anna Example</tlp:PMFullName>
+            <tlp:AccountManagerID>12</tlp:AccountManagerID>
+            <tlp:AccountManagerInitials>ABC</tlp:AccountManagerInitials>
+            <tlp:AccountManagerFullName>Anna Example</tlp:AccountManagerFullName>
+            <tlp:PartnerID>12</tlp:PartnerID>
+            <tlp:PartnerInitials>ABC</tlp:PartnerInitials>
+            <tlp:PartnerFullName>Anna Example</tlp:PartnerFullName>
+            <tlp:ProjectTypeID>12</tlp:ProjectTypeID>
+            <tlp:ProjectTypeName>Example project type</tlp:ProjectTypeName>
+            <tlp:ProjectCategoryID>12</tlp:ProjectCategoryID>
+            <tlp:ProjectCategoryName>Example project category</tlp:ProjectCategoryName>
+            <tlp:BudgetAmountFixedPriceTasks>950.0000</tlp:BudgetAmountFixedPriceTasks>
+            <tlp:BudgetAmountFixedPriceProject>950.0000</tlp:BudgetAmountFixedPriceProject>
+            <tlp:BudgetAmountTimeAndMaterial>950.0000</tlp:BudgetAmountTimeAndMaterial>
+            <tlp:BudgetAmountExpenses>950.0000</tlp:BudgetAmountExpenses>
+            <tlp:BudgetAmountTravel>950.0000</tlp:BudgetAmountTravel>
+            <tlp:BudgetAmountWorkCurrency>950.0000</tlp:BudgetAmountWorkCurrency>
+            <tlp:BudgetAmountExpenseCurrency>950.0000</tlp:BudgetAmountExpenseCurrency>
+            <tlp:BudgetAmountTravelCurrency>950.0000</tlp:BudgetAmountTravelCurrency>
+            <tlp:BudgetHoursFixedPriceTasks>7.5000</tlp:BudgetHoursFixedPriceTasks>
+            <tlp:BudgetHoursFixedPriceProject>7.5000</tlp:BudgetHoursFixedPriceProject>
+            <tlp:BudgetHoursTimeAndMaterial>7.5000</tlp:BudgetHoursTimeAndMaterial>
+            <tlp:BudgetAmount>950.0000</tlp:BudgetAmount>
+            <tlp:BudgetHours>7.5000</tlp:BudgetHours>
+            <tlp:ForecastPercent>0</tlp:ForecastPercent>
+            <tlp:CreatedAt>2026-10-01T00:00:00</tlp:CreatedAt>
+            <tlp:CreatedByEmployeeId>12</tlp:CreatedByEmployeeId>
+            <tlp:CreatedBy>ABC</tlp:CreatedBy>
+            <tlp:LastModifiedAt>2026-10-01T00:00:00</tlp:LastModifiedAt>
+            <tlp:LastModifiedByEmployeeId>12</tlp:LastModifiedByEmployeeId>
+            <tlp:LastModifiedBy>ABC</tlp:LastModifiedBy>
+            <tlp:ProjectStatusName>Example project status</tlp:ProjectStatusName>
+            <tlp:ContactID>12</tlp:ContactID>
+            <tlp:ContactFullName>Anna Example</tlp:ContactFullName>
+            <tlp:ContactEmail>anna.example@example.com</tlp:ContactEmail>
+            <tlp:InternalProject>0</tlp:InternalProject>
+            <tlp:PONumber>1001</tlp:PONumber>
+            <tlp:ProjectStage>Example text</tlp:ProjectStage>
+            <tlp:CurrencyISOCode>DKK</tlp:CurrencyISOCode>
+            <tlp:CurrencyRate>950.0000</tlp:CurrencyRate>
+            <tlp:IsMultiCustomerProject>0</tlp:IsMultiCustomerProject>
+            <tlp:LegalEntityID>12</tlp:LegalEntityID>
+            <tlp:CreatedFromTemplateID>12</tlp:CreatedFromTemplateID>
+          </tlp:Project>
+        </tlp:Projects>
+      </GetProjectsRawResult>
+    </GetProjectsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetProjectsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetProjectsRawResult>
+        <tlp:Projects resultEmpty="true" xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4"></tlp:Projects>
+      </GetProjectsRawResult>
+    </GetProjectsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</CodeGroup>
+
+### Example error
+
+Wrong credentials, or a call over plain HTTP:
+
+<CodeGroup tabs="HTTP 401 - access denied" show-lines={true}>
+
+```xml
+HTTP/1.1 401 Unauthorized
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetProjectsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetProjectsRawResult>
+        <tlp:Errors xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Error>Access denied. Check siteCode, apiID, apiPassword and SSL settings</tlp:Error>
+        </tlp:Errors>
+      </GetProjectsRawResult>
+    </GetProjectsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
+
+## Errors
+
+The errors every method can return (access denied, operation failed, invalid request) are listed once in [Responses and errors](/reporting/guides/responses-and-errors#errors).
+
+This method has no errors of its own beyond the shared ones.

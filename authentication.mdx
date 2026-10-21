@@ -1,0 +1,65 @@
+---
+title: "Authentication overview"
+description: "Each TimeLog API authenticates differently. See what each one expects, then follow the link to that API's own guide."
+---
+
+Each TimeLog API has its own kind of credential, and a credential for one API is not the way to call another. This page
+puts the three side by side. The details live in each API's own Authentication guide.
+
+## Three APIs, three credentials
+
+| | REST API | Transactional API | Reporting API |
+|---|---|---|---|
+| What you send | A personal access token | A token from `GetToken`, requested with a user name and password | `siteCode`, `apiID` and `apiPassword` |
+| Where it goes | The `Authorization: Bearer` header | The last parameter, `token`, of every call | The first three parameters of every call |
+| How long it lasts | Chosen when you create it, up to 2 years | 12 hours, cannot be refreshed | No token: the same three values every call |
+| Who the call acts as | The token's TimeLog user | The user who requested the token | No user: the account |
+| Full guide | [REST authentication](/rest/authentication) | [Transactional authentication](/transactional/guides/authentication) | [Reporting authentication](/reporting/guides/authentication) |
+
+## REST API
+
+Every request carries a **personal access token** in the `Authorization` header as a bearer token. The token belongs to
+the TimeLog user who generated it, and every request acts as that user: what your integration can read and change is
+what that user can read and change.
+
+```http
+Authorization: Bearer <your-token>
+```
+
+See [Authentication](/rest/authentication) for how to get a token, test it with `GET /v1/user/me`, and troubleshoot
+`401` responses.
+
+## Transactional API
+
+Call **GetToken** on the Security service with the user name and password of a TimeLog user. You get back a token with
+three values, `Initials`, `Expires` and `Hash`. Send them as the last parameter, `token`, of every other call.
+
+- The token is valid for **12 hours** and cannot be refreshed. Call GetToken again when it runs out.
+- Send `Expires` back exactly as you received it.
+- Every call acts as the user who requested the token, and that user's permissions are checked per operation.
+
+See [Authentication](/transactional/guides/authentication) for the GetToken request and the authentication errors.
+
+## Reporting API
+
+There is **no login call and no token**. Every method takes three credentials as its first three parameters:
+`siteCode`, `apiID` and `apiPassword`. An administrator finds them under
+**System Administration > Integrations and API > Reporting API settings**.
+
+The credentials belong to the account, not to a person. No TimeLog user's permissions are applied: a call returns all
+matching records of the account, filtered only by its parameters. Treat them accordingly.
+
+See [Authentication](/reporting/guides/authentication) for how to check the credentials with `ValidateCredentials`.
+
+## How a failed login looks
+
+The three APIs report a refused credential in different ways, so check the right place:
+
+| API | A refused credential looks like | More |
+|---|---|---|
+| REST | HTTP `401` with `{ "Message": "Authorization has been denied for this request." }` | [REST errors](/rest/errors) |
+| Transactional | HTTP **200**, with `ResponseState` = `Error` and the code in `ErrorCode` | [Responses and errors](/transactional/guides/responses-and-errors) |
+| Reporting | HTTP `401`, with `Access denied` in `tlp:Error` | [Responses and errors](/reporting/guides/responses-and-errors) |
+
+<Callout kind="info">Treat every credential like a password. Store it as a secret, keep it out of logs, URLs and source
+control, and use one per integration.</Callout>

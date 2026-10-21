@@ -162,7 +162,7 @@ Use them to show TimeLog's errors to a user early, or to check an import batch b
 | `POST /v1/task/{taskID}/validate-delete-task` | The same checks as the delete, before its first write. Where the delete reports one violation, the validate operation reports all of them. | |
 | `POST /v1/task/{taskID}/allocation/validate-new-allocation` | The same checks as the create, up to the write. | The allocation's own validation, the rate chosen when `HourlyRateID` is omitted, and the project save rules. |
 | `POST /v1/allocation/{allocationID}/validate-delete` | The allocation exists, project privileges, and that it has no time registrations or running time tracker. | |
-| `POST /v1/contract/validate-…-contract` (five contract models) | The checks the create runs before it inserts the contract: body, project, owner, dates, contract type. | The tenant setting that makes a contract type required (`37957`), and everything from the insert on: contract-customer rules, hourly-rate creation, the first instalment, the project save rules and database constraints. |
+| `POST /v1/contract/validate-…-contract` (five contract models) | The checks the create runs before it inserts the contract: body, project, owner, dates, contract type. | The account setting that makes a contract type required (`37957`), and everything from the insert on: contract-customer rules, hourly-rate creation, the first instalment, the project save rules and database constraints. |
 | `POST /v1/contract/validate-update-recurring-contract-payment-plan-amount` | The contract rules on the changed amount. | The save that regenerates the instalments. A contract that is not recurring also answers `200`. |
 | `POST /v1/payment/validate-new-payment` | The body, project, access, task, product number and billing-plan rules. | It is stricter than the create in one case: it rejects (`37511`) a second fixed-price instalment for a task, which the create accepts. |
 | `POST /v1/payment/{paymentID}/validate-update-payment` | The update's refusals and the save rules, applied to a copy of the payment. | |
@@ -183,7 +183,7 @@ External keys are available on **time registrations, projects and tasks**. Each 
 
 ### Register your external system
 
-Do this once per integration and tenant:
+Do this once per integration and account:
 
 1. Call `GET /v1/external-systems` to see the systems already registered. TimeLog's built-in integrations register their own systems.
 2. If yours is not there, call `POST /v1/external-systems` with a `Name` and a `Description`. Store the returned ID in your own configuration.

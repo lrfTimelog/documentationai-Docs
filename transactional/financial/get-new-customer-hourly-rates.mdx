@@ -1,0 +1,235 @@
+---
+title: "GetNewCustomerHourlyRates"
+description: "Financial service 1.4: Get blank rate templates for a new customer-specific service"
+---
+
+| | |
+|---|---|
+| Service | Financial 1.4 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc` |
+| SOAPAction | `http://www.timelog.com/api/tlp/v1_4/FinancialService/GetNewCustomerHourlyRates` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | No |
+| Safe to retry | Yes |
+
+## How it works
+
+A pure READ despite the 'New' in its name: nothing is persisted. Same mechanism as GetNewStandardHourlyRates, but for customer customerId: the templates' Details.PriceGroupId is the CUSTOMER's copy of each price group. If the customer has no customer price list in this legal entity, the call fails with 'Customer id: &lt;id> price list not found, use CreateCustomerPriceList to create a customer price list.' Same template caveats as the standard variant: Name and Details.ServiceId belong to an existing service - ignore them; CustomerID on the template is 0 although the price group is the customer's.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="legalEntityId" field-type="integer" required="true">
+Integer ID of the legal entity whose price groups the customer copied.
+
+</ResponseField>
+
+<ResponseField name="customerId" field-type="integer">
+**Optional.**
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/api/tlp/v1_4/FinancialService/GetNewCustomerHourlyRates"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:financial="http://www.timelog.com/api/tlp/v1_4"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <financial:GetNewCustomerHourlyRates>
+      <financial:legalEntityId>{legalEntityId}</financial:legalEntityId>
+      <financial:customerId>{customerId}</financial:customerId>
+      <financial:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </financial:token>
+    </financial:GetNewCustomerHourlyRates>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/api/tlp/v1_4/FinancialService/GetNewCustomerHourlyRates"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc"
+SOAP_ACTION = '"http://www.timelog.com/api/tlp/v1_4/FinancialService/GetNewCustomerHourlyRates"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:financial="http://www.timelog.com/api/tlp/v1_4"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <financial:GetNewCustomerHourlyRates>
+      <financial:legalEntityId>{legalEntityId}</financial:legalEntityId>
+      <financial:customerId>{customerId}</financial:customerId>
+      <financial:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </financial:token>
+    </financial:GetNewCustomerHourlyRates>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="HourlyRate[]">
+Response&lt;HourlyRate>: one template per active customer price group. Set: Amount, Name, ProductNo, Details \{LegalEntityId, PriceGroupId, CurrencyISO, CurrencyName, ServiceId\}. HourlyRateID 0, CustomerID 0, flags false. No success message.
+
+<Expandable title="HourlyRate fields">
+
+<ResponseField name="Amount" field-type="double">
+In a Create* request: the price to set for the item's price group.
+</ResponseField>
+
+<ResponseField name="CustomerID" field-type="integer">
+ 
+</ResponseField>
+
+<ResponseField name="Details" field-type="HourlyRateDetails">
+Price group, currency and legal entity of the rate. In a Create* request item it is REQUIRED: Details.PriceGroupId selects the price group the Amount is for.
+</ResponseField>
+
+<ResponseField name="HourlyRateID" field-type="integer">
+Integer ID of the rate.
+</ResponseField>
+
+<ResponseField name="IsActive" field-type="boolean">
+ 
+</ResponseField>
+
+<ResponseField name="IsCustomerSpecific" field-type="boolean">
+ 
+</ResponseField>
+
+<ResponseField name="IsDefault" field-type="boolean">
+ 
+</ResponseField>
+
+<ResponseField name="IsSystem" field-type="boolean">
+ 
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+ 
+</ResponseField>
+
+<ResponseField name="ProductNo" field-type="string">
+Product number of the rate. In a Create* request: optional product number of the legal entity to attach to the new rate.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetNewCustomerHourlyRatesResponse xmlns="http://www.timelog.com/api/tlp/v1_4">
+      <GetNewCustomerHourlyRatesResult xmlns:a="http://api.timelog.com"
+                                       xmlns:b="http://schemas.datacontract.org/2004/07/TimeLog.TLP.API.Proxy.Financial.V1_4"
+                                       xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:HourlyRate>
+            <b:Amount>0</b:Amount>
+            <b:CustomerID>1001</b:CustomerID>
+            <b:Details>
+              <b:CurrencyISO>DKK</b:CurrencyISO>
+              <b:CurrencyName>DKK</b:CurrencyName>
+              <b:LegalEntityId>1001</b:LegalEntityId>
+              <b:PriceGroupId>1001</b:PriceGroupId>
+              <b:ServiceId>1001</b:ServiceId>
+            </b:Details>
+            <b:HourlyRateID>1001</b:HourlyRateID>
+            <b:IsActive>true</b:IsActive>
+            <b:IsCustomerSpecific>false</b:IsCustomerSpecific>
+            <b:IsDefault>false</b:IsDefault>
+            <b:IsSystem>false</b:IsSystem>
+            <b:Name>Example </b:Name>
+            <b:ProductNo>1001</b:ProductNo>
+          </b:HourlyRate>
+        </a:Return>
+        <a:ReturnTypeDescription>HourlyRate</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </GetNewCustomerHourlyRatesResult>
+    </GetNewCustomerHourlyRatesResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Error | 40001 | Error during call on TimeLog.API, Message 'Customer id: \{customerID\} price list not found, use CreateCustomerPriceList to create a customer price list.' | — | Create the customer's price groups with CreateCustomerPriceList, then call again. |

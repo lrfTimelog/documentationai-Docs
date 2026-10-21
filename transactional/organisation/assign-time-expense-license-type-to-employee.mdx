@@ -1,0 +1,214 @@
+---
+title: "AssignTimeExpenseLicenseTypeToEmployee"
+description: "Organisation service 1.9: Sets the employee's user licence type to Time & Expense."
+---
+
+| | |
+|---|---|
+| Service | Organisation 1.9 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/Organisation/V1_9/OrganisationServiceSecure.svc` |
+| SOAPAction | `http://www.timelog.com/api/tlp/v1_9/OrganisationService/AssignTimeExpenseLicenseTypeToEmployee` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Permissions | The caller needs an Employee-area privilege - all employees, employees in my legal entity, or employees in my department and sub-departments - covering the TARGET employee AS MODIFIED, plus the Create or Edit action on it; otherwise the save is refused. |
+| Changes data | Yes |
+| Safe to retry | Yes |
+
+## How it works
+
+Nothing else changes: roles and modules the employee already has are kept, whatever the new licence allows. The licence count is not checked before the save. Calling it with the licence the employee already has saves again with no change.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="employeeGuid" field-type="guid" required="true">
+GUID of the employee.
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/WebServices/Organisation/V1_9/OrganisationServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/api/tlp/v1_9/OrganisationService/AssignTimeExpenseLicenseTypeToEmployee"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:org="http://www.timelog.com/api/tlp/v1_9"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <org:AssignTimeExpenseLicenseTypeToEmployee>
+      <org:employeeGuid>{employeeGuid}</org:employeeGuid>
+      <org:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </org:token>
+    </org:AssignTimeExpenseLicenseTypeToEmployee>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/Organisation/V1_9/OrganisationServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/api/tlp/v1_9/OrganisationService/AssignTimeExpenseLicenseTypeToEmployee"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/Organisation/V1_9/OrganisationServiceSecure.svc"
+SOAP_ACTION = '"http://www.timelog.com/api/tlp/v1_9/OrganisationService/AssignTimeExpenseLicenseTypeToEmployee"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:org="http://www.timelog.com/api/tlp/v1_9"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <org:AssignTimeExpenseLicenseTypeToEmployee>
+      <org:employeeGuid>{employeeGuid}</org:employeeGuid>
+      <org:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </org:token>
+    </org:AssignTimeExpenseLicenseTypeToEmployee>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="EmployeeHeader[]">
+Response&lt;EmployeeHeader> with the employee after the save. The header does not show the licence type - verify with the employee reads. Never - failure is an Error envelope with an empty Return.
+
+<Expandable title="EmployeeHeader fields">
+
+<ResponseField name="ID" field-type="guid">
+The employee's integer ID. 0 or less means 'no employee' on input.
+</ResponseField>
+
+<ResponseField name="EmployeeID" field-type="integer">
+ 
+</ResponseField>
+
+<ResponseField name="UserName" field-type="string">
+ 
+</ResponseField>
+
+<ResponseField name="Initials" field-type="string">
+The employee's initials.
+</ResponseField>
+
+<ResponseField name="FirstName" field-type="string">
+ 
+</ResponseField>
+
+<ResponseField name="LastName" field-type="string">
+ 
+</ResponseField>
+
+<ResponseField name="EmployeeNo" field-type="string">
+ 
+</ResponseField>
+
+<ResponseField name="Fullname" field-type="string">
+ 
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <AssignTimeExpenseLicenseTypeToEmployeeResponse xmlns="http://www.timelog.com/api/tlp/v1_9">
+      <AssignTimeExpenseLicenseTypeToEmployeeResult xmlns:a="http://api.timelog.com"
+                                                    xmlns:b="http://www.timelog.com/api/tlp/v1_9"
+                                                    xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:EmployeeHeader>
+            <b:ID>3f2504e0-4f89-41d3-9a0c-305000000001</b:ID>
+            <b:EmployeeID>1001</b:EmployeeID>
+            <b:UserName>Example user</b:UserName>
+            <b:Initials>ABC</b:Initials>
+            <b:FirstName>Example first</b:FirstName>
+            <b:LastName>Example last</b:LastName>
+            <b:EmployeeNo>1001</b:EmployeeNo>
+            <b:Fullname>Example</b:Fullname>
+          </b:EmployeeHeader>
+        </a:Return>
+        <a:ReturnTypeDescription>EmployeeHeader</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </AssignTimeExpenseLicenseTypeToEmployeeResult>
+    </AssignTimeExpenseLicenseTypeToEmployeeResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Error | 40001 | Error during call on TimeLog.API, Message 'Object reference not set to an instance of an object.' | employeeGuid is not the GUID of an employee. | Take the GUID from EmployeeHeader.ID. Do not retry. |
+| Error | 40001 | Error during call on TimeLog.API, Message 'The user violates the Business Rules for users' | Only this generic text reaches the caller; which rule failed is lost. | Check the integration user's employee privileges first; then uniqueness of initials / user name; then the referenced data. |

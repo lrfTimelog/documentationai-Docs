@@ -13,7 +13,8 @@ When an item is documented, it moves to the page it belongs to and leaves the li
 
 ## Rate limits
 
-<Callout kind="alert">**Not yet documented.** TimeLog has not published rate limits for the REST API.</Callout>
+TimeLog has not published rate limits for the REST API. Usage is monitored, and TimeLog contacts the employee marked
+as *TimeLog Responsible* in the account before limiting its API use. See [Usage and change policy](/policies).
 
 There are no published request quotas, burst limits or rate-limit response headers to design against.
 Until there are, general HTTP practice keeps an integration well-behaved:
@@ -44,7 +45,7 @@ Every open item across the REST API pages, with the page where it appears.
 | Token lifetime | [Authentication](/rest/authentication#personal-access-tokens) |
 | OAuth client flow for third-party applications | [Authentication](/rest/authentication#which-user-should-own-the-token) |
 | Privilege requirements of operations not listed | [Permissions and data scope](/rest/permissions#overview) |
-| Licence, module and feature requirements of operations not listed | [Permissions and data scope](/rest/permissions#licences-modules-and-tenant-features) |
+| Licence, module and feature requirements of operations not listed | [Permissions and data scope](/rest/permissions#licences-modules-and-account-features) |
 | Version served when the URL has no version segment (default version) | [Base URL and versioning](/rest/conventions/versioning#the-version-is-a-url-segment) |
 | Recommended version and deprecation policy | [Base URL and versioning](/rest/conventions/versioning#which-version-to-use) |
 | How API changes are announced | [Base URL and versioning](/rest/conventions/versioning#changes-and-compatibility) |

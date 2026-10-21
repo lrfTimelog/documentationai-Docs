@@ -1,46 +1,45 @@
 ---
-title: Introduction to TimeLog
-description: 'Landing page with product overview, key features, and quick navigation.'
+title: "TimeLog developer documentation"
+description: "TimeLog has three APIs: REST, Transactional and Reporting. What each is for, and where to start."
 ---
-<Image src="https://blob-cdn.documentation.ai/org-2ebb2ef5-dd91-493f-9938-283fbdb14c81/doc-d2a73d2e-4391-4446-a5c8-2d0b41b7c4c1/1774416365572-8u99v3uu10b-Image-4.png?q=85&fm=auto&auto=compress%2Cformat" width="800" height="400" alt="Timelog documentation" />
 
-## Overview
+Connect your systems to TimeLog: read and change projects, time, expenses, customers and more, or extract the
+account's data for reporting. This documentation covers TimeLog's three APIs.
 
-Welcome to TimeLog PSA, your all-in-one platform for professional services automation. You get spotless invoicing and deep business insights through easy time tracking, project management, and reporting.&#x20;
+## TimeLog's APIs
 
-## Key Features
-
-<Columns cols="2">
-  <Card title="Time Tracking" href="/time-tracking" icon="clock" horizontal="false">
-    Build a solid data foundation for accurate invoicing and insights with effortless time entry.
+<Columns cols={3}>
+  <Card title="REST API" icon="braces" href="/rest/overview">
+    Read and change data with JSON over HTTPS, acting as a TimeLog user. Two versions, v1 and v2.
   </Card>
-
-  <Card title="Project Management" href="/project-management" icon="calendar" horizontal="false">
-    Keep projects on track, profitable, and delivered on time with intuitive planning tools.
+  <Card title="Transactional API" icon="arrow-left-right" href="/transactional/guides/authentication">
+    A SOAP API with one service per area, such as CRM, Project management and Invoicing. Reads and writes.
   </Card>
-
-  <Card title="Resource Management" href="/resource-management" icon="users" horizontal="false">
-    Staff projects efficiently and run your business predictably with smart allocation.
-  </Card>
-
-  <Card title="Insights & Reporting" href="/insights" icon="bar-chart-3" horizontal="false">
-    Gain actionable intelligence quickly to drive smarter decisions and growth.
+  <Card title="Reporting API" icon="bar-chart-3" href="/reporting/guides/authentication">
+    A read-only SOAP API for extracting the account's data, as full records or short look-up lists.
   </Card>
 </Columns>
 
-## Quick Start Navigation
+Not sure which one you need? See [Choose an API](/choose-an-api).
 
-<Columns cols="2">
-  <Card title="Quickstart" href="/quickstart" icon="rocket" horizontal="false">
-    Set up TimeLog and track your first project in minutes.
-  </Card>
+## Where to start
 
-  <Card title="Full Features" href="/features" icon="star" horizontal="false">
-    Discover invoicing, staff management, and more capabilities.
-  </Card>
-</Columns>
+<Steps>
+  <Step title="Choose an API" icon="compass">
+    Compare the three APIs and pick the one that fits your integration. See [Choose an API](/choose-an-api).
+  </Step>
+  <Step title="Check what you need" icon="list-checks">
+    API access, an integration user and the right credentials. See [What you need](/get-access).
+  </Step>
+  <Step title="Find your base URL" icon="link">
+    Every API lives under your account's address. See [Find your base URL](/base-url).
+  </Step>
+  <Step title="Make your first call" icon="rocket">
+    One short path per API, from credential to first answer. See [Your first API call](/quickstart).
+  </Step>
+</Steps>
 
-<Callout kind="tip" collapsed="false">
-  This documentation was generated as a starter kit. Customize the content to match your product.
-</Callout>
+## How this documentation is built
 
+This documentation is generated from a review of the API source code. Anything that has not yet been verified is marked
+**Not yet documented** instead of being guessed.

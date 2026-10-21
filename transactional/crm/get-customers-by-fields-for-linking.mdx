@@ -1,0 +1,456 @@
+---
+title: "GetCustomersByFieldsForLinking"
+description: "CRM service 1.4: Find customers to link by customer number, VAT number, organisation number or name"
+---
+
+| | |
+|---|---|
+| Service | CRM 1.4 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/CRM/V1_4/CRMServiceSecure.svc` |
+| SOAPAction | `http://api.timelog.com/services/crm/1_4/ICRMService/GetCustomersByFieldsForLinking` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | No |
+| Safe to retry | Yes |
+| Paging | Yes, up to 500 per page |
+
+## How it works
+
+Inputs are normalised by removing spaces and - +.: before comparison; empty inputs are not used. 1. customerNumber: customers whose customer number equals it. If NO customer has that number: customers whose VAT number matches VATNumber. If additionally no customer has exactly that VAT number: customers whose organisation number matches organisationNumber. If none of number, VAT number or organisation number matched exactly: customers whose name equals customerName - exact, no prefix match.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="customerNumber" field-type="string">
+**Conditional.** Customer number, exact. At least one of customerNumber, VATNumber, organisationNumber, customerName should be non-empty; all empty = empty result.
+
+</ResponseField>
+
+<ResponseField name="VATNumber" field-type="string">
+**Conditional.** VAT number; used when no customer has customerNumber. LIKE pattern. At least one of customerNumber, VATNumber, organisationNumber, customerName should be non-empty; all empty = empty result.
+
+</ResponseField>
+
+<ResponseField name="organisationNumber" field-type="string">
+**Conditional.** Organisation number; used when neither number nor VAT number matched exactly. LIKE pattern. At least one of customerNumber, VATNumber, organisationNumber, customerName should be non-empty; all empty = empty result.
+
+</ResponseField>
+
+<ResponseField name="customerName" field-type="string">
+**Conditional.** Company name, exact after normalisation; used only when no identifier matched exactly. At least one of customerNumber, VATNumber, organisationNumber, customerName should be non-empty; all empty = empty result.
+
+</ResponseField>
+
+<ResponseField name="loadCustomFields" field-type="boolean">
+**Optional.** Default `false`. Ignored.
+
+</ResponseField>
+
+<ResponseField name="loadExternalKeys" field-type="boolean">
+**Optional.** Default `false`. Ignored.
+
+</ResponseField>
+
+<ResponseField name="page" field-type="integer" required="true">
+1-based page number. Values &lt;= 0 behave like 1.
+
+</ResponseField>
+
+<ResponseField name="pageSize" field-type="integer" required="true">
+Customers per page, capped at 500; must be > 0.
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/WebServices/CRM/V1_4/CRMServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://api.timelog.com/services/crm/1_4/ICRMService/GetCustomersByFieldsForLinking"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:crm="http://api.timelog.com/services/crm/1_4"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <crm:GetCustomersByFieldsForLinking>
+      <crm:customerNumber>{customerNumber}</crm:customerNumber>
+      <crm:VATNumber>{VATNumber}</crm:VATNumber>
+      <crm:organisationNumber>{organisationNumber}</crm:organisationNumber>
+      <crm:customerName>{customerName}</crm:customerName>
+      <crm:loadCustomFields>false</crm:loadCustomFields>
+      <crm:loadExternalKeys>false</crm:loadExternalKeys>
+      <crm:page>1</crm:page>
+      <crm:pageSize>100</crm:pageSize>
+      <crm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </crm:token>
+    </crm:GetCustomersByFieldsForLinking>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/CRM/V1_4/CRMServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://api.timelog.com/services/crm/1_4/ICRMService/GetCustomersByFieldsForLinking"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/CRM/V1_4/CRMServiceSecure.svc"
+SOAP_ACTION = '"http://api.timelog.com/services/crm/1_4/ICRMService/GetCustomersByFieldsForLinking"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:crm="http://api.timelog.com/services/crm/1_4"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <crm:GetCustomersByFieldsForLinking>
+      <crm:customerNumber>{customerNumber}</crm:customerNumber>
+      <crm:VATNumber>{VATNumber}</crm:VATNumber>
+      <crm:organisationNumber>{organisationNumber}</crm:organisationNumber>
+      <crm:customerName>{customerName}</crm:customerName>
+      <crm:loadCustomFields>false</crm:loadCustomFields>
+      <crm:loadExternalKeys>false</crm:loadExternalKeys>
+      <crm:page>1</crm:page>
+      <crm:pageSize>100</crm:pageSize>
+      <crm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </crm:token>
+    </crm:GetCustomersByFieldsForLinking>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="TotalPageCount" field-type="integer">
+Number of pages for the whole result with your `pageSize`. Keep calling with `page` + 1 until you have read them all.
+</ResponseField>
+
+<ResponseField name="Return" field-type="Customer[]">
+Response&lt;Customer>: Return = one page of candidate customers; IsReturnPaged = true; TotalPageCount = pages. No 'Successfully called' message. ResponseState Success with an empty Return and TotalPageCount 0.
+
+<Expandable title="Customer fields">
+
+<ResponseField name="Action" field-type="string">
+Allowed values: `Original`, `Created`, `Updated`, `Deleted`, `Copied`, `Undefined`.
+</ResponseField>
+
+<ResponseField name="IsCustomFieldsLoaded" field-type="boolean">
+`true` when `CustomFields` is filled.
+</ResponseField>
+
+<ResponseField name="CustomFields" field-type="CustomField[]">
+Custom field values. Filled only when `loadCustomFields` is `true`.
+</ResponseField>
+
+<ResponseField name="IsExternalKeysLoaded" field-type="boolean">
+`true` when `ExternalKeys` is filled.
+</ResponseField>
+
+<ResponseField name="ExternalKeys" field-type="ExternalSystemContext[]">
+The record's IDs in other systems. Filled only when `loadExternalKeys` is `true`.
+</ResponseField>
+
+<ResponseField name="ID" field-type="integer">
+ 
+</ResponseField>
+
+<ResponseField name="GUID" field-type="guid">
+The customer's stable GUID - the key the GUID-based operations and Contact.CustomerGUID use.
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+The customer's name.
+</ResponseField>
+
+<ResponseField name="No" field-type="string">
+The customer number.
+</ResponseField>
+
+<ResponseField name="TimeStamp" field-type="base64Binary">
+ 
+</ResponseField>
+
+<ResponseField name="VAT" field-type="double">
+VAT rate applied on the customer's invoices, from the customer's invoice settings.
+</ResponseField>
+
+<ResponseField name="CalculateVAT" field-type="boolean">
+Whether VAT is calculated on the customer's invoices.
+</ResponseField>
+
+<ResponseField name="DefaultDiscountPercent" field-type="double">
+Default discount on the customer's invoices.
+</ResponseField>
+
+<ResponseField name="Address" field-type="Address">
+The customer's address. Always present on reads.
+</ResponseField>
+
+<ResponseField name="Fax" field-type="string">
+Fax number, free text.
+</ResponseField>
+
+<ResponseField name="WebSite" field-type="string">
+Website address, free text.
+</ResponseField>
+
+<ResponseField name="Phone" field-type="string">
+Main phone number, free text.
+</ResponseField>
+
+<ResponseField name="Email" field-type="string">
+Main e-mail address, free text.
+</ResponseField>
+
+<ResponseField name="KAM" field-type="string">
+The full employee is Details.KAM.
+</ResponseField>
+
+<ResponseField name="EAN" field-type="string">
+EAN / GLN location number used for electronic invoicing, from the invoice settings.
+</ResponseField>
+
+<ResponseField name="IsOIOCustomer" field-type="boolean">
+Whether the customer is invoiced electronically through the EAN number.
+</ResponseField>
+
+<ResponseField name="CreditorID" field-type="string">
+Creditor identifier of the customer.
+</ResponseField>
+
+<ResponseField name="AccountNo" field-type="string">
+Bank / giro account number.
+</ResponseField>
+
+<ResponseField name="Contacts" field-type="ContactHeader[]">
+The customer's ACTIVE contacts, as ContactHeader. Always loaded on reads - for list operations this costs one contact query per customer. Inactive contacts are not included.
+</ResponseField>
+
+<ResponseField name="Industry" field-type="string">
+Name of the customer's industry; empty string when none. ID and name are in Details.Industry.
+</ResponseField>
+
+<ResponseField name="Status" field-type="string">
+Name of the customer status; empty string when none. ID, name and group flags are in Details.Status.
+</ResponseField>
+
+<ResponseField name="VATNo" field-type="string">
+VAT registration number.
+</ResponseField>
+
+<ResponseField name="Currency" field-type="string">
+Abbreviation of the customer's currency; empty string when none. Full currency in Details.Currency.
+</ResponseField>
+
+<ResponseField name="PaymentTermId" field-type="integer">
+ID of the customer's payment term.
+</ResponseField>
+
+<ResponseField name="InvoicingAddress" field-type="Address">
+Separate invoicing address. Used for invoices only when UseInvoicingAddress is true. V1_4 only.
+</ResponseField>
+
+<ResponseField name="InvoicingName" field-type="string">
+Name printed on invoices when the invoicing address is used. V1_4 only.
+</ResponseField>
+
+<ResponseField name="UseInvoicingAddress" field-type="boolean">
+true = invoices go to InvoicingAddress / InvoicingName instead of Address / Name. V1_4 only.
+</ResponseField>
+
+<ResponseField name="CustomerSinceDate" field-type="dateTime">
+V1_4 only.
+</ResponseField>
+
+<ResponseField name="NickName" field-type="string">
+Short name of the customer. V1_4 only.
+</ResponseField>
+
+<ResponseField name="OrganizationNumber" field-type="string">
+Company organisation number. V1_4 only.
+</ResponseField>
+
+<ResponseField name="KAM2" field-type="string">
+Initials of the customer's second owner. V1_4 only.
+</ResponseField>
+
+<ResponseField name="Details" field-type="CustomerDetails">
+Status, Industry, Currency, KAM and KAM2 as objects with IDs. Always present on reads. See CustomerDetails.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetCustomersByFieldsForLinkingResponse xmlns="http://api.timelog.com/services/crm/1_4">
+      <GetCustomersByFieldsForLinkingResult xmlns:a="http://api.timelog.com"
+                                            xmlns:b="http://api.timelog.com/services/crm/1_4"
+                                            xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:Customer>
+            <a:Action>Original</a:Action>
+            <a:IsCustomFieldsLoaded>false</a:IsCustomFieldsLoaded>
+            <a:CustomFields i:nil="true"/>
+            <a:IsExternalKeysLoaded>false</a:IsExternalKeysLoaded>
+            <a:ExternalKeys i:nil="true"/>
+            <b:ID>1001</b:ID>
+            <b:GUID>3f2504e0-4f89-41d3-9a0c-305000000001</b:GUID>
+            <b:Name>Example </b:Name>
+            <b:No>1001</b:No>
+            <b:TimeStamp>AAAAAAAAAAA=</b:TimeStamp>
+            <b:VAT>0</b:VAT>
+            <b:CalculateVAT>false</b:CalculateVAT>
+            <b:DefaultDiscountPercent>0</b:DefaultDiscountPercent>
+            <b:Address>
+              <a:Address1>Example</a:Address1>
+              <a:Address2>Example</a:Address2>
+              <a:Address3>Example</a:Address3>
+              <a:ZipCode>1000</a:ZipCode>
+              <a:City>Copenhagen</a:City>
+              <a:State>Example</a:State>
+              <a:Country>DK</a:Country>
+            </b:Address>
+            <b:Fax>+45 00 00 00 00</b:Fax>
+            <b:WebSite>https://www.example.com</b:WebSite>
+            <b:Phone>+45 00 00 00 00</b:Phone>
+            <b:Email>info@example.com</b:Email>
+            <b:KAM>Example</b:KAM>
+            <b:EAN>Example</b:EAN>
+            <b:IsOIOCustomer>false</b:IsOIOCustomer>
+            <b:CreditorID>Example</b:CreditorID>
+            <b:AccountNo>1001</b:AccountNo>
+            <b:Contacts>
+              <b:ContactHeader>
+                <b:GUID>3f2504e0-4f89-41d3-9a0c-305000000002</b:GUID>
+                <b:FirstName>Example first</b:FirstName>
+                <b:LastName>Example last</b:LastName>
+              </b:ContactHeader>
+            </b:Contacts>
+            <b:Industry>Example</b:Industry>
+            <b:Status>Example</b:Status>
+            <b:VATNo>1001</b:VATNo>
+            <b:Currency>DKK</b:Currency>
+            <b:PaymentTermId>1001</b:PaymentTermId>
+            <b:InvoicingAddress>
+              <a:Address1>Example</a:Address1>
+              <a:Address2>Example</a:Address2>
+              <a:Address3>Example</a:Address3>
+              <a:ZipCode>1000</a:ZipCode>
+              <a:City>Copenhagen</a:City>
+              <a:State>Example</a:State>
+              <a:Country>DK</a:Country>
+            </b:InvoicingAddress>
+            <b:InvoicingName>Example invoicing</b:InvoicingName>
+            <b:UseInvoicingAddress>false</b:UseInvoicingAddress>
+            <b:CustomerSinceDate>2026-10-01T00:00:00</b:CustomerSinceDate>
+            <b:NickName>Example nick</b:NickName>
+            <b:OrganizationNumber>1001</b:OrganizationNumber>
+            <b:KAM2>Example</b:KAM2>
+            <b:Details>
+              <b:Status>
+                <b:ID>1001</b:ID>
+                <b:Name>Example </b:Name>
+                <b:Type>IsShownInCustomers</b:Type>
+              </b:Status>
+              <b:Industry>
+                <b:ID>1001</b:ID>
+                <b:Branche>Example</b:Branche>
+              </b:Industry>
+              <b:Currency>
+                <a:ID>1001</a:ID>
+                <a:Abbreviation>DKK</a:Abbreviation>
+                <a:Rate>0</a:Rate>
+                <a:RateDate>2026-10-01T00:00:00</a:RateDate>
+                <a:DescriptiveName>Example descriptive</a:DescriptiveName>
+              </b:Currency>
+              <b:KAM>
+                <a:ID>1001</a:ID>
+                <a:Initials>ABC</a:Initials>
+                <a:FullName>Example full</a:FullName>
+              </b:KAM>
+              <b:KAM2>
+                <a:ID>1001</a:ID>
+                <a:Initials>ABC</a:Initials>
+                <a:FullName>Example full</a:FullName>
+              </b:KAM2>
+            </b:Details>
+          </b:Customer>
+        </a:Return>
+        <a:ReturnTypeDescription>Customer</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>true</a:IsReturnPaged>
+        <a:TotalPageCount>1</a:TotalPageCount>
+      </GetCustomersByFieldsForLinkingResult>
+    </GetCustomersByFieldsForLinkingResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+This operation has no errors of its own beyond the shared ones.

@@ -1,0 +1,298 @@
+---
+title: "InsertWork"
+description: "Project management service 1.8: Create time registrations"
+---
+
+| | |
+|---|---|
+| Service | Project management 1.8 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc` |
+| SOAPAction | `InsertWorkRequest` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | Yes |
+| Safe to retry | Retry with the SAME GUIDs; treat an item failing on the unique GUID as 'already created' after checking it with GetEmployeeWork. |
+
+## How it works
+
+For each WorkUnit: the employee is resolved from EmployeeInitials, the allocation of that employee on TaskID is looked up or created, and a registration is saved for the DATE part of StartDateTime with Duration as hours, Description as comment and AdditionalText. The registration then passes the normal time-registration rules. Work units with empty or unknown initials are dropped before saving and reported only as an Invalid message on the envelope. Failed items carry Status Error and, for most rules, only 'The time registration could not be saved.'. Billable: the flag follows the task's default; BillableDuration sets billable hours. No check is made that the caller may register time for the employee named in EmployeeInitials.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="work" field-type="WorkUnit[]" required="true">
+The WorkUnit[] to send. Its fields are listed below.
+
+<Expandable title="WorkUnit fields">
+
+<ResponseField name="GUID" field-type="guid">
+**Optional.**
+</ResponseField>
+
+<ResponseField name="TaskID" field-type="integer" required="true">
+Integer ID of the task the time is registered on. The allocation of this employee on the task is looked up, or CREATED when missing.
+</ResponseField>
+
+<ResponseField name="EmployeeInitials" field-type="string" required="true">
+Initials of the employee who owns the registration. On write, decides the owner and department of the registration.
+</ResponseField>
+
+<ResponseField name="Duration" field-type="duration" required="true">
+PT1H30M). Stored as decimal hours.
+</ResponseField>
+
+<ResponseField name="StartDateTime" field-type="dateTime" required="true">
+Only the DATE part is used: it is the registration's work date. The time of day is ignored on write; on read it is always 00:00.
+</ResponseField>
+
+<ResponseField name="Description" field-type="string">
+**Optional.** The registration's comment.
+</ResponseField>
+
+<ResponseField name="AdditionalText" field-type="string">
+**Optional.** The registration's additional text field.
+</ResponseField>
+
+<ResponseField name="BillableDuration" field-type="duration">
+**Optional.** The billable part of the duration, stored as decimal billable hours; kept only when the registration is billable.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+<ResponseField name="source" field-type="integer">
+**Optional.** Default `0`. Not validated.
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "InsertWorkRequest"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:pm="http://www.timelog.com/api/tlp/v1_8"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3"
+                  xmlns:tlp="http://www.timelog.com/api/tlp/v1_7">
+  <soapenv:Body>
+    <pm:InsertWork>
+      <pm:work>
+        <tlp:WorkUnit>
+          <tlp:TaskID>{TaskID}</tlp:TaskID>
+          <tlp:EmployeeInitials>{EmployeeInitials}</tlp:EmployeeInitials>
+          <tlp:Duration>{Duration}</tlp:Duration>
+          <tlp:StartDateTime>{StartDateTime}</tlp:StartDateTime>
+          <!-- more fields: see Parameters -->
+        </tlp:WorkUnit>
+      </pm:work>
+      <pm:source>0</pm:source>
+      <pm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </pm:token>
+    </pm:InsertWork>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "InsertWorkRequest"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc"
+SOAP_ACTION = '"InsertWorkRequest"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:pm="http://www.timelog.com/api/tlp/v1_8"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3"
+                  xmlns:tlp="http://www.timelog.com/api/tlp/v1_7">
+  <soapenv:Body>
+    <pm:InsertWork>
+      <pm:work>
+        <tlp:WorkUnit>
+          <tlp:TaskID>{TaskID}</tlp:TaskID>
+          <tlp:EmployeeInitials>{EmployeeInitials}</tlp:EmployeeInitials>
+          <tlp:Duration>{Duration}</tlp:Duration>
+          <tlp:StartDateTime>{StartDateTime}</tlp:StartDateTime>
+          <!-- more fields: see Parameters -->
+        </tlp:WorkUnit>
+      </pm:work>
+      <pm:source>0</pm:source>
+      <pm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </pm:token>
+    </pm:InsertWork>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="BatchContainerOfWorkUnit[]">
+The result. Always a list: read the first item for operations that return one object.
+
+<Expandable title="BatchContainerOfWorkUnit fields">
+
+<ResponseField name="Item" field-type="WorkUnit">
+ 
+</ResponseField>
+
+<ResponseField name="Status" field-type="string">
+Allowed values: `NotSet`, `Success`, `Invalid`, `Error`.
+</ResponseField>
+
+<ResponseField name="Message" field-type="string">
+ 
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <InsertWorkResponse xmlns="http://www.timelog.com/api/tlp/v1_8">
+      <InsertWorkResult xmlns:a="http://www.timelog.com/api/tlp/v1_2"
+                        xmlns:b="http://www.timelog.com/api/tlp/v1_7"
+                        xmlns:c="http://api.timelog.com/services/crm/1_2"
+                        xmlns:d="http://api.timelog.com"
+                        xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <a:BatchContainerOfWorkUnit>
+            <a:Item>
+              <b:GUID>3f2504e0-4f89-41d3-9a0c-305000000001</b:GUID>
+              <b:AllocationGUID>3f2504e0-4f89-41d3-9a0c-305000000002</b:AllocationGUID>
+              <b:TaskID>1001</b:TaskID>
+              <b:EmployeeInitials>Example</b:EmployeeInitials>
+              <b:Duration>Example</b:Duration>
+              <b:StartDateTime>2026-10-01T00:00:00</b:StartDateTime>
+              <b:EndDateTime>2026-10-01T00:00:00</b:EndDateTime>
+              <b:Description>Example</b:Description>
+              <b:TimeStamp>AAAAAAAAAAA=</b:TimeStamp>
+              <b:IsEditable>false</b:IsEditable>
+              <b:AdditionalText>Example</b:AdditionalText>
+              <b:IsMeeting>false</b:IsMeeting>
+              <b:BillableDuration>Example</b:BillableDuration>
+              <b:Details>
+                <b:TaskHeader>
+                  <b:ID>1001</b:ID>
+                  <b:Name>Example </b:Name>
+                  <b:No>1001</b:No>
+                  <b:IsActive>true</b:IsActive>
+                  <b:WBS>Example</b:WBS>
+                  <b:FullName>Example full</b:FullName>
+                  <b:ExternalKey>Example</b:ExternalKey>
+                </b:TaskHeader>
+                <b:ProjectHeader>
+                  <b:ID>1001</b:ID>
+                  <b:ProjectGUID>3f2504e0-4f89-41d3-9a0c-305000000003</b:ProjectGUID>
+                  <b:Name>Example </b:Name>
+                  <b:No>1001</b:No>
+                  <b:IsActive>true</b:IsActive>
+                  <b:IsGeneralProject>false</b:IsGeneralProject>
+                  <b:StartDate>2026-10-01T00:00:00</b:StartDate>
+                  <b:EndDate>2026-10-01T00:00:00</b:EndDate>
+                  <b:MainContractID>1001</b:MainContractID>
+                </b:ProjectHeader>
+                <b:CustomerHeader>
+                  <c:ID>1001</c:ID>
+                  <c:Name>Example </c:Name>
+                  <c:No>1001</c:No>
+                  <c:GUID>3f2504e0-4f89-41d3-9a0c-305000000004</c:GUID>
+                </b:CustomerHeader>
+              </b:Details>
+            </a:Item>
+            <a:Status>Success</a:Status>
+            <a:Message>Example</a:Message>
+          </a:BatchContainerOfWorkUnit>
+        </a:Return>
+        <a:ReturnTypeDescription>BatchContainerOfWorkUnit</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <d:APIMessage>
+            <d:Message>Duration of call was 0,0421337 sec.</d:Message>
+            <d:Severity>Message</d:Severity>
+            <d:ErrorCode>0</d:ErrorCode>
+          </d:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </InsertWorkResult>
+    </InsertWorkResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Error | — | BatchContainer: Status Error, Message 'The time registration could not be saved.' (or the text of one violated rule) | Per item: a time-registration rule failed, or the GUID already exists. | — |
+| Error | 40001 | Error during call on TimeLog.API, Message 'The current product doesn't allow this event' (or '... module is not active ...', '... feature is not active ...', '... user license doesn't allow this event') | Per item: the account / user licence does not allow creating time registrations. | Check the account's product / licence and the integration user's licence. |
+| Invalid | 10002 | \{field\}, was null or empty | 'FirstName, was null or empty', 'Country, was null or empty'). | Send the named value. |
+| Invalid | 30015 | Unknown employee Initials: '\{initials\}'. | Customer.KAM is not the initials of an existing employee. | — |
+| Error | 40001 | Error during call on TimeLog.API, Message 'Silverlight tracker is stop supporting by TimeLog. Please use our latest Desktop Tracker.' | source = 8. | Send source = 0. |
+| Invalid | 40004 | V1_\{n\} is deprecated. Please upgrade to V1_\{m\} or later. | Nothing is read or written and the token is NOT checked. | Call the same operation on the current version. |
+| Error | — | — | Large batch inserts are the realistic trigger. | Split the batch into smaller requests. |

@@ -1,0 +1,51 @@
+---
+title: "Find your base URL"
+description: "All three TimeLog APIs live under your account's address. Find it once, then build the endpoint of each API from it."
+---
+
+The REST, Transactional and Reporting APIs are all served from the same place: your TimeLog account's address. Find it
+once, and every endpoint in this documentation follows from it.
+
+## Your TimeLog address
+
+```text
+https://app{server-number}.timelog.com/{account}
+```
+
+| Placeholder | Meaning |
+|---|---|
+| `{server-number}` | The number after `app` in your TimeLog address, for example `3` in `https://app3.timelog.com`. |
+| `{account}` | Your TimeLog account name, the same one you use to log in. It is the first path segment after the host name. |
+
+## If your browser shows app.timelog.com
+
+If your browser shows `https://app.timelog.com` without a number, find your address in TimeLog under
+**System Administration > Integrations and API > Reporting API settings**, in the section **Your TimeLog API URL**.
+It follows the pattern `https://app[X].timelog.com/[account name]`.
+
+## Endpoints per API
+
+Each API adds its own path to your address:
+
+| API | Endpoint | Notes |
+|---|---|---|
+| REST | `{base URL}/api/v1/…` and `{base URL}/api/v2/…` | The version is a segment in the URL. See [Base URL and versioning](/rest/conventions/versioning). |
+| Transactional | `{base URL}/WebServices/{Service}/V1_{n}/{Name}ServiceSecure.svc` | One endpoint per service version. Call it over HTTPS: plain calls fail with error `20009`. |
+| Reporting | `{base URL}/Service.asmx` | One endpoint for every method. Call it over HTTPS: plain calls are refused as access denied. |
+
+For example, the Transactional Security service, where you get a token, is at:
+
+```text
+https://app{server-number}.timelog.com/{account}/WebServices/Security/V1_2/SecurityServiceSecure.svc
+```
+
+## Service descriptions (WSDL)
+
+The two SOAP APIs publish a service description (WSDL) that SOAP tools such as SoapUI can import:
+
+| API | WSDL |
+|---|---|
+| Transactional | `<service endpoint>?wsdl`, for each service version |
+| Reporting | `{base URL}/Service.asmx?WSDL` |
+
+The REST API has no WSDL. Its reference is in the [REST API](/rest/overview) tab.

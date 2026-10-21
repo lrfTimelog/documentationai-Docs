@@ -15,10 +15,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -32,9 +30,9 @@ paths:
       operationId: getAllCompetenceGroups
       summary: List competence groups
       description: |-
-        Lists all competence groups of the tenant, ordered by name.
+        Lists all competence groups of the account, ordered by name.
 
-        The group level of System administration > Employee competencies. Flat: ID, name and a CanBeDeleted flag — the flag only says that no employee is rated on the group's competences, not that DELETE will succeed (EMPV2-12). Unpaged and unfiltered. For groups with their competences use GET /v2/competences/by-group.
+        The group level of System administration > Employee competencies. Flat: ID, name and a CanBeDeleted flag — the flag only says that no employee is rated on the group's competences, not that DELETE will succeed. Unpaged and unfiltered. For groups with their competences use GET /v2/competences/by-group.
 
         **Use it to:**
         - Look up GroupId values for creating or moving competences
@@ -113,7 +111,7 @@ paths:
       operationId: createCompetenceGroup
       summary: Create a competence group
       description: |-
-        Creates a competence group in the tenant's competence catalogue.
+        Creates a competence group in the account's competence catalogue.
 
         Adds a group under which competences are then created (POST /v2/competences with GroupId). The response is a literal `null` with no ID: read the new GroupId back with GET /v2/competence-groups. Names are not unique. Every new group gets the five-point rating scale; the scale is not settable over the API.
 
@@ -124,7 +122,6 @@ paths:
         - Not idempotent.
         - Not safe to retry blindly. Names are not unique: a retry after a lost response creates a duplicate group. List first.
         - Duplicates: Not deduplicated — no uniqueness on Name.
-        - Side effect: Clears the CompetenceGroup cache; raises CompetenceGroupCreated.
         - Changes are visible to the next read immediately.
 
         **Next:** `GET /v2/competence-groups`, `POST /v2/competences`
@@ -141,7 +138,7 @@ paths:
       responses:
         '200':
           description: |-
-            Success without content: HTTP 200 with the literal JSON body `null`. Literal JSON `null` (TafSuccessResult). Update and delete answer 204 — same inconsistency as EMPV2-11.
+            Success without content: HTTP 200 with the literal JSON body `null`. Literal JSON `null` (TafSuccessResult).
 
             Order: none
 
@@ -159,7 +156,7 @@ paths:
                 $ref: '#/components/schemas/MessageError'
         '500':
           description: |-
-            - **Code 38014** — The caller has no access to the system-administration page 'Employee competencies' (role page + the page's licence / module / product / feature policies) — the same check as 38013 on competences. {0} is the group ID — 0 on create. Message text garbled in source. — When: No access to the Employee competencies administration page. Checked before the name. — Fix: Give the integration user's role the Employee competencies administration page.
+            - **Code 38014** — The caller has no access to the system-administration page 'Employee competencies' (role page + the page's licence / module / product / feature policies) — the same check as 38013 on competences. {0} is the group ID — 0 on create. Checked before the name. — Fix: Give the integration user's role the Employee competencies administration page.
 
             - **Code 60015** — Name is missing, empty or whitespace. {0} is 'CompetenceGroup'. — When: Name missing or blank (captured). — Fix: Send a non-blank Name.
 
@@ -194,7 +191,6 @@ paths:
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Side effect: Clears the Competence cache (not the CompetenceGroup cache) and raises CompetenceUpdated (not CompetenceGroupUpdated) with the group's GUID — EMPV2-13.
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v2/competence-groups`
@@ -225,7 +221,7 @@ paths:
                 $ref: '#/components/schemas/MessageError'
         '500':
           description: |-
-            - **Code 38014** — The caller has no access to the system-administration page 'Employee competencies' (role page + the page's licence / module / product / feature policies) — the same check as 38013 on competences. {0} is the group ID — 0 on create. Message text garbled in source. — When: No access to the Employee competencies administration page. — Fix: Give the integration user's role the Employee competencies administration page.
+            - **Code 38014** — The caller has no access to the system-administration page 'Employee competencies' (role page + the page's licence / module / product / feature policies) — the same check as 38013 on competences. {0} is the group ID — 0 on create.
 
             - **Code 60015** — Name is missing, empty or whitespace. {0} is 'CompetenceGroup'. — When: Name missing or blank (ID valid). — Fix: Send a non-blank Name.
 
@@ -251,7 +247,7 @@ paths:
       description: |-
         Permanently deletes an empty competence group.
 
-        Hard delete. Refused (38011) while the group contains any competence — rated or not, active or not. Nothing is cascaded: empty the group first (move its competences with PUT /v2/competences, or delete them, which in turn requires that no employee has them). Do NOT rely on CompetenceGroupRead.CanBeDeleted: it is true whenever no employee is rated on the group, even if the group still contains competences (EMPV2-12, captured).
+        Hard delete. Refused (38011) while the group contains any competence — rated or not, active or not. Nothing is cascaded: empty the group first (move its competences with PUT /v2/competences, or delete them, which in turn requires that no employee has them). Do NOT rely on CompetenceGroupRead.CanBeDeleted: it is true whenever no employee is rated on the group, even if the group still contains competences.
 
         **Use it to:**
         - Remove an empty or mistakenly created group
@@ -306,9 +302,9 @@ paths:
                 $ref: '#/components/schemas/MessageError'
         '500':
           description: |-
-            - **Code 38011** — The group still contains at least one competence (active or not, rated or not). CompetenceGroupRead.CanBeDeleted does NOT predict this (EMPV2-12). — When: The group contains at least one competence (captured). Can arrive together with 38014 in one Details list. — Fix: Move the competences to another group (PUT /v2/competences) or delete them first, then retry.
+            - **Code 38011** — The group still contains at least one competence (active or not, rated or not). CompetenceGroupRead.CanBeDeleted does NOT predict this. — When: The group contains at least one competence (captured). Can arrive together with 38014 in one Details list. — Fix: Move the competences to another group (PUT /v2/competences) or delete them first, then retry.
 
-            - **Code 38014** — The caller has no access to the system-administration page 'Employee competencies' (role page + the page's licence / module / product / feature policies) — the same check as 38013 on competences. {0} is the group ID — 0 on create. Message text garbled in source. — When: No access to the Employee competencies administration page. — Fix: Give the integration user's role the Employee competencies administration page.
+            - **Code 38014** — The caller has no access to the system-administration page 'Employee competencies' (role page + the page's licence / module / product / feature policies) — the same check as 38013 on competences. {0} is the group ID — 0 on create.
 
             - **Code 100** — Unhandled server error.
           content:
@@ -333,7 +329,7 @@ paths:
       operationId: competences
       summary: List competences
       description: |-
-        Lists the tenant's competences (skills catalogue), flat, optionally filtered by name, groups and active state.
+        Lists the account's competences (skills catalogue), flat, optionally filtered by name, groups and active state.
 
         The flat competence list of System administration > Employee competencies. Each competence shows its group, whether it is active and whether it can be deleted (no employee has it). The complete list is returned — no paging — ordered by group name and then competence name.
 
@@ -465,7 +461,7 @@ paths:
       operationId: createCompetence
       summary: Create a competence
       description: |-
-        Adds a competence to the tenant's competence catalogue, in an existing competence group.
+        Adds a competence to the account's competence catalogue, in an existing competence group.
 
         Administration operation (System administration > Employee competencies). The response is the literal `null`: the new competence's ID is not returned — list the catalogue to find it. Names are not unique, so a retried create makes a second competence with the same name. IsActive defaults to false: send true, or the new competence is inactive and cannot be picked for employees in the UI.
 
@@ -476,7 +472,6 @@ paths:
         - Not idempotent.
         - Not safe to retry blindly. Names are not unique: a retry after a lost response creates a duplicate competence. List first.
         - Duplicates: Not deduplicated — no uniqueness on Name.
-        - Side effect: Clears the Competence cache; raises CompetenceCreated, and also CompetenceChangeStatus when IsActive is false (a new competence object starts active, so false is a status change).
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v2/competences/by-group`
@@ -513,7 +508,7 @@ paths:
                 $ref: '#/components/schemas/MessageError'
         '500':
           description: |-
-            - **Code 38013** — The caller has no access to the system-administration page 'Employee competencies' (role page + the page's licence / module / product / feature policies). {0} is the competence ID — 0 on create. The message text is garbled in source ('Unable to competence'). — When: No access to the Employee competencies administration page. — Fix: Give the integration user's role the Employee competencies administration page.
+            - **Code 38013** — The caller has no access to the system-administration page 'Employee competencies' (role page + the page's licence / module / product / feature policies). {0} is the competence ID — 0 on create.
 
             - **Code 60015** — Name is missing, empty or whitespace. {0} is 'Competence'. — When: Name missing or blank (captured). — Fix: Send a non-blank Name.
 
@@ -549,7 +544,6 @@ paths:
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Side effect: Clears the Competence cache; raises CompetenceUpdated, plus CompetenceChangeStatus when IsActive changes.
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v2/competences`
@@ -580,7 +574,7 @@ paths:
                 $ref: '#/components/schemas/MessageError'
         '500':
           description: |-
-            - **Code 38013** — The caller has no access to the system-administration page 'Employee competencies' (role page + the page's licence / module / product / feature policies). {0} is the competence ID — 0 on create. The message text is garbled in source ('Unable to competence'). — When: No access to the Employee competencies administration page. — Fix: Give the integration user's role the Employee competencies administration page.
+            - **Code 38013** — The caller has no access to the system-administration page 'Employee competencies' (role page + the page's licence / module / product / feature policies). {0} is the competence ID — 0 on create.
 
             - **Code 60015** — Name is missing, empty or whitespace. {0} is 'Competence'. — When: Name missing or blank. — Fix: Send a non-blank Name.
 
@@ -606,7 +600,7 @@ paths:
       description: |-
         Lists every competence group with its competences, optionally filtering the competences.
 
-        The tree view of the competence catalogue. Every group of the tenant is returned, ordered by name, whatever the filters; the filters only decide which competences appear under each group. A group with no matching competence keeps its place but has no Items member. Groups carry GroupCanBeDeleted, competences CanBeDeleted.
+        The tree view of the competence catalogue. Every group of the account is returned, ordered by name, whatever the filters; the filters only decide which competences appear under each group. A group with no matching competence keeps its place but has no Items member. Groups carry GroupCanBeDeleted, competences CanBeDeleted.
 
         **Use it to:**
         - Render or export the skills catalogue as a tree
@@ -794,7 +788,7 @@ paths:
           description: |-
             - **Code 38008** — At least one employee has this competence. A competence with employees can only be deactivated (PUT with IsActive false), or the employees' competences removed first. — When: An employee has the competence (captured). Can arrive together with 38013 in one Details list. — Fix: Deactivate instead, or delete the employee competences first.
 
-            - **Code 38013** — The caller has no access to the system-administration page 'Employee competencies' (role page + the page's licence / module / product / feature policies). {0} is the competence ID — 0 on create. The message text is garbled in source ('Unable to competence'). — When: No access to the Employee competencies administration page. — Fix: Give the integration user's role the Employee competencies administration page.
+            - **Code 38013** — The caller has no access to the system-administration page 'Employee competencies' (role page + the page's licence / module / product / feature policies). {0} is the competence ID — 0 on create.
 
             - **Code 100** — Unhandled server error.
           content:
@@ -941,7 +935,7 @@ paths:
       description: |-
         Adds one competence with a value (rating) to one employee.
 
-        Creates the employee-competence row (employee, competence, value). The caller needs the Employee skills create/edit privilege covering that employee. The response is the literal `null` — the new employee-competence ID is NOT returned; read it back with GET /v2/employee-competences?userId=. An employee can hold a competence only once: a second create for the same pair fails with a database error (500 Code 100), so use PUT to change a value. For several competences at once, prefer the batch create, which skips existing pairs instead of failing.
+        Creates the employee-competence row (employee, competence, value). The caller needs the Employee skills create/edit privilege covering that employee. The response is the literal `null` — the new employee-competence ID is NOT returned; read it back with GET /v2/employee-competences?userId=. For several competences at once, prefer the batch create, which skips existing pairs instead of failing.
 
         **Use it to:**
         - Record a newly acquired skill for an employee
@@ -956,8 +950,6 @@ paths:
         **Behaviour:**
         - Not idempotent.
         - Safe to retry only under a condition. A retry after a lost success fails with 500 Code 100 (unique constraint) — check with GET before retrying.
-        - Duplicates: Rejected by the database's unique constraint (UserID, CompetenceID) as an unhandled error (500 Code 100), not a business rule.
-        - Side effect: Clears the CompetenceValue cache and raises CompetenceValueCreated.
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v1/user`, `GET /v2/employee-competences/available`
@@ -1000,7 +992,7 @@ paths:
 
             - **Code 38015** — The caller has no 'Employee skills' create/edit privilege (event type 147) that covers the employee: none for all employees, none for employees of the caller's legal entity (when the employee is in the same legal entity), and none for the caller's department (when the employee is in the caller's department or a department directly under it). There is no exception for the caller's own competences. The same text is used on delete. — When: Caller's Employee skills privilege does not cover the employee. — Fix: Grant the integration user a role with the Employee skills create/edit privilege at 'all employees' (or the matching scope).
 
-            - **Code 60110** — CompetenceId is missing, 0 or negative. {0} is the domain type (CompetenceValue). An unknown positive CompetenceId is NOT caught here: it fails in the database (500 Code 100). — When: CompetenceId missing, 0 or negative. — Fix: Send a CompetenceId from `GET /v2/competences`.
+            - **Code 60110** — CompetenceId is missing, 0 or negative. {0} is the domain type (CompetenceValue).
 
             - **Code 100** — Unhandled server error.
           content:
@@ -1034,7 +1026,6 @@ paths:
         - Idempotent.
         - Safe to retry.
         - Duplicates: none
-        - Side effect: Clears the CompetenceValue cache and raises CompetenceValueUpdated.
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v2/employee-competences`
@@ -1051,7 +1042,7 @@ paths:
       responses:
         '200':
           description: |-
-            Success without content: HTTP 200 with the literal JSON body `null`. Literal JSON `null` (EMPV2-1).
+            Success without content: HTTP 200 with the literal JSON body `null`. Literal JSON `null`.
 
             Order: none
 
@@ -1135,7 +1126,7 @@ paths:
             operators:
             - contains
         description: |-
-          Case-insensitivity follows the database collation. Matched with LIKE '%text%': % and _ in the text act as wildcards.
+          Matched with LIKE '%text%': % and _ in the text act as wildcards.
 
           Filters on `EmployeeCompetenceAvailableRead.CompetenceName` (contains).
       responses:
@@ -1219,7 +1210,7 @@ paths:
       description: |-
         Permanently deletes every competence of one employee, or every competence of one competence group.
 
-        Hard delete of the employee's competence rows — all of them, or with groupId > 0 only those whose competence belongs to that group. Nothing is kept and TimeLog offers no restore; the single event raised carries no detail of what was removed. groupId 0 or negative is treated as "no group" and deletes EVERYTHING (EMPV2-6). The call reaches this action only with userId in the query: without it the request falls through to DELETE /employee-competences/{id} and is rejected as "The value 'bulk' is not valid for Int32." (captured, EMPV2-7).
+        Hard delete of the employee's competence rows — all of them, or with groupId > 0 only those whose competence belongs to that group. The call reaches this action only with userId in the query: without it the request falls through to DELETE /employee-competences/&#123;id&#125; and is rejected as "The value 'bulk' is not valid for Int32.".
 
         **Use it to:**
         - Reset an employee's skills profile before a full re-import
@@ -1232,7 +1223,7 @@ paths:
         - Idempotent.
         - A repeat deletes nothing more and answers 204.
         - Safe to retry.
-        - Side effect: Raises CompetenceValueBatchDeleted once, with no domain object (description 'CompetenceValueBatchDeletedForUser<userId>').
+        - Side effect: Raises CompetenceValueBatchDeleted once, with no domain object (description 'CompetenceValueBatchDeletedForUser&lt;userId>').
         - On failure: 403: nothing deleted (the check runs first).
         - Changes are visible to the next read immediately.
         - Batch: One DELETE statement.
@@ -1252,7 +1243,7 @@ paths:
           type: integer
           format: int32
         description: |-
-          UserID of the employee. Not checked for existence: an unknown ID deletes nothing (204) for a caller with the all-employees scope, and gives 403 otherwise (the scope comparisons with NULL fail).
+          UserID of the employee.
 
           Refers to `UserRead.UserID`. Look up valid values with `GET /v1/user`.
       - name: groupId
@@ -1265,7 +1256,7 @@ paths:
             operators:
             - eq
         description: |-
-          Limit the delete to competences of this group. Omitted, 0 or negative = ALL the employee's competences (EMPV2-6). An unknown group deletes nothing.
+          Limit the delete to competences of this group. Omitted, 0 or negative = ALL the employee's competences. An unknown group deletes nothing.
 
           Filters on `EmployeeCompetenceGroupRead.GroupId` (eq).
 
@@ -1280,8 +1271,7 @@ paths:
             Empty result: none
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: userId omitted: routed
-            to DELETE {id} — "The value ''bulk'' is not valid for Int32." (captured in every scenario, EMPV2-7). — Fix: Fix
-            every item listed in Details and resend.'
+            to DELETE {id} — "The value ''bulk'' is not valid for Int32.". — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -1324,7 +1314,7 @@ paths:
       description: |-
         Adds several competences with values to one employee in one call; competences the employee already has are skipped.
 
-        All items are validated first (user, access, every competence exists, CompetenceId > 0); then ONE database statement inserts them. Validation failures and database errors therefore write nothing (all or nothing). Items whose competence the employee already has are skipped silently — their stored value is NOT changed and the response does not report them. The response is the literal `null`: no IDs come back.
+        Items whose competence the employee already has are skipped silently — their stored value is NOT changed and the response does not report them. The response is the literal `null`: no IDs come back.
 
         **Use it to:**
         - Initial load of an employee's skills profile from an HR system
@@ -1343,7 +1333,7 @@ paths:
         - Duplicates: Pairs that already exist are skipped (NOT EXISTS); duplicates inside one request fail the whole batch.
         - Side effect: Raises CompetenceValueBatchCreated once, without a domain object (no per-item events) — even when nothing was inserted.
         - Changes are visible to the next read immediately.
-        - Batch: Every check runs before the single INSERT ... SELECT; one failing item or a database error writes nothing. Not partial in the error sense — but items for existing pairs are silently skipped, so 'success' does not mean every item was written.
+        - Batch: Every check runs before the single INSERT ... Not partial in the error sense — but items for existing pairs are silently skipped, so 'success' does not mean every item was written.
 
         **Call first:** `GET /v1/user`, `GET /v2/employee-competences/available`
 
@@ -1372,8 +1362,7 @@ paths:
                 type: 'null'
         '400':
           description: '- **Code 200** — The request body or parameters failed input validation. — When: UserId, or an item''s
-            CompetenceId / Value, absent from the JSON — Details is [""] (captured for an empty body, EMPV2-4). — Fix: Fix
-            every item listed in Details and resend.'
+            CompetenceId / Value, absent from the JSON — Details is [""]. — Fix: Fix every item listed in Details and resend.'
           content:
             application/json:
               schema:
@@ -1505,8 +1494,6 @@ components:
 
             - Missing, empty or whitespace — 500 Code 102 / 60015 (captured).
 
-            - Longer than 255 characters — Database truncation error → 500 Code 100 (not validated earlier).
-
             > **Not yet documented:** behaviour.
         GroupId:
           type: integer
@@ -1520,7 +1507,7 @@ components:
 
             Refers to `CompetenceGroupDetailRead.GroupId`. Look up valid values with `GET /v2/competences/by-group`.
 
-            - Missing, 0 or not an existing group — Foreign-key violation in the database → 500 Code 100 (EMPV2-10). Not validated.
+            - Not validated.
 
             > **Not yet documented:** behaviour.
         IsActive:
@@ -1535,7 +1522,7 @@ components:
       required:
       - Name
       - GroupId
-      description: A new competence in the tenant's competence catalogue.
+      description: A new competence in the account's competence catalogue.
     CompetenceGroupCreate.create:
       type: object
       properties:
@@ -1550,12 +1537,10 @@ components:
 
             - Missing, empty or whitespace — 500 Code 102 / 60015 'Name must be set on CompetenceGroup' (captured).
 
-            - Longer than 255 characters — Database truncation error → 500 Code 100 (not validated earlier).
-
             > **Not yet documented:** behaviour.
       required:
       - Name
-      description: A new competence group in the tenant's competence catalogue.
+      description: A new competence group in the account's competence catalogue.
     CompetenceGroupDetailItemRead:
       type: object
       properties:
@@ -1616,8 +1601,7 @@ components:
         GroupCanBeDeleted:
           type: boolean
           readOnly: true
-          description: 'true = no employee has any competence of this group. Computed from employee competences only — NOT
-            a delete predictor: the group delete refuses any group still containing competences (EMPV2-12, `DELETE /v2/competence-groups/{id}`).'
+          description: true = no employee has any competence of this group.
         Items:
           type:
           - array
@@ -1629,7 +1613,7 @@ components:
             The group's competences that match the filters, ordered by name. OMITTED (not []) when none match.
 
             Null: Absent from the JSON = no competence of this group matches searchText / groupIds / isActive.
-      description: A competence group with its competences. Every group of the tenant appears, even when no competence matches
+      description: A competence group with its competences. Every group of the account appears, even when no competence matches
         the filters.
     CompetenceGroupRead:
       type: object
@@ -1657,9 +1641,9 @@ components:
           readOnly: true
           description: 'true = no employee has a rating on any competence of the group. NOT a reliable predictor of the delete:
             DELETE /v2/competence-groups/{id} refuses (38011) any group that still CONTAINS competences, rated or not — so
-            a group with unrated competences shows true and the delete still fails (EMPV2-12). Treat true as "no ratings",
-            and check the group''s competences (GET /v2/competences?groupIds=) before deleting.'
-      description: A competence group of the tenant's competence catalogue (System administration > Employee competencies).
+            a group with unrated competences shows true and the delete still fails. Treat true as "no ratings", and check
+            the group''s competences (GET /v2/competences?groupIds=) before deleting.'
+      description: A competence group of the account's competence catalogue (System administration > Employee competencies).
         Every competence belongs to exactly one group. Groups have no active flag and no other fields over the API.
     CompetenceGroupUpdate.update:
       type: object
@@ -1675,15 +1659,13 @@ components:
 
             Refers to `CompetenceGroupRead.GroupId`. Look up valid values with `GET /v2/competence-groups`.
 
-            - Missing, 0 or unknown — The lookup throws → 500 Code 100 (captured for 0, EMPV2-8).
+            - Missing, 0 or unknown — The lookup throws → 500 Code 100.
         Name:
           type: string
           maxLength: 255
           minLength: 1
           description: |-
             New name (replaces the old one).
-
-            - Longer than 255 characters — Database truncation error → 500 Code 100.
 
             > **Not yet documented:** behaviour.
       required:
@@ -1742,7 +1724,7 @@ components:
           type: boolean
           readOnly: true
           description: true = no employee has this competence, so DELETE /v2/competences/{id} will not be refused with 38008.
-      description: A competence (skill) in the tenant's competence catalogue, maintained under System administration > Employee
+      description: A competence (skill) in the account's competence catalogue, maintained under System administration > Employee
         competencies. Every competence belongs to one competence group. Employees are given competences with a value (rating)
         through the employee-competences operations.
     CompetenceUpdate.update:
@@ -1759,7 +1741,7 @@ components:
 
             Refers to `CompetenceRead.Id`. Look up valid values with `GET /v2/competences`.
 
-            - Missing, 0 or unknown — The lookup throws → 500 Code 100 (captured for 0, EMPV2-8).
+            - Missing, 0 or unknown — The lookup throws → 500 Code 100.
         Name:
           type: string
           maxLength: 255
@@ -1780,7 +1762,7 @@ components:
 
             Refers to `CompetenceGroupDetailRead.GroupId`. Look up valid values with `GET /v2/competences/by-group`.
 
-            - Missing, 0 or not an existing group — Foreign-key violation → 500 Code 100 (EMPV2-10).
+            - Missing, 0 or not an existing group — Foreign-key violation → 500 Code 100.
         IsActive:
           type: boolean
           default: false
@@ -1889,7 +1871,7 @@ components:
 
             - Absent from the item — 400 Code 200 (required member).
 
-            - 0, negative or not an existing competence — The pre-check looks the competence up and the lookup THROWS for an unknown ID → 500 Code 100; the intended 38010 'There is no competence...' is never returned (EMPV2-2). Nothing is written.
+            - 0, negative or not an existing competence — The pre-check looks the competence up and the lookup THROWS for an unknown ID → 500 Code 100; the intended 38010 'There is no competence...' is never returned. Nothing is written.
 
             - Competence is inactive — Not checked.
         Value:
@@ -1904,7 +1886,7 @@ components:
 
             - Absent from the item — 400 Code 200 (required member); 0 is accepted.
 
-            - Below 0 or above 255 — TINYINT overflow at the batch INSERT → 500 Code 100 (EMPV2-9); nothing is written.
+            - Below 0 or above 255 — TINYINT overflow at the batch INSERT → 500 Code 100; nothing is written.
 
             > **Not yet documented:** behaviour.
       description: One competence and value inside a batch create.
@@ -1940,9 +1922,9 @@ components:
 
             Refers to `CompetenceRead.Id`. Look up valid values with `GET /v2/employee-competences/available`.
 
-            - Positive but not an existing competence — Foreign-key violation in the database → 500 Code 100. Not checked earlier.
+            - Not checked earlier.
 
-            - The employee already has this competence — Unique constraint (UserID, CompetenceID) → 500 Code 100 (EMPV2-5). Use PUT to change the value.
+            - The employee already has this competence — Unique constraint (UserID, CompetenceID) → 500 Code 100. Use PUT to change the value.
 
             - Competence is inactive — Not checked: an inactive competence can be given (the 'available' list hides inactive ones).
 
@@ -1960,7 +1942,7 @@ components:
 
             - Omitted — Binds as 0 and is stored as 0.
 
-            - Below 0 or above 255 — TINYINT overflow in the database → 500 Code 100 (EMPV2-9). No range rule in the API.
+            - No range rule in the API.
 
             > **Not yet documented:** behaviour.
       required:
@@ -2071,7 +2053,7 @@ components:
 
             Refers to `EmployeeCompetenceItemRead.Id`. Look up valid values with `GET /v2/employee-competences`.
 
-            - Missing, 0 or unknown — The lookup throws → 500 Code 100 (captured for 0, EMPV2-8).
+            - Missing, 0 or unknown — The lookup throws → 500 Code 100.
         Value:
           type: integer
           format: int32
@@ -2082,8 +2064,6 @@ components:
             Contains personal data.
 
             - Omitted — Binds as 0 and OVERWRITES the stored value with 0 — PUT is a full replace.
-
-            - Below 0 or above 255 — TINYINT overflow in the database → 500 Code 100 (EMPV2-9).
       required:
       - ID
       description: Changes the value (rating) of one existing employee competence.

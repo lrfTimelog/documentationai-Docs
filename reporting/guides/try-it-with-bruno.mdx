@@ -1,0 +1,70 @@
+---
+title: "Try it with Bruno"
+description: "Download a ready-to-run Bruno collection with every Reporting API method, grouped by what it covers."
+---
+
+The fastest way to see what the Reporting API returns is to call it. We publish a ready-to-run collection for
+[Bruno](https://www.usebruno.com), a free, open-source API client: every method on these pages, with the request
+already built, the filters pre-filled, and a test that tells you whether the call worked.
+
+<Card title="Download the Reporting API collection" icon="download" href="https://github.com/lrfTimelog/documentationai-Docs/releases/latest/download/timelog-reporting-api.zip">
+A zip file with the Bruno collection: one folder per entity, split into raw extracts and short lists.
+</Card>
+
+## What's in the collection
+
+| Folder | What it contains |
+|---|---|
+| `01 Credentials` | ValidateCredentials (run this first) |
+| `02 Customers` … `15 Salary` | One folder per entity (customers, projects, employees, time registrations, …), each split into **Raw extracts** (full records) and **Short lists** (IDs and names for look-ups) |
+
+Every request has a **Docs** tab with what it does and its parameters, and a **Tests** tab that checks the result.
+
+## Get started
+
+<Steps>
+<Step title="Install Bruno" icon="download">
+Download Bruno from [usebruno.com](https://www.usebruno.com) and install it. No account is needed.
+</Step>
+<Step title="Open the collection" icon="folder-open">
+Unzip the download. In Bruno, choose **Open Collection** and select the unzipped folder.
+</Step>
+<Step title="Fill in the environment" icon="settings">
+Select the **TimeLog** environment (top right) and set `baseUrl` to your TimeLog address,
+`https://app{server-number}.timelog.com/{account}`. Then set the secrets `siteCode`, `apiID` and `apiPassword`: you
+find all three under **System Administration > Integrations and API > Reporting API settings**. Bruno keeps secrets on
+your machine only.
+</Step>
+<Step title="Check the credentials" icon="circle-check">
+Run **01 Credentials / ValidateCredentials**. `true` means you are ready. See [Authentication](/reporting/guides/authentication).
+</Step>
+<Step title="Make your first call" icon="send">
+Open a **Short lists** request (they are small) and run it. The **Tests** tab shows whether the call worked; the
+console shows how many records came back.
+</Step>
+</Steps>
+
+## How the requests are built
+
+- Every method takes the three credentials first. There is no login call and no token.
+- **Filters** are pre-filled with their "no filter" value, usually `0` or `-1`. Each request's Docs tab says which
+  value means what.
+- **Date filters** use the environment variables `fromDate` and `toDate`. Set them to the period you need.
+
+<Callout kind="alert">**Narrow the filters before running a raw extract.** Most raw extracts return everything that
+matches in one response. On a large account an unfiltered call, especially for time registrations, can be very large
+and slow. Start with a short date range or a single project or employee.</Callout>
+
+## Reading the result
+
+| HTTP status | What it means |
+|---|---|
+| 200 | Records, or `resultEmpty="true"` when nothing matched. |
+| 401 | The credentials were refused, or the call did not use https. |
+| 500 | The call failed. The reason is in `tlp:Error`. |
+
+The Tests tab checks the status and looks for an error document for you. More in
+[Responses and errors](/reporting/guides/responses-and-errors).
+
+<Callout kind="info">The Reporting API returns your account's reporting data, including personal data. Keep the
+credentials safe and treat exported results with the same care as the data in TimeLog.</Callout>

@@ -1,0 +1,276 @@
+---
+title: "GetTimeRegistrationSettings"
+description: "Security service 1.2: Returns the account's time-registration display and validation rules, plus whether the caller may register on all tasks."
+---
+
+| | |
+|---|---|
+| Service | Security 1.2 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/Security/V1_2/SecurityServiceSecure.svc` |
+| SOAPAction | `GetTimeRegistrationSettingsRequest` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | No |
+| Safe to retry | Yes |
+
+## How it works
+
+Built for time-registration clients: which identifiers to show, the formatting locale, whether start/end times are used and may overlap, the additional text field and tracker search limits. UseCaseSensetiveLogin is never filled.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/WebServices/Security/V1_2/SecurityServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "GetTimeRegistrationSettingsRequest"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:security="http://www.timelog.com/api/tlp/v1_2">
+  <soapenv:Body>
+    <security:GetTimeRegistrationSettings>
+      <security:token>
+        <security:Initials>{Initials from GetToken}</security:Initials>
+        <security:Expires>{Expires from GetToken, unchanged}</security:Expires>
+        <security:Hash>{Hash from GetToken}</security:Hash>
+      </security:token>
+    </security:GetTimeRegistrationSettings>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/Security/V1_2/SecurityServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "GetTimeRegistrationSettingsRequest"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/Security/V1_2/SecurityServiceSecure.svc"
+SOAP_ACTION = '"GetTimeRegistrationSettingsRequest"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:security="http://www.timelog.com/api/tlp/v1_2">
+  <soapenv:Body>
+    <security:GetTimeRegistrationSettings>
+      <security:token>
+        <security:Initials>{Initials from GetToken}</security:Initials>
+        <security:Expires>{Expires from GetToken, unchanged}</security:Expires>
+        <security:Hash>{Hash from GetToken}</security:Hash>
+      </security:token>
+    </security:GetTimeRegistrationSettings>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="TimeRegistrationSettings[]">
+Response&lt;TimeRegistrationSettings>: Return holds one object with all 23 members; ResponseState Success; a 'Successfully called' message is added. n/a - one object on success.
+
+<Expandable title="TimeRegistrationSettings fields">
+
+<ResponseField name="UseCaseSensetiveLogin" field-type="boolean">
+Do not use.
+</ResponseField>
+
+<ResponseField name="UseWBS" field-type="boolean">
+ 
+</ResponseField>
+
+<ResponseField name="UseTaskUniqueID" field-type="boolean">
+ 
+</ResponseField>
+
+<ResponseField name="CustomerSortByNo" field-type="boolean">
+ 
+</ResponseField>
+
+<ResponseField name="ProjectSortByNo" field-type="boolean">
+ 
+</ResponseField>
+
+<ResponseField name="FormatingLCID" field-type="integer">
+ 
+</ResponseField>
+
+<ResponseField name="UseStartEndTime" field-type="boolean">
+ 
+</ResponseField>
+
+<ResponseField name="TimeTrackingShowCustomerNo" field-type="boolean">
+ 
+</ResponseField>
+
+<ResponseField name="TimeTrackingShowCustomerName" field-type="boolean">
+ 
+</ResponseField>
+
+<ResponseField name="TimeTrackingShowProjectNo" field-type="boolean">
+ 
+</ResponseField>
+
+<ResponseField name="TimeTrackingShowWBS" field-type="boolean">
+ 
+</ResponseField>
+
+<ResponseField name="TimeTrackingShowTaskID" field-type="boolean">
+ 
+</ResponseField>
+
+<ResponseField name="AllowTimetrackingOnAllActiveProjects" field-type="boolean">
+ 
+</ResponseField>
+
+<ResponseField name="TimeTrackingAllowRegistrationOverlap" field-type="boolean">
+account setting TimeTrackingAllowRegistrationOverlap: registrations with start/end times may overlap.
+</ResponseField>
+
+<ResponseField name="ShowTimesheetAdditionalTextField" field-type="boolean">
+ 
+</ResponseField>
+
+<ResponseField name="AdditionalTextFieldLabel" field-type="string">
+Setting AdditionalTextFieldLabel: the caption a client shows for the additional text field.
+</ResponseField>
+
+<ResponseField name="AdditionalTextFieldValidation" field-type="integer">
+How the additional text field is validated.
+</ResponseField>
+
+<ResponseField name="AdditionalTextFieldType" field-type="integer">
+The type the additional text must have when it is validated.
+</ResponseField>
+
+<ResponseField name="NumberOfTasksReturnedInTrackerSearch" field-type="integer">
+Setting NumberOfTasksReturnedInTrackerSearch: maximum matches a tracker task search returns.
+</ResponseField>
+
+<ResponseField name="LimitTrackerSearchToProjects" field-type="boolean">
+ 
+</ResponseField>
+
+<ResponseField name="MaxReceivedMessageSize" field-type="integer">
+ 
+</ResponseField>
+
+<ResponseField name="TrackerRequiredSpaceBeforeIncreaseStorage" field-type="integer">
+Setting TrackerRequiredSpaceBeforeIncreaseStorage - desktop tracker local-storage tuning value.
+</ResponseField>
+
+<ResponseField name="TrackerIncreaseStorageQuota" field-type="integer">
+Setting TrackerIncreaseStorageQuota - desktop tracker local-storage tuning value.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetTimeRegistrationSettingsResponse xmlns="http://www.timelog.com/api/tlp/v1_2">
+      <GetTimeRegistrationSettingsResult xmlns:a="http://www.timelog.com/api/tlp/v1_1"
+                                         xmlns:b="http://www.timelog.com/api/tlp/v1_2"
+                                         xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:TimeRegistrationSettings>
+            <b:UseCaseSensetiveLogin>false</b:UseCaseSensetiveLogin>
+            <b:UseWBS>false</b:UseWBS>
+            <b:UseTaskUniqueID>false</b:UseTaskUniqueID>
+            <b:CustomerSortByNo>false</b:CustomerSortByNo>
+            <b:ProjectSortByNo>false</b:ProjectSortByNo>
+            <b:FormatingLCID>1001</b:FormatingLCID>
+            <b:UseStartEndTime>false</b:UseStartEndTime>
+            <b:TimeTrackingShowCustomerNo>false</b:TimeTrackingShowCustomerNo>
+            <b:TimeTrackingShowCustomerName>false</b:TimeTrackingShowCustomerName>
+            <b:TimeTrackingShowProjectNo>false</b:TimeTrackingShowProjectNo>
+            <b:TimeTrackingShowWBS>false</b:TimeTrackingShowWBS>
+            <b:TimeTrackingShowTaskID>false</b:TimeTrackingShowTaskID>
+            <b:AllowTimetrackingOnAllActiveProjects>false</b:AllowTimetrackingOnAllActiveProjects>
+            <b:TimeTrackingAllowRegistrationOverlap>false</b:TimeTrackingAllowRegistrationOverlap>
+            <b:ShowTimesheetAdditionalTextField>false</b:ShowTimesheetAdditionalTextField>
+            <b:AdditionalTextFieldLabel>Example</b:AdditionalTextFieldLabel>
+            <b:AdditionalTextFieldValidation>0</b:AdditionalTextFieldValidation>
+            <b:AdditionalTextFieldType>0</b:AdditionalTextFieldType>
+            <b:NumberOfTasksReturnedInTrackerSearch>0</b:NumberOfTasksReturnedInTrackerSearch>
+            <b:LimitTrackerSearchToProjects>false</b:LimitTrackerSearchToProjects>
+            <b:MaxReceivedMessageSize>0</b:MaxReceivedMessageSize>
+            <b:TrackerRequiredSpaceBeforeIncreaseStorage>0</b:TrackerRequiredSpaceBeforeIncreaseStorage>
+            <b:TrackerIncreaseStorageQuota>0</b:TrackerIncreaseStorageQuota>
+          </b:TimeRegistrationSettings>
+        </a:Return>
+        <a:ReturnTypeDescription>TimeRegistrationSettings</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+      </GetTimeRegistrationSettingsResult>
+    </GetTimeRegistrationSettingsResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Error | 40001 | Error during call on TimeLog.API, Message 'GetTimeTrackingSettings() returned Null' | Defensive branch, not reachable in practice. | — |

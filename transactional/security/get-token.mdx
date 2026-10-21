@@ -1,0 +1,180 @@
+---
+title: "GetToken"
+description: "Security service 1.2: exchange a TimeLog user name and password for the token every other operation needs."
+---
+
+Exchanges the user name and password of a TimeLog user for a **token**. Every other Transactional API operation needs
+that token. How to use it is explained in [Authentication](/transactional/guides/authentication).
+
+| | |
+|---|---|
+| Service | Security 1.2 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/Security/V1_2/SecurityServiceSecure.svc` |
+| SOAPAction | `GetTokenRequest` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | None: this operation issues the token |
+| Changes data | No |
+| Safe to retry | Yes after a successful call. Do not retry a failed login automatically. |
+
+## How it works
+
+On success, `Return` holds one token with three values: `Initials`, `Expires` and `Hash`. Send them back unchanged as
+the last parameter, `token`, of every other operation, on any service. The token is valid for **12 hours** and cannot
+be refreshed: call GetToken again when it expires.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="user" field-type="string" required="true">
+The TimeLog **user name** of the user the integration runs as. Not the initials.
+</ResponseField>
+
+<ResponseField name="password" field-type="string" required="true">
+That user's TimeLog password.
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/WebServices/Security/V1_2/SecurityServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "GetTokenRequest"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:sec="http://www.timelog.com/api/tlp/v1_2">
+  <soapenv:Body>
+    <sec:GetToken>
+      <sec:user>{user name}</sec:user>
+      <sec:password>{password}</sec:password>
+    </sec:GetToken>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/Security/V1_2/SecurityServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "GetTokenRequest"' \
+  --data-binary @gettoken.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/Security/V1_2/SecurityServiceSecure.svc"
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:sec="http://www.timelog.com/api/tlp/v1_2">
+  <soapenv:Body>
+    <sec:GetToken>
+      <sec:user>{user}</sec:user>
+      <sec:password>{password}</sec:password>
+    </sec:GetToken>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.format(user=USER_NAME, password=PASSWORD).encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": '"GetTokenRequest"'},
+    timeout=30,
+)
+token = parse_result(response)[0]  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check
+`ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="SecurityToken[]">
+One token on success; empty when the call failed.
+
+<Expandable title="SecurityToken fields">
+
+<ResponseField name="Initials" field-type="string">
+The initials of the user the token belongs to.
+</ResponseField>
+
+<ResponseField name="Expires" field-type="dateTime">
+When the token stops working, 12 hours after it was issued. Send it back exactly as received.
+</ResponseField>
+
+<ResponseField name="Hash" field-type="string">
+The signature of the token.
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetTokenResponse xmlns="http://www.timelog.com/api/tlp/v1_2">
+      <GetTokenResult xmlns:a="http://www.timelog.com/api/tlp/v1_1"
+                      xmlns:b="http://www.timelog.com/api/tlp/v1_2"
+                      xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:SecurityToken>
+            <b:Initials>ABC</b:Initials>
+            <b:Expires>2026-10-16T22:30:00</b:Expires>
+            <b:Hash>EXAMPLEHASH0123456789abcdefEXAMPLE=</b:Hash>
+          </b:SecurityToken>
+        </a:Return>
+        <a:ReturnTypeDescription>SecurityToken</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0812455 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+      </GetTokenResult>
+    </GetTokenResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real
+response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation
+can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in
+[Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Error | 40001 | Error during call on TimeLog.API, Message 'User or Password invalid or unknown, TLP can be case sensetive depending on settings' | The user could not be logged in. The same answer is given for every reason (unknown user, wrong password, inactive user). | Check the user name (not the initials) and the password. Do not retry automatically. |

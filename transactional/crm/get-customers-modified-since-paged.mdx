@@ -1,0 +1,446 @@
+---
+title: "GetCustomersModifiedSincePaged"
+description: "CRM service 1.4: the customer sync feed. Customers created, changed or deleted since a date, or all customers, a page at a time."
+---
+
+Returns the customers that were **created, changed or deleted since a date**, or **all customers**, filtered by
+customer group, one page at a time. Use it to keep another system's customer list in sync with TimeLog.
+
+| | |
+|---|---|
+| Service | CRM 1.4 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/CRM/V1_4/CRMServiceSecure.svc` |
+| SOAPAction | `http://api.timelog.com/services/crm/1_4/ICRMService/GetCustomersModifiedSincePaged` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Permissions | The token's user needs access to customers |
+| Changes data | No. Safe to retry. |
+| Paging | Yes, up to 500 customers per page |
+
+## Two modes
+
+The `date` you send decides what you get back:
+
+| `date` | Mode | Returns | `Action` on each customer |
+|---|---|---|---|
+| On or after 2000-01-01 | **Changes** | One entry per customer created, changed or deleted at or after `date` | `Created`, `Updated` or `Deleted` |
+| Before 2000-01-01 (e.g. `1900-01-01T00:00:00`) | **Full list** | Every customer in the selected groups | Always `Created` |
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="date" field-type="dateTime" required="true">
+Return changes made at or after this moment, in the TimeLog server's local time.
+Format `YYYY-MM-DDThh:mm:ss`, e.g. `2026-10-01T00:00:00`. A date before 2000-01-01 switches to the full list.
+</ResponseField>
+
+<ResponseField name="includeCustomers" field-type="boolean">
+**Conditional.** `true` to include customers whose status is in the *Customers* group.
+At least one of `includeCustomers`, `includeSuppliers` and `includeLeads` must be `true`: with all three `false`
+the result is always empty.
+</ResponseField>
+
+<ResponseField name="includeSuppliers" field-type="boolean">
+**Conditional.** `true` to include suppliers. See `includeCustomers`.
+</ResponseField>
+
+<ResponseField name="includeLeads" field-type="boolean">
+**Conditional.** `true` to include leads. See `includeCustomers`.
+</ResponseField>
+
+<ResponseField name="loadCustomFields" field-type="boolean">
+**Optional.** Default `false`. `true` fills `CustomFields` on each returned customer. Adds work per customer: leave it
+off unless you need the values.
+</ResponseField>
+
+<ResponseField name="loadExternalKeys" field-type="boolean">
+**Optional.** Default `false`. `true` fills `ExternalKeys` (the customer's IDs in other systems) on each returned
+customer.
+</ResponseField>
+
+<ResponseField name="page" field-type="integer" required="true">
+The page to return, starting at `1`.
+</ResponseField>
+
+<ResponseField name="pageSize" field-type="integer" required="true">
+Customers per page: `1` to `500`. Larger values are lowered to 500.
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back
+unchanged.
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/WebServices/CRM/V1_4/CRMServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://api.timelog.com/services/crm/1_4/ICRMService/GetCustomersModifiedSincePaged"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:crm="http://api.timelog.com/services/crm/1_4"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <crm:GetCustomersModifiedSincePaged>
+      <crm:date>{date, e.g. 2026-10-01T00:00:00}</crm:date>
+      <crm:includeCustomers>true</crm:includeCustomers>
+      <crm:includeSuppliers>false</crm:includeSuppliers>
+      <crm:includeLeads>false</crm:includeLeads>
+      <crm:loadCustomFields>false</crm:loadCustomFields>
+      <crm:loadExternalKeys>false</crm:loadExternalKeys>
+      <crm:page>1</crm:page>
+      <crm:pageSize>100</crm:pageSize>
+      <crm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </crm:token>
+    </crm:GetCustomersModifiedSincePaged>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/CRM/V1_4/CRMServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://api.timelog.com/services/crm/1_4/ICRMService/GetCustomersModifiedSincePaged"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+BASE_URL = "https://app{server-number}.timelog.com/{account}"
+URL = f"{BASE_URL}/WebServices/CRM/V1_4/CRMServiceSecure.svc"
+SOAP_ACTION = '"http://api.timelog.com/services/crm/1_4/ICRMService/GetCustomersModifiedSincePaged"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:crm="http://api.timelog.com/services/crm/1_4"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <crm:GetCustomersModifiedSincePaged>
+      <crm:date>{since}</crm:date>
+      <crm:includeCustomers>true</crm:includeCustomers>
+      <crm:includeSuppliers>false</crm:includeSuppliers>
+      <crm:includeLeads>false</crm:includeLeads>
+      <crm:loadCustomFields>false</crm:loadCustomFields>
+      <crm:loadExternalKeys>false</crm:loadExternalKeys>
+      <crm:page>{page}</crm:page>
+      <crm:pageSize>100</crm:pageSize>
+      <crm:token>
+        <tok:Initials>{initials}</tok:Initials>
+        <tok:Expires>{expires}</tok:Expires>
+        <tok:Hash>{hash}</tok:Hash>
+      </crm:token>
+    </crm:GetCustomersModifiedSincePaged>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.format(since="2026-10-01T00:00:00", page=1, **token).encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+customers = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check
+`ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="TotalPageCount" field-type="integer">
+Number of pages for the whole result with your `pageSize`. Keep calling with `page` + 1 until you have read them all.
+</ResponseField>
+
+<ResponseField name="Return" field-type="Customer[]">
+The customers on this page. Empty (with `ResponseState` = `Success` and `TotalPageCount` = `0`) when nothing matched.
+
+<Expandable title="Customer fields">
+
+<ResponseField name="Action" field-type="string">
+What happened to the customer: `Created`, `Updated` or `Deleted`. In full-list mode always `Created`.
+</ResponseField>
+
+<ResponseField name="GUID" field-type="guid">
+The customer's stable ID. Use it to match customers between your system and TimeLog.
+</ResponseField>
+
+<ResponseField name="ID" field-type="integer">
+The customer's integer ID, used by GetCustomerByID and by other TimeLog objects such as projects and invoices.
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+The customer's (company) name.
+</ResponseField>
+
+<ResponseField name="No" field-type="string">
+The customer number.
+</ResponseField>
+
+<ResponseField name="Status" field-type="string">
+Name of the customer status; empty when none.
+</ResponseField>
+
+<ResponseField name="Currency" field-type="string">
+The customer's currency code; empty when none.
+</ResponseField>
+
+<ResponseField name="VATNo" field-type="string">
+VAT registration number (in Denmark the CVR number).
+</ResponseField>
+
+<ResponseField name="Phone" field-type="string">
+Main phone number.
+</ResponseField>
+
+<ResponseField name="Email" field-type="string">
+Main e-mail address.
+</ResponseField>
+
+<ResponseField name="KAM" field-type="string">
+Initials of the customer's account manager; empty when none.
+</ResponseField>
+
+<ResponseField name="Address" field-type="Address">
+The customer's address: `Address1`, `Address2`, `Address3`, `ZipCode`, `City`, `State`, `Country`.
+</ResponseField>
+
+<ResponseField name="Contacts" field-type="ContactHeader[]">
+The customer's active contacts (GUID, first name, last name).
+</ResponseField>
+
+<ResponseField name="Details" field-type="CustomerDetails">
+Status, industry, currency and account managers as objects with their IDs.
+</ResponseField>
+
+<ResponseField name="CustomFields" field-type="CustomField[]">
+Filled only when `loadCustomFields` is `true`.
+</ResponseField>
+
+<ResponseField name="ExternalKeys" field-type="ExternalSystemContext[]">
+The customer's IDs in other systems. Filled only when `loadExternalKeys` is `true`.
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+<Callout kind="info">A **deleted** customer comes back as a short entry with only `GUID`, `Name` and `Action` =
+`Deleted`. In **full-list** mode, `KAM`, `Contacts` and the account managers in `Details` are left empty: read the
+customer by GUID if you need them.</Callout>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetCustomersModifiedSincePagedResponse xmlns="http://api.timelog.com/services/crm/1_4">
+      <GetCustomersModifiedSincePagedResult xmlns:a="http://api.timelog.com"
+                                            xmlns:b="http://api.timelog.com/services/crm/1_4"
+                                            xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:Customer>
+            <a:Action>Updated</a:Action>
+            <a:IsCustomFieldsLoaded>false</a:IsCustomFieldsLoaded>
+            <a:CustomFields i:nil="true"/>
+            <a:IsExternalKeysLoaded>false</a:IsExternalKeysLoaded>
+            <a:ExternalKeys i:nil="true"/>
+            <b:ID>1042</b:ID>
+            <b:GUID>3f2504e0-4f89-41d3-9a0c-0305e82c3301</b:GUID>
+            <b:Name>Example Customer A/S</b:Name>
+            <b:No>1042</b:No>
+            <b:TimeStamp>AAAAAAAJ+qA=</b:TimeStamp>
+            <b:VAT>25</b:VAT>
+            <b:CalculateVAT>true</b:CalculateVAT>
+            <b:DefaultDiscountPercent>0</b:DefaultDiscountPercent>
+            <b:Address>
+              <a:Address1>Example Street 1</a:Address1>
+              <a:Address2/>
+              <a:Address3/>
+              <a:ZipCode>1000</a:ZipCode>
+              <a:City>Copenhagen</a:City>
+              <a:State/>
+              <a:Country>DK</a:Country>
+            </b:Address>
+            <b:Fax/>
+            <b:WebSite>https://www.example.com</b:WebSite>
+            <b:Phone>+45 00 00 00 00</b:Phone>
+            <b:Email>info@example.com</b:Email>
+            <b:KAM>ABC</b:KAM>
+            <b:EAN/>
+            <b:IsOIOCustomer>false</b:IsOIOCustomer>
+            <b:CreditorID/>
+            <b:AccountNo/>
+            <b:Contacts>
+              <b:ContactHeader>
+                <b:GUID>9b2d7c41-5e6a-4f0b-8c3d-2a1e0f9d8c7b</b:GUID>
+                <b:FirstName>Anna</b:FirstName>
+                <b:LastName>Example</b:LastName>
+              </b:ContactHeader>
+            </b:Contacts>
+            <b:Industry>Consulting</b:Industry>
+            <b:Status>Customer</b:Status>
+            <b:VATNo>DK00000000</b:VATNo>
+            <b:Currency>DKK</b:Currency>
+            <b:PaymentTermId>0</b:PaymentTermId>
+            <b:InvoicingAddress>
+              <a:Address1/>
+              <a:Address2/>
+              <a:Address3/>
+              <a:ZipCode/>
+              <a:City/>
+              <a:State/>
+              <a:Country/>
+            </b:InvoicingAddress>
+            <b:InvoicingName/>
+            <b:UseInvoicingAddress>false</b:UseInvoicingAddress>
+            <b:CustomerSinceDate>2024-01-15T00:00:00</b:CustomerSinceDate>
+            <b:NickName/>
+            <b:OrganizationNumber/>
+            <b:KAM2/>
+            <b:Details>
+              <b:Status>
+                <b:ID>1</b:ID>
+                <b:Name>Customer</b:Name>
+                <b:Type>IsShownInCustomers</b:Type>
+              </b:Status>
+              <b:Industry>
+                <b:ID>3</b:ID>
+                <b:Branche>Consulting</b:Branche>
+              </b:Industry>
+              <b:Currency>
+                <a:ID>1</a:ID>
+                <a:Abbreviation>DKK</a:Abbreviation>
+                <a:Rate>100</a:Rate>
+                <a:RateDate>2026-10-01T00:00:00</a:RateDate>
+                <a:DescriptiveName>Danish krone</a:DescriptiveName>
+              </b:Currency>
+              <b:KAM>
+                <a:ID>12</a:ID>
+                <a:Initials>ABC</a:Initials>
+                <a:FullName>Alex Example</a:FullName>
+              </b:KAM>
+              <b:KAM2 i:nil="true"/>
+            </b:Details>
+          </b:Customer>
+        </a:Return>
+        <a:ReturnTypeDescription>Customer</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>true</a:IsReturnPaged>
+        <a:TotalPageCount>1</a:TotalPageCount>
+      </GetCustomersModifiedSincePagedResult>
+    </GetCustomersModifiedSincePagedResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</CodeGroup>
+
+### Example error
+
+<CodeGroup tabs="HTTP 200 - expired token" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetCustomersModifiedSincePagedResponse xmlns="http://api.timelog.com/services/crm/1_4">
+      <GetCustomersModifiedSincePagedResult xmlns:a="http://api.timelog.com" xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return/>
+        <a:ReturnTypeDescription>Customer</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Error</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Token has Expired!</a:Message>
+            <a:Severity>Error</a:Severity>
+            <a:ErrorCode>20004</a:ErrorCode>
+          </a:APIMessage>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0010687 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>20004</a:ErrorCode>
+        <a:IsReturnPaged>true</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </GetCustomersModifiedSincePagedResult>
+    </GetCustomersModifiedSincePagedResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">**Success** is an illustrative example: built from the service description (WSDL) in the same
+format as a real response, with made-up values. **Expired token** was recorded from a real call. In both, the
+`Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation
+can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in
+[Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Error | 40001 | Error during call on TimeLog.API, Message 'User does not have the right to access any customers' | The token's user has no access to customers. | Give the integration user access to customers. |
+
+## Keeping customers in sync
+
+<Steps>
+<Step title="Initial load" icon="download">
+Call once with `date` = `1900-01-01T00:00:00` and read every page. Store each customer by `GUID`. If you need account
+managers or contacts, read those customers by GUID afterwards: the full list leaves them empty.
+</Step>
+<Step title="Remember when you ran" icon="clock">
+Before each run, note the current time in the TimeLog server's time zone. That is the `date` for the next run.
+</Step>
+<Step title="Apply the changes" icon="refresh-cw">
+Call with the `date` of the previous run and read every page. Apply `Created` and `Updated`, and remove `Deleted`
+customers from your copy.
+</Step>
+</Steps>
+
+<Callout kind="tip">Let runs overlap a little rather than leave gaps: changes at exactly `date` are included, and a
+customer seen twice is simply applied twice. Read all pages of one run quickly: new changes arriving between pages can
+shift the page contents.</Callout>
+
+<Callout kind="info">`Deleted` means the customer is no longer in the result you asked for: deleted in TimeLog, or
+moved to a status outside the groups you selected. Treat it as "remove from my copy".</Callout>

@@ -1,0 +1,196 @@
+---
+title: "GetRoles"
+description: "Organisation service 1.9: List the assignable security roles"
+---
+
+| | |
+|---|---|
+| Service | Organisation 1.9 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/Organisation/V1_9/OrganisationServiceSecure.svc` |
+| SOAPAction | `http://www.timelog.com/api/tlp/v1_9/OrganisationService/GetRoles` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | No |
+| Safe to retry | Yes |
+
+## How it works
+
+Roles tied to a module the account's Standard licence does not include are dropped. Each item has the role's GUID, integer ID, name, description and flags - no privileges.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/WebServices/Organisation/V1_9/OrganisationServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/api/tlp/v1_9/OrganisationService/GetRoles"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:org="http://www.timelog.com/api/tlp/v1_9"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <org:GetRoles>
+      <org:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </org:token>
+    </org:GetRoles>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/Organisation/V1_9/OrganisationServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/api/tlp/v1_9/OrganisationService/GetRoles"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/Organisation/V1_9/OrganisationServiceSecure.svc"
+SOAP_ACTION = '"http://www.timelog.com/api/tlp/v1_9/OrganisationService/GetRoles"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:org="http://www.timelog.com/api/tlp/v1_9"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <org:GetRoles>
+      <org:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </org:token>
+    </org:GetRoles>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="Role[]">
+Response&lt;Role>: Return = the roles; a success message is added. The response's service name is the runtime class name. Not expected - the seeded standard roles exist in every account.
+
+<Expandable title="Role fields">
+
+<ResponseField name="ID" field-type="guid">
+GUID of the role - the roleGuid that AddRoleToEmployeeByGuid / RemoveRoleFromEmployeeByGuid accept.
+</ResponseField>
+
+<ResponseField name="RoleID" field-type="integer">
+Integer ID of the role. Seeded standard roles have fixed integer IDs.
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+Role name as shown in the UI. AddRoleToEmployeeByName matches on it.
+</ResponseField>
+
+<ResponseField name="Description" field-type="string">
+Free-text description of the role.
+</ResponseField>
+
+<ResponseField name="isActive" field-type="boolean">
+Whether the role is active. GetRoles returns active roles only; GetEmployeeRoles returns the employee's roles regardless.
+</ResponseField>
+
+<ResponseField name="EmployeeID" field-type="integer">
+ 
+</ResponseField>
+
+<ResponseField name="IsLockedSystemRole" field-type="boolean">
+ 
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetRolesResponse xmlns="http://www.timelog.com/api/tlp/v1_9">
+      <GetRolesResult xmlns:a="http://api.timelog.com"
+                      xmlns:b="http://www.timelog.com/api/tlp/v1_9"
+                      xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:Role>
+            <b:ID>3f2504e0-4f89-41d3-9a0c-305000000001</b:ID>
+            <b:RoleID>1001</b:RoleID>
+            <b:Name>Example </b:Name>
+            <b:Description>Example</b:Description>
+            <b:isActive>false</b:isActive>
+            <b:EmployeeID>1001</b:EmployeeID>
+            <b:IsLockedSystemRole>false</b:IsLockedSystemRole>
+          </b:Role>
+        </a:Return>
+        <a:ReturnTypeDescription>Role</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </GetRolesResult>
+    </GetRolesResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+This operation has no errors of its own beyond the shared ones.

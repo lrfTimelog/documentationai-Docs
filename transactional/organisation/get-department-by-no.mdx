@@ -1,0 +1,227 @@
+---
+title: "GetDepartmentByNo"
+description: "Organisation service 1.9: Returns the one department whose number equals departmentNo - active or inactive."
+---
+
+| | |
+|---|---|
+| Service | Organisation 1.9 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/Organisation/V1_9/OrganisationServiceSecure.svc` |
+| SOAPAction | `http://www.timelog.com/api/tlp/v1_9/OrganisationService/GetDepartmentByNo` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | No |
+| Safe to retry | Yes |
+
+## How it works
+
+Exact-match look-up on the department number. Returns the department as the single item of Return, whether it is active or not.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="departmentNo" field-type="string" required="true">
+The department number. Exact match. Null matches nothing.
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/WebServices/Organisation/V1_9/OrganisationServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/api/tlp/v1_9/OrganisationService/GetDepartmentByNo"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:org="http://www.timelog.com/api/tlp/v1_9"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <org:GetDepartmentByNo>
+      <org:departmentNo>{departmentNo}</org:departmentNo>
+      <org:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </org:token>
+    </org:GetDepartmentByNo>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/Organisation/V1_9/OrganisationServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/api/tlp/v1_9/OrganisationService/GetDepartmentByNo"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/Organisation/V1_9/OrganisationServiceSecure.svc"
+SOAP_ACTION = '"http://www.timelog.com/api/tlp/v1_9/OrganisationService/GetDepartmentByNo"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:org="http://www.timelog.com/api/tlp/v1_9"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <org:GetDepartmentByNo>
+      <org:departmentNo>{departmentNo}</org:departmentNo>
+      <org:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </org:token>
+    </org:GetDepartmentByNo>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="Department[]">
+Response&lt;Department>: Return holds exactly one Department; success message names return type 'Department'. Never - no match is an Invalid envelope.
+
+<Expandable title="Department fields">
+
+<ResponseField name="Action" field-type="string">
+Allowed values: `Original`, `Created`, `Updated`, `Deleted`, `Copied`, `Undefined`.
+</ResponseField>
+
+<ResponseField name="IsCustomFieldsLoaded" field-type="boolean">
+`true` when `CustomFields` is filled.
+</ResponseField>
+
+<ResponseField name="CustomFields" field-type="CustomField[]">
+Custom field values.
+</ResponseField>
+
+<ResponseField name="IsExternalKeysLoaded" field-type="boolean">
+`true` when `ExternalKeys` is filled.
+</ResponseField>
+
+<ResponseField name="ExternalKeys" field-type="ExternalSystemContext[]">
+The record's IDs in other systems.
+</ResponseField>
+
+<ResponseField name="ID" field-type="guid">
+GUID of the department. The value UpdateDepartment, DeactivateDepartment, ChangeEmployeeDepartment and the parentDepartmentGuid parameters take.
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+Department name. Not unique. GetDepartments sorts by it. Create rejects an empty or whitespace-only name; Update rejects only an empty one.
+</ResponseField>
+
+<ResponseField name="No" field-type="string">
+Free-text department number - the key GetDepartmentByNo looks up. NOT unique: no constraint, and Create / Update do not check it; GetDepartmentByNo then fails for every duplicated number. A missing number is returned as an empty string.
+</ResponseField>
+
+<ResponseField name="ParentDepartmentGuid" field-type="guid">
+The tree is at most four levels deep.
+</ResponseField>
+
+<ResponseField name="DepartmentManagerGuid" field-type="guid">
+Only the GUID - no name or contact data. Once set, the API cannot clear it.
+</ResponseField>
+
+<ResponseField name="DepartmentID" field-type="integer">
+Integer identifier of the department - the value Employee.DepartmentID and project department references carry. CreateDepartment returns 0 here - read it back with GetDepartmentByNo or GetDepartments.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetDepartmentByNoResponse xmlns="http://www.timelog.com/api/tlp/v1_9">
+      <GetDepartmentByNoResult xmlns:a="http://api.timelog.com"
+                               xmlns:b="http://www.timelog.com/api/tlp/v1_9"
+                               xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:Department>
+            <a:Action>Original</a:Action>
+            <a:IsCustomFieldsLoaded>false</a:IsCustomFieldsLoaded>
+            <a:CustomFields i:nil="true"/>
+            <a:IsExternalKeysLoaded>false</a:IsExternalKeysLoaded>
+            <a:ExternalKeys i:nil="true"/>
+            <b:ID>3f2504e0-4f89-41d3-9a0c-305000000001</b:ID>
+            <b:Name>Example </b:Name>
+            <b:No>1001</b:No>
+            <b:ParentDepartmentGuid>3f2504e0-4f89-41d3-9a0c-305000000002</b:ParentDepartmentGuid>
+            <b:DepartmentManagerGuid>3f2504e0-4f89-41d3-9a0c-305000000003</b:DepartmentManagerGuid>
+            <b:DepartmentID>1001</b:DepartmentID>
+          </b:Department>
+        </a:Return>
+        <a:ReturnTypeDescription>Department</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </GetDepartmentByNoResult>
+    </GetDepartmentByNoResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Invalid | 0 | Unable to find Department object by parameter value: \{departmentNo\} | No department, or more than one department, has this number - or the data layer failed. ErrorCode 0. | Check ResponseState. For duplicated numbers use GetDepartments and filter by No. |

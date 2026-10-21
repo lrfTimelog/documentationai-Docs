@@ -1,0 +1,176 @@
+---
+title: "GetPaymentMethods"
+description: "Expenses service 1.0: Returns all payment methods of the account - the values for Expense.PaymentMethodID."
+---
+
+| | |
+|---|---|
+| Service | Expenses 1.0 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/Expenses/V1_0/ExpensesServiceSecure.svc` |
+| SOAPAction | `http://www.timelog.com/api/tlp/v1_0/ExpenseService/GetPaymentMethods` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | No |
+| Safe to retry | Yes |
+
+## How it works
+
+Whether a method counts as paid by the employee is not returned either.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/WebServices/Expenses/V1_0/ExpensesServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/api/tlp/v1_0/ExpenseService/GetPaymentMethods"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:expenses="http://www.timelog.com/api/tlp/v1_0"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <expenses:GetPaymentMethods>
+      <expenses:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </expenses:token>
+    </expenses:GetPaymentMethods>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/Expenses/V1_0/ExpensesServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/api/tlp/v1_0/ExpenseService/GetPaymentMethods"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/Expenses/V1_0/ExpensesServiceSecure.svc"
+SOAP_ACTION = '"http://www.timelog.com/api/tlp/v1_0/ExpenseService/GetPaymentMethods"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:expenses="http://www.timelog.com/api/tlp/v1_0"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <expenses:GetPaymentMethods>
+      <expenses:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </expenses:token>
+    </expenses:GetPaymentMethods>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="PaymentMethod[]">
+Response&lt;PaymentMethod>: Return = all payment methods, by name. Success with an empty Return.
+
+<Expandable title="PaymentMethod fields">
+
+<ResponseField name="ID" field-type="integer">
+Integer ID - the value to send as Expense.PaymentMethodID.
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+Display name of the payment method. Personal credit cards of individual employees are listed too, by their configured name.
+</ResponseField>
+
+<ResponseField name="IsDefault" field-type="boolean">
+true = the account's default payment method for employee expenses.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetPaymentMethodsResponse xmlns="http://www.timelog.com/api/tlp/v1_0">
+      <GetPaymentMethodsResult xmlns:a="http://api.timelog.com"
+                               xmlns:b="http://api.timelog.com/services/expense/1_0"
+                               xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:PaymentMethod>
+            <b:ID>1001</b:ID>
+            <b:Name>Example </b:Name>
+            <b:IsDefault>false</b:IsDefault>
+          </b:PaymentMethod>
+        </a:Return>
+        <a:ReturnTypeDescription>PaymentMethod</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </GetPaymentMethodsResult>
+    </GetPaymentMethodsResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+This operation has no errors of its own beyond the shared ones.

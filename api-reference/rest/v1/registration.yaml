@@ -17,10 +17,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -289,7 +287,7 @@ paths:
       description: |-
         Returns the calling user's registrations for the 7 days from startDate, grouped by day and task, with daily and weekly norm hours and the difference.
 
-        The weekly-timesheet view of the CALLER's time. The window is startDate through startDate + 6 days (no alignment to a week start: send the Monday yourself if you want an ISO week). All registrations of the window are read (no paging), grouped by day, then by task, and each day gets the employee's norm hours and registered − norm. Week totals: TotalRegisteredHours (days with registrations) and TotalNormHours (every day of the window that has an employee projection) — so a day with no registrations is missing from `Tasks` but still counts in TotalNormHours.
+        The weekly-timesheet view of the CALLER's time. The window is startDate through startDate + 6 days (no alignment to a week start: send the Monday yourself if you want an ISO week). All registrations of the window are read (no paging), grouped by day, then by task, and each day gets the employee's norm hours and registered − norm. Week totals: TotalRegisteredHours (days with registrations) and TotalNormHours — so a day with no registrations is missing from `Tasks` but still counts in TotalNormHours.
 
         **Use it to:**
         - Weekly timesheet grid in a time-tracking client
@@ -329,7 +327,7 @@ paths:
           description: |-
             The object, wrapped in the TAF envelope (`Properties`). One object for the window (TAF single envelope).
 
-            Order: Days ascending; within a day, task groups by TaskName; within a group, registrations by Date (procedure order: Created ascending).
+            Order: Days ascending; within a day, task groups by TaskName; within a group, registrations by Date.
 
             Empty result: 200 with Tasks [] and TotalRegisteredHours 0; TotalNormHours still the window's norm.
           content:
@@ -393,7 +391,6 @@ paths:
         - Not safe to retry blindly. A retry after a lost response flips the favourite BACK. Re-read IsFavourite before retrying.
         - Duplicates: Toggle: a second identical call undoes the first.
         - Side effect: Inserts or deletes the caller's favourite row (entity = task 98 / absence code 149, page TimeTrackingBase 361).
-        - Side effect: Clears the favourites cache.
         - Changes are visible to the next read immediately.
 
         **Call first:** Task IDs: `GET /v1/task/search-for-time-tracking` (or list rows' TaskID), Absence codes: AbsenceCodeRead lookups
@@ -449,7 +446,7 @@ paths:
       description: |-
         Returns one time registration, by its integer ID, in the enriched timesheet shape (TimeTrackingItemRead).
 
-        Looks up a single registration by TimeRegistrationID and returns it with its customer, project, task or absence code, allocation hours and approval / invoicing state — the same shape as one row of the list operations. This is the target of every list row's self link. An ID that does not exist (or is not a project / absence registration the procedure can resolve) answers 500, not 404.
+        This is the target of every list row's self link. An ID that does not exist answers 500, not 404.
 
         **Use it to:**
         - Refresh one timesheet row after editing it
@@ -616,10 +613,7 @@ components:
           type: number
           format: double
           readOnly: true
-          description: |-
-            The employee's normal working hours for that day (NormalWorkingHours of the employee projection of the date; public holidays reduce it). 0 when there is no projection for the date.
-
-            Unit: hours
+          description: 'Unit: hours'
         HoursDifference:
           type: number
           format: double
@@ -656,7 +650,7 @@ components:
           format: double
           readOnly: true
           description: |-
-            The employee's normal (expected) working hours summed over ALL days of the window that have an employee projection — including days on which nothing was registered (those days are not in `Tasks`). So TotalNormHours is generally NOT the sum of the listed days' NormHours.
+            So TotalNormHours is generally NOT the sum of the listed days' NormHours.
 
             Unit: hours
 
@@ -706,8 +700,6 @@ components:
             The registration's integer ID — the same ID TimeRegistrationRead exposes and GET /v1/time-tracking-item/{timeRegistrationID} takes. The registration's GUID is read but NOT exposed by this model.
 
             Identifier of this object, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         UserID:
           type: integer
           format: int32
@@ -768,8 +760,7 @@ components:
           type: boolean
           readOnly: true
           description: true when the registration is CLOSED — the employee has submitted (closed) the day in the timesheet;
-            false when open. The stored column is the TimeRegistrationStatus number (0 Open, 1 Closed) converted to a boolean
-            (any non-zero value = true). Note TimeRegistrationRead.Status exposes the same column as an integer.
+            false when open.
         Date:
           type: string
           format: date-time
@@ -811,9 +802,7 @@ components:
           type: boolean
           readOnly: true
           description: true when the registration has been added to a voucher OR to an invoice; false when it is still bookable.
-            The stored column is the 3-valued RegistrationInvoicedStatus (0 Bookable, 1 AddedToVoucher, 2 AddedToInvoice)
-            collapsed to a boolean, so voucher vs invoice cannot be told apart here. TimeRegistrationRead.InvoiceStatus exposes
-            the 3 values.
+            TimeRegistrationRead.InvoiceStatus exposes the 3 values.
         TimeRegistrationApprovalStatus:
           type: integer
           format: int32
@@ -854,7 +843,7 @@ components:
             | `3` | EmployeeManagerApproved | Approved by the employee manager. |
             | `4` | ProjectManagerRejected | Rejected by a project manager. |
             | `5` | ProjectManagerRejectedAndResolved | Rejected by a project manager, then edited; the timesheet is still open. |
-            | `6` | ProjectManagerApproved | Approved by the project manager. Depending on the tenant's approval setup the employee manager may still have to approve. |
+            | `6` | ProjectManagerApproved | Approved by the project manager. Depending on the account's approval setup the employee manager may still have to approve. |
             | `7` | Submitted | Closed / pending approval: submitted, no approval decision yet. Never stored — derived from Status = closed. |
             | `8` | EmployeeManagerRejectedAndResubmitted | Rejected by the employee manager, corrected and submitted again (stored value 7). |
             | `9` | ProjectManagerRejectedAndResubmitted | Rejected by a project manager, corrected and submitted again (stored value 8). |
@@ -1078,15 +1067,14 @@ components:
           type: boolean
           readOnly: true
           description: |-
-            Computed in the procedure: true when the billable flag may be shown/changed for this row — i.e. the task is NOT fixed-price (false for fixed-price tasks, where registrations are always billable). Always false on absence rows. Copied from the FIRST registration of the group.
+            Always false on absence rows. Copied from the FIRST registration of the group.
 
             > **Not yet documented:** description.
         IsFavourite:
           type: boolean
           readOnly: true
           description: Whether the task / absence code is marked as a favourite in the timesheet (toggled with POST /v1/time-tracking-item/save-favourite).
-            For ABSENCE rows it is the owner's own favourite. For PROJECT rows it is true when ANY user has favourited the
-            task. Copied from the FIRST registration of the group.
+            For ABSENCE rows it is the owner's own favourite. Copied from the FIRST registration of the group.
         EntityID:
           type: integer
           format: int32
@@ -1129,8 +1117,7 @@ components:
           items:
             $ref: '#/components/schemas/TimeTrackingItemExpandedRegistrationRead'
           readOnly: true
-          description: 'The group''s registrations (TimeTrackingItemExpandedRegistrationRead), ordered by Date (within a day:
-            procedure order, i.e. Created ascending).'
+          description: The group's registrations (TimeTrackingItemExpandedRegistrationRead), ordered by Date.
       description: The registrations of one task on one day, with the task's (or absence code's) descriptive fields. Task-level
         values are copied from the group's first registration; for the absence group (TaskID null) that means the first absence
         registration's code labels ALL the day's absence registrations.
@@ -1264,7 +1251,7 @@ components:
           type: boolean
           readOnly: true
           description: |-
-            Computed in the procedure: true when the billable flag may be shown/changed for this row — i.e. the task is NOT fixed-price (false for fixed-price tasks, where registrations are always billable). Always false on absence rows.
+            Always false on absence rows.
 
             > **Not yet documented:** description.
         AllocatedHour:
@@ -1290,8 +1277,6 @@ components:
             The registration's integer ID — the same ID TimeRegistrationRead exposes and GET /v1/time-tracking-item/{timeRegistrationID} takes. The registration's GUID is read but NOT exposed by this model.
 
             Identifier of this object, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         EntityID:
           type: integer
           format: int32
@@ -1382,8 +1367,7 @@ components:
           type: boolean
           readOnly: true
           description: true when the registration is CLOSED — the employee has submitted (closed) the day in the timesheet;
-            false when open. The stored column is the TimeRegistrationStatus number (0 Open, 1 Closed) converted to a boolean
-            (any non-zero value = true). Note TimeRegistrationRead.Status exposes the same column as an integer.
+            false when open.
         Date:
           type: string
           format: date-time
@@ -1427,9 +1411,7 @@ components:
           type: boolean
           readOnly: true
           description: true when the registration has been added to a voucher OR to an invoice; false when it is still bookable.
-            The stored column is the 3-valued RegistrationInvoicedStatus (0 Bookable, 1 AddedToVoucher, 2 AddedToInvoice)
-            collapsed to a boolean, so voucher vs invoice cannot be told apart here. TimeRegistrationRead.InvoiceStatus exposes
-            the 3 values.
+            TimeRegistrationRead.InvoiceStatus exposes the 3 values.
         TimeRegistrationApprovalStatus:
           type: integer
           format: int32
@@ -1470,7 +1452,7 @@ components:
             | `3` | EmployeeManagerApproved | Approved by the employee manager. |
             | `4` | ProjectManagerRejected | Rejected by a project manager. |
             | `5` | ProjectManagerRejectedAndResolved | Rejected by a project manager, then edited; the timesheet is still open. |
-            | `6` | ProjectManagerApproved | Approved by the project manager. Depending on the tenant's approval setup the employee manager may still have to approve. |
+            | `6` | ProjectManagerApproved | Approved by the project manager. Depending on the account's approval setup the employee manager may still have to approve. |
             | `7` | Submitted | Closed / pending approval: submitted, no approval decision yet. Never stored — derived from Status = closed. |
             | `8` | EmployeeManagerRejectedAndResubmitted | Rejected by the employee manager, corrected and submitted again (stored value 7). |
             | `9` | ProjectManagerRejectedAndResubmitted | Rejected by a project manager, corrected and submitted again (stored value 8). |
@@ -1534,8 +1516,7 @@ components:
           type: boolean
           readOnly: true
           description: Whether the task / absence code is marked as a favourite in the timesheet (toggled with POST /v1/time-tracking-item/save-favourite).
-            For ABSENCE rows it is the owner's own favourite. For PROJECT rows it is true when ANY user has favourited the
-            task.
+            For ABSENCE rows it is the owner's own favourite.
         StartTime:
           type:
           - string

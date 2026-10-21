@@ -1,0 +1,352 @@
+---
+title: "CreateSubTask"
+description: "Project management service 1.8: Creates a task as the last sub-task of a parent task, on the parent's contract by default."
+---
+
+| | |
+|---|---|
+| Service | Project management 1.8 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc` |
+| SOAPAction | `CreateSubTaskRequest` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | Yes |
+| Safe to retry | Send a client-generated Task.ID: a retried create that went through fails instead of duplicating. |
+
+## How it works
+
+Loads the project, loads the parent task by integer ID and finds the task with the SAME WBS NUMBER in the project, builds a new sub-task numbered '&lt;parent WBS>&lt;n+1>', maps the Task you send, defaults ProjectSubContractID to the parent's contract, applies HourlyRateID and saves the project. With Details.WBS set the project is re-loaded and the sub-task is inserted at that WBS number instead. A task that already has allocations cannot become a parent.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="task" field-type="Task" required="true">
+The Task to send. Its fields are listed below.
+
+<Expandable title="Task fields">
+
+<ResponseField name="IsCustomFieldsLoaded" field-type="boolean">
+**Optional.** Set to `true` to save the `CustomFields` you send.
+</ResponseField>
+
+<ResponseField name="CustomFields" field-type="CustomField[]">
+**Optional.** Custom field values. Saved only when `IsCustomFieldsLoaded` is `true`.
+</ResponseField>
+
+<ResponseField name="IsExternalKeysLoaded" field-type="boolean">
+**Optional.** Set to `true` to save the `ExternalKeys` you send.
+</ResponseField>
+
+<ResponseField name="ExternalKeys" field-type="ExternalSystemContext[]">
+**Optional.** The record's IDs in other systems. Saved only when `IsExternalKeysLoaded` is `true`.
+</ResponseField>
+
+<ResponseField name="ID" field-type="guid">
+**Optional.**
+</ResponseField>
+
+<ResponseField name="Name" field-type="string" required="true">
+The task's name.
+</ResponseField>
+
+<ResponseField name="No" field-type="string">
+**Optional.** The task's number. GetTaskByTaskNo searches on it.
+</ResponseField>
+
+<ResponseField name="Description" field-type="string">
+**Optional.** The task's description.
+</ResponseField>
+
+<ResponseField name="Link" field-type="string">
+**Optional.** A link stored on the task.
+</ResponseField>
+
+<ResponseField name="BudgetHours" field-type="double">
+**Optional.** Budgeted hours for the task.
+</ResponseField>
+
+<ResponseField name="BudgetAmount" field-type="double">
+**Optional.** Budgeted amount for the task.
+</ResponseField>
+
+<ResponseField name="StartDate" field-type="dateTime">
+**Conditional.** The task's start date.
+</ResponseField>
+
+<ResponseField name="EndDate" field-type="dateTime">
+**Conditional.** The task's end date; must not be before StartDate.
+</ResponseField>
+
+<ResponseField name="TaskTypeID" field-type="integer">
+**Conditional.** Integer ID of the task type. The task type's name and category come back in Details.Type.
+</ResponseField>
+
+<ResponseField name="AdditionalTextIsRequired" field-type="boolean">
+**Optional.** true = time registrations on this task must carry an additional text.
+</ResponseField>
+
+<ResponseField name="ProjectSubContractID" field-type="integer">
+**Optional.** Integer ID of the project contract the task belongs to. The contract decides how time on the task is priced and invoiced.
+</ResponseField>
+
+<ResponseField name="HourlyRateID" field-type="integer">
+**Optional.** Integer ID of the task's default hourly rate. 0 = none. Must be one of the rates valid for the project's customer, price list and legal entity.
+</ResponseField>
+
+<ResponseField name="IsReadyForInvoicing" field-type="boolean">
+**Optional.** true = the task is marked ready for invoicing.
+</ResponseField>
+
+<ResponseField name="Details" field-type="TaskDetails">
+**Optional.** Project and customer headers, task type, WBS position, parent and sort order. Output; only Details.WBS is read on CreateSubTask.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+<ResponseField name="parentTaskId" field-type="integer" required="true">
+Integer TaskID of the parent task. Only its WBS number is used to find the parent inside projectID.
+
+</ResponseField>
+
+<ResponseField name="projectID" field-type="integer" required="true">
+Integer ID of the project that holds the parent task. Must be the parent's own project.
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "CreateSubTaskRequest"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:pm="http://www.timelog.com/api/tlp/v1_8"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3"
+                  xmlns:tlp="http://www.timelog.com/api/tlp/v1_7">
+  <soapenv:Body>
+    <pm:CreateSubTask>
+      <pm:task>
+        <tlp:Name>{Name}</tlp:Name>
+        <tlp:StartDate>{StartDate}</tlp:StartDate>
+        <tlp:EndDate>{EndDate}</tlp:EndDate>
+        <tlp:TaskTypeID>{TaskTypeID}</tlp:TaskTypeID>
+        <!-- more fields: see Parameters -->
+      </pm:task>
+      <pm:parentTaskId>{parentTaskId}</pm:parentTaskId>
+      <pm:projectID>{projectID}</pm:projectID>
+      <pm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </pm:token>
+    </pm:CreateSubTask>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "CreateSubTaskRequest"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc"
+SOAP_ACTION = '"CreateSubTaskRequest"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:pm="http://www.timelog.com/api/tlp/v1_8"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3"
+                  xmlns:tlp="http://www.timelog.com/api/tlp/v1_7">
+  <soapenv:Body>
+    <pm:CreateSubTask>
+      <pm:task>
+        <tlp:Name>{Name}</tlp:Name>
+        <tlp:StartDate>{StartDate}</tlp:StartDate>
+        <tlp:EndDate>{EndDate}</tlp:EndDate>
+        <tlp:TaskTypeID>{TaskTypeID}</tlp:TaskTypeID>
+        <!-- more fields: see Parameters -->
+      </pm:task>
+      <pm:parentTaskId>{parentTaskId}</pm:parentTaskId>
+      <pm:projectID>{projectID}</pm:projectID>
+      <pm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </pm:token>
+    </pm:CreateSubTask>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="BatchContainerOfTask[]">
+On any failure Return is EMPTY and the envelope is Error.
+
+<Expandable title="BatchContainerOfTask fields">
+
+<ResponseField name="Item" field-type="Task">
+ 
+</ResponseField>
+
+<ResponseField name="Status" field-type="string">
+Allowed values: `NotSet`, `Success`, `Invalid`, `Error`.
+</ResponseField>
+
+<ResponseField name="Message" field-type="string">
+ 
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <CreateSubTaskResponse xmlns="http://www.timelog.com/api/tlp/v1_8">
+      <CreateSubTaskResult xmlns:a="http://www.timelog.com/api/tlp/v1_2"
+                           xmlns:b="http://api.timelog.com"
+                           xmlns:c="http://www.timelog.com/api/tlp/v1_7"
+                           xmlns:d="http://api.timelog.com/services/crm/1_2"
+                           xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <a:BatchContainerOfTask>
+            <a:Item>
+              <b:Action>Original</b:Action>
+              <b:IsCustomFieldsLoaded>false</b:IsCustomFieldsLoaded>
+              <b:CustomFields i:nil="true"/>
+              <b:IsExternalKeysLoaded>false</b:IsExternalKeysLoaded>
+              <b:ExternalKeys i:nil="true"/>
+              <c:ID>3f2504e0-4f89-41d3-9a0c-305000000001</c:ID>
+              <c:TaskID>1001</c:TaskID>
+              <c:Name>Example </c:Name>
+              <c:FullName>Example full</c:FullName>
+              <c:No>1001</c:No>
+              <c:Description>Example</c:Description>
+              <c:Link>Example</c:Link>
+              <c:BudgetHours>0</c:BudgetHours>
+              <c:BudgetAmount>0</c:BudgetAmount>
+              <c:StartDate>2026-10-01T00:00:00</c:StartDate>
+              <c:EndDate>2026-10-01T00:00:00</c:EndDate>
+              <c:TaskTypeID>1001</c:TaskTypeID>
+              <c:AdditionalTextIsRequired>false</c:AdditionalTextIsRequired>
+              <c:ProjectSubContractID>1001</c:ProjectSubContractID>
+              <c:HourlyRateID>1001</c:HourlyRateID>
+              <c:IsReadyForInvoicing>false</c:IsReadyForInvoicing>
+              <c:Details>
+                <c:CustomerHeader>
+                  <d:ID>1001</d:ID>
+                  <d:Name>Example </d:Name>
+                  <d:No>1001</d:No>
+                  <d:GUID>3f2504e0-4f89-41d3-9a0c-305000000002</d:GUID>
+                </c:CustomerHeader>
+                <c:ProjectHeader>
+                  <c:ID>1001</c:ID>
+                  <c:ProjectGUID>3f2504e0-4f89-41d3-9a0c-305000000003</c:ProjectGUID>
+                  <c:Name>Example </c:Name>
+                  <c:No>1001</c:No>
+                  <c:IsActive>true</c:IsActive>
+                  <c:IsGeneralProject>false</c:IsGeneralProject>
+                  <c:StartDate>2026-10-01T00:00:00</c:StartDate>
+                  <c:EndDate>2026-10-01T00:00:00</c:EndDate>
+                  <c:MainContractID>1001</c:MainContractID>
+                </c:ProjectHeader>
+                <c:Type>
+                  <c:ID>1001</c:ID>
+                  <c:ID2>0</c:ID2>
+                  <c:Name>Example </c:Name>
+                  <c:Name2>Example</c:Name2>
+                </c:Type>
+                <c:CustomField>Example</c:CustomField>
+              </c:Details>
+              <c:State>
+                <c:IsActive>true</c:IsActive>
+              </c:State>
+            </a:Item>
+            <a:Status>Success</a:Status>
+            <a:Message>Example</a:Message>
+          </a:BatchContainerOfTask>
+        </a:Return>
+        <a:ReturnTypeDescription>BatchContainerOfTask</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <b:APIMessage>
+            <b:Message>Duration of call was 0,0421337 sec.</b:Message>
+            <b:Severity>Message</b:Severity>
+            <b:ErrorCode>0</b:ErrorCode>
+          </b:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </CreateSubTaskResult>
+    </CreateSubTaskResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Error | 40001 | Error during call on TimeLog.API, Message 'ParentTaskId parameter is mandatory for this API service.' | parentTaskId &lt;= 0. | Send the parent's integer TaskID. |
+| Error | 40001 | Error during call on TimeLog.API, Message '\{rule text\}' - one message per violated rule, then 'Task is not in an invalid state to be saved' | Name / dates missing, end before start, or the parent already has allocations. | Send Name, StartDate and EndDate; create sub-tasks only under tasks without allocations. |
+| Error | 40001 | Error during call on TimeLog.API, Message 'The specified contract ID does not exist in the project.' | ProjectSubContractID is not a contract of the project. | Send 0 or a contract of the project. |
+| Error | 40001 | Error during call on TimeLog.API, Message 'The specified HourlyRateID \{HourlyRateID\} do not exist, is in-active or not in the Price List of the Project related to the specified ProjectID: \{ProjectID\}' | HourlyRateID not valid for the project. | Send 0, or a rate valid for the project's price list. |
+| Error | 40001 | Error during call on TimeLog.API, Message 'TypeID has to be > 0 on Task. Current value: \{TaskTypeID\}' | — | Send a TaskTypeID. |

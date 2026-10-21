@@ -1,0 +1,151 @@
+---
+title: "Authentication"
+description: "The Reporting API takes three credentials, siteCode, apiID and apiPassword, as the first parameters of every call."
+---
+
+The Reporting API has no login call and no token. Every method takes the same **three credentials** as its first
+three parameters:
+
+| Parameter | What it is |
+|---|---|
+| `siteCode` | Your account's site code |
+| `apiID` | The Reporting API ID |
+| `apiPassword` | The Reporting API password |
+
+You find all three, and your API address, under **System Administration > Integrations and API > Reporting API
+settings**.
+
+## Setting up the API ID and password
+
+An administrator opens the Reporting API settings and notes the **site code**. The API ID and password are then
+chosen there:
+
+- **API ID** works as the API user name: letters and numbers, for example `apiUser123`.
+- **Password** is the password for API access.
+- If both show `0`, no API login has been set up yet.
+- Any other value means a login is already set and may be in use by other systems.
+
+The account has **one** API ID and password. A change applies from the next call, so changing values that are already
+set breaks every system that uses them. Agree on the change with the account's system administrator first.
+
+## Base URL
+
+All methods are served by one endpoint:
+
+```text
+https://app{server-number}.timelog.com/{account}/Service.asmx
+```
+
+The service description (WSDL) is at `…/Service.asmx?WSDL`. Always call it over **HTTPS**: calls over plain HTTP are
+refused.
+
+<Steps>
+<Step title="Get the credentials" icon="key-round">
+Copy `siteCode`, `apiID` and `apiPassword` from the Reporting API settings.
+</Step>
+<Step title="Check them once" icon="circle-check">
+Call [ValidateCredentials](/reporting/methods/validate-credentials). It answers `true` or `false`.
+</Step>
+<Step title="Send them with every call" icon="send">
+Put the same three values first in every method you call.
+</Step>
+</Steps>
+
+## Checking the credentials
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/Service.asmx HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/ValidateCredentials"
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:ValidateCredentials>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+    </tlp:ValidateCredentials>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/Service.asmx" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/ValidateCredentials"' \
+  --data-binary @validate.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/Service.asmx"
+
+envelope = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:ValidateCredentials>
+      <tlp:siteCode>{site_code}</tlp:siteCode>
+      <tlp:apiID>{api_id}</tlp:apiID>
+      <tlp:apiPassword>{api_password}</tlp:apiPassword>
+    </tlp:ValidateCredentials>
+  </soap:Body>
+</soap:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.format(site_code=SITE_CODE, api_id=API_ID, api_password=API_PASSWORD).encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8",
+             "SOAPAction": '"http://www.timelog.com/ws/tlp/v4_4/ValidateCredentials"'},
+    timeout=30,
+)
+valid = "<ValidateCredentialsResult>true</ValidateCredentialsResult>" in response.text
+```
+
+</CodeGroup>
+
+`ValidateCredentials` always answers with **HTTP 200**: `true` when the three values are accepted, `false` otherwise.
+It does not say which value is wrong.
+
+## When the credentials are wrong
+
+Every data method checks the credentials first. When they are not accepted, the call fails with **HTTP 401** and this
+document (recorded from a real call):
+
+<CodeGroup tabs="HTTP 401 - access denied" show-lines={true}>
+
+```xml
+HTTP/1.1 401 Unauthorized
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetCustomersShortListResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetCustomersShortListResult>
+        <tlp:Errors xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Error>Access denied. Check siteCode, apiID, apiPassword and SSL settings</tlp:Error>
+        </tlp:Errors>
+      </GetCustomersShortListResult>
+    </GetCustomersShortListResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</CodeGroup>
+
+| Check | Why |
+|---|---|
+| The three values match the Reporting API settings exactly | `siteCode` is case-sensitive. |
+| The call uses `https://` | Plain HTTP is refused with the same message. |
+| The Reporting API is enabled for the account | Ask your TimeLog administrator. |
+
+<Callout kind="tip">Some SOAP client libraries throw an exception on HTTP 401 before you can read the body. Catch it and
+treat it as "access denied".</Callout>
+
+<Callout kind="info">The credentials give access to the account's reporting data, including personal data. Keep them
+out of logs and source code, and store them like a password.</Callout>

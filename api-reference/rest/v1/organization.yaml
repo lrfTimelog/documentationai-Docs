@@ -17,10 +17,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -34,7 +32,7 @@ paths:
       operationId: listDepartments
       summary: List departments
       description: |-
-        Lists every department of the tenant, active or not, ordered by name.
+        Lists every department of the account, active or not, ordered by name.
 
         Returns the whole department tree as a flat list; rebuild the hierarchy from ParentID (0 = top level). Inactive departments are included. There is no get-by-ID, filter or sort parameter, and the legal entity of a department is not returned.
 
@@ -133,7 +131,7 @@ paths:
         - Idempotent.
         - Safe to retry.
         - Consistency: eventual
-        - Rows are pre-computed by TimeLog (projection generation); a change of normal working time or holidays shows up only after the projections are regenerated.
+        - Rows are pre-computed by TimeLog; a change of normal working time or holidays shows up only after the projections are regenerated.
 
         **See also:** `GET /v1/user`, `GET /v1/time-registration/{timeRegistrationID}`
 
@@ -206,7 +204,7 @@ paths:
       responses:
         '200':
           description: |-
-            A list, wrapped in the TAF list envelope (`Entities[].Properties`). One page of projection rows. Entities carry no links. User is present only with $expand=user.
+            A list, wrapped in the TAF list envelope (`Entities[].Properties`). Entities carry no links. User is present only with $expand=user.
 
             Paged with `$page` (default 1) and `$pagesize` (default 10).
 
@@ -280,9 +278,9 @@ paths:
       operationId: listLegalEntities
       summary: List legal entities
       description: |-
-        Lists every legal entity (company) of the tenant, active or not, ordered by ID.
+        Lists every legal entity (company) of the account, active or not, ordered by ID.
 
-        Returns all legal entities with their currency and default country. A tenant without the multi-company feature has exactly one (IsSystemLegalEntity true). No filter or sort parameter.
+        Returns all legal entities with their currency and default country. A account without the multi-company feature has exactly one (IsSystemLegalEntity true). No filter or sort parameter.
 
         **Use it to:**
         - Choose the LegalEntityID for a new user
@@ -325,7 +323,7 @@ paths:
 
             Order: LegalEntityID ascending
 
-            Empty result: 200 with no Entities (not expected: every tenant has a system legal entity)
+            Empty result: 200 with no Entities (not expected: every account has a system legal entity)
           content:
             application/json:
               schema:
@@ -372,13 +370,13 @@ paths:
       operationId: getSystemLegalEntity
       summary: Get the system legal entity
       description: |-
-        Returns the tenant's system (default) legal entity.
+        Returns the account's system (default) legal entity.
 
-        Returns the legal entity flagged IsSystemLegalEntity — the tenant's main company. When the multi-company feature (MultiLegalEntities) is off this is the only legal entity users can be created in.
+        Returns the legal entity flagged IsSystemLegalEntity — the account's main company. When the multi-company feature (MultiLegalEntities) is off this is the only legal entity users can be created in.
 
         **Use it to:**
-        - Get the LegalEntityID for user create on a single-company tenant
-        - Read the tenant's base currency and country
+        - Get the LegalEntityID for user create on a single-company account
+        - Read the account's base currency and country
 
         **Behaviour:**
         - Idempotent.
@@ -514,9 +512,9 @@ paths:
       operationId: listUsers
       summary: List users
       description: |-
-        Lists every user of the tenant, ordered by first name, one page at a time.
+        Lists every user of the account, ordered by first name, one page at a time.
 
-        Returns all rows of the user table, active and inactive, including TimeLog's technical users (SYSTEM, ECNuser — UserType ApiUser) and anonymized former employees. There is no filter, search or sort parameter: filter on IsActive and UserType on your side. The model carries only identifiers, name, initials, e-mail, active flag, user type and legal entity.
+        There is no filter, search or sort parameter: filter on IsActive and UserType on your side. The model carries only identifiers, name, initials, e-mail, active flag, user type and legal entity.
 
         **Use it to:**
         - Initial sync of users into an HR, payroll or BI system
@@ -529,7 +527,7 @@ paths:
         - Idempotent.
         - Safe to retry.
         - Changes are visible to the next read immediately.
-        - Reads the user tables directly (no read model or cache).
+        - Reads the user tables directly.
 
         **Next:** `GET /v1/user/{id}`, `PUT /v1/user`
 
@@ -558,7 +556,7 @@ paths:
 
             Order: FirstName ascending; no tie-breaker
 
-            Empty result: 200 with no Entities (not reachable in practice: the technical users always exist)
+            Empty result: 200 with no Entities
           content:
             application/json:
               schema:
@@ -700,10 +698,9 @@ paths:
       description: |-
         Creates an active user (employee) with its HR settings and returns it.
 
-        Creates the login and the employee profile in one call: name, initials, e-mail, legal entity, department, approval manager, rates, calendar, working time, salary group, licence type and extra roles. The new user is active immediately; time zone, language and front page come from tenant defaults. Run `POST /v1/user/validate-new-user` first to get every rule violation without side effects. The response is the User representation, which does not echo most of what was sent.
+        Creates the login and the employee profile in one call: name, initials, e-mail, legal entity, department, approval manager, rates, calendar, working time, salary group, licence type and extra roles. The new user is active immediately; time zone, language and front page come from account defaults. Run `POST /v1/user/validate-new-user` first to get every rule violation without side effects. The response is the User representation, which does not echo most of what was sent.
 
         **Use it to:**
-        - Provision new hires from an HR or identity system
 
         **Not for:**
         - Changing an existing user → `PUT /v1/user` (name, licence, roles, approval manager only)
@@ -803,7 +800,7 @@ paths:
 
             - **Code 37035** — NormalWorkingTimeID does not exist.
 
-            - **Code 37923** — The tenant's edition allows only the default normal working time.
+            - **Code 37923** — The account's edition allows only the default normal working time.
 
             - **Code 37036** — SalaryGroups is on and SalaryGroupID does not exist (also when 0 / omitted).
 
@@ -838,11 +835,10 @@ paths:
       description: |-
         Returns the user the access token acts as.
 
-        Returns the User representation of the calling user — the `sub` of the token. With a client-credentials token (no `sub`) the call acts as TimeLog's system service user, so it returns that technical user (UserType ApiUser), not a person.
+        Returns the User representation of the calling user — the `sub` of the token.
 
         **Use it to:**
         - Find the UserID to put on the caller's own time registrations
-        - Show who is signed in, in an integration UI
 
         **Behaviour:**
         - Idempotent.
@@ -911,7 +907,7 @@ paths:
       description: |-
         Runs every create validation on a user body without saving anything.
 
-        Runs model validation, the role checks and all business rules of `POST /v1/user/create` — including the caller's employee privilege and the user-name/initials uniqueness check — then returns 200 with the body `null`. Unlike the customer dry run, a 200 here means create will pass validation; create can still fail on a database error.
+        Runs model validation, the role checks and all business rules of `POST /v1/user/create` — including the caller's employee privilege and the user-name/initials uniqueness check — then returns 200 with the body `null`.
 
         **Use it to:**
         - Validate an HR record before submitting it, to show TimeLog's errors early
@@ -1015,7 +1011,7 @@ paths:
 
             - **Code 37035** — NormalWorkingTimeID does not exist.
 
-            - **Code 37923** — The tenant's edition allows only the default normal working time.
+            - **Code 37923** — The account's edition allows only the default normal working time.
 
             - **Code 37036** — SalaryGroups is on and SalaryGroupID does not exist (also when 0 / omitted).
 
@@ -1059,7 +1055,7 @@ paths:
       description: |-
         Returns one user by its integer UserID.
 
-        Returns the User representation of any user of the tenant, active or not. An unknown ID returns 500 'Unknown error', not 404.
+        An unknown ID returns 500 'Unknown error', not 404.
 
         **Use it to:**
         - Resolve the UserID on a time registration or customer owner to a name and e-mail
@@ -1197,10 +1193,7 @@ components:
           type: string
           readOnly: true
           maxLength: 50
-          description: |-
-            Department number; "" when not set.
-
-            > **Not yet documented:** identity.
+          description: Department number; "" when not set.
         ID:
           type: string
           format: uuid
@@ -1236,7 +1229,7 @@ components:
             Refers to `EmployeeRead.EmployeeID`.
 
             > **Not yet documented:** values → lookup op.
-      description: A department is a node of the tenant's organisation tree. Every user belongs to one department; departments
+      description: A department is a node of the account's organisation tree. Every user belongs to one department; departments
         drive "my department and sub-departments" privileges and department-based reporting. The tree is expressed by ParentID.
         The table also stores a legal entity per department, but this model does not return it.
     EmployeeProjectionRead:
@@ -1255,8 +1248,6 @@ components:
             Integer identifier of the row. Not accepted as input by any REST v1 operation. The list is ordered by it, descending.
 
             Identifier of this object, unique per TimeLog site.
-
-            > **Not yet documented:** identity → stable.
         UserID:
           type: integer
           readOnly: true
@@ -1314,14 +1305,11 @@ components:
         IsClosed:
           type: boolean
           readOnly: true
-          description: |-
-            Set together with IsApproved and HasRejectedTime by one batch update; a new projection starts as not closed.
-
-            > **Not yet documented:** description.
+          description: '> **Not yet documented:** description.'
         IsInClosedAccountingPeriod:
           type: boolean
           readOnly: true
-          description: True when the date falls inside a closed accounting period of the tenant.
+          description: True when the date falls inside a closed accounting period of the account.
         HasRejectedTime:
           type: boolean
           readOnly: true
@@ -1343,10 +1331,8 @@ components:
             The row's GUID. Not accepted as input by any REST v1 operation.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → stable.
       description: |-
-        An employee projection is TimeLog's pre-computed row for ONE employee on ONE calendar day: the normal (expected) working time of that day after the employee's normal working time and public holidays are applied, plus status flags for the day. TimeLog generates these rows ahead of time and uses them for norm, flex and time-sheet status. They are read-only through the API.
+        TimeLog generates these rows ahead of time and uses them for norm, flex and time-sheet status. They are read-only through the API.
 
         > **Not yet documented:** example.
     LegalEntityRead:
@@ -1414,10 +1400,10 @@ components:
         IsSystemLegalEntity:
           type: boolean
           readOnly: true
-          description: True for the tenant's system (default) legal entity — the one GET /v1/legal-entity/system returns and
-            the only one users can be created in when MultiLegalEntities is off.
+          description: True for the account's system (default) legal entity — the one GET /v1/legal-entity/system returns
+            and the only one users can be created in when MultiLegalEntities is off.
       description: |-
-        A legal entity is a company inside one TimeLog tenant (multi-company set-up, feature MultiLegalEntities). Every user, and therefore every employee, belongs to exactly one legal entity; hourly rates and cost prices are defined per legal entity, and the legal entity's currency is the currency its users' amounts are reported in. Every tenant has exactly one system (default) legal entity, also when MultiLegalEntities is off.
+        A legal entity is a company inside one TimeLog account (multi-company set-up, feature MultiLegalEntities). Every user, and therefore every employee, belongs to exactly one legal entity; hourly rates and cost prices are defined per legal entity, and the legal entity's currency is the currency its users' amounts are reported in. Every account has exactly one system (default) legal entity, also when MultiLegalEntities is off.
 
         > **Not yet documented:** description.
     MessageError:
@@ -1490,8 +1476,6 @@ components:
             - Same user name or initials as an active user — 20022 (business rule, HTTP 500).
 
             - Same user name or initials as an inactive user — 20024 (business rule, HTTP 500). Create never reuses an inactive user's name.
-
-            > **Not yet documented:** identity → stable.
         FirstName:
           type: string
           maxLength: 50
@@ -1561,7 +1545,7 @@ components:
           description: |-
             Employee number.
 
-            **Conditional.** Required when the tenant feature ShowEmployeeID is on (31027, business rule, HTTP 500); optional otherwise.
+            **Conditional.** Required when the account feature ShowEmployeeID is on (31027, business rule, HTTP 500); optional otherwise.
 
             Can be set on create only.
 
@@ -1634,7 +1618,7 @@ components:
             role: reference
           default: 0
           description: |-
-            Employee type (tenant-defined category). 0 = none.
+            Employee type (account-defined category). 0 = none.
 
             Can be set on create only.
 
@@ -1722,7 +1706,7 @@ components:
 
             - Not an existing normal working time — 37035 (business rule, HTTP 500).
 
-            - Tenant on an edition that allows only the default normal working time — 37923 (business rule, HTTP 500).
+            - Account on an edition that allows only the default normal working time — 37923 (business rule, HTTP 500).
 
             > **Not yet documented:** values → lookup op.
         SalaryGroupID:
@@ -1776,7 +1760,7 @@ components:
 
             | Value | Name | Meaning |
             |---|---|---|
-            | `2` | Standard | Standard user: access to most functionality, depending on the tenant's licence model. The only value accepted when neither ExternalUserLicense nor TimeExpenseUserLicense is on. |
+            | `2` | Standard | Standard user: access to most functionality, depending on the account's licence model. The only value accepted when neither ExternalUserLicense nor TimeExpenseUserLicense is on. |
             | `7` | Limited | Limited user. Accepted only when feature ExternalUserLicense is on; the system role 'Limited user' is assigned and UserRoleIDs must be empty. |
             | `8` | TimeExpense | Time and expense tracking with reports. Accepted only when feature TimeExpenseUserLicense is on; the system role 'Time and expense registrations' is assigned and UserRoleIDs must be empty. |
             | `1` | External | External user (time tracking only). Rejected by this operation. |
@@ -1819,7 +1803,7 @@ components:
       - SalaryGroupID
       description: 'A new user (employee) with the HR settings TimeLog needs before the person can register time: legal entity,
         department, hourly rate, cost price, holiday calendar, allowance legislation, normal working time and salary group.
-        Most of these are IDs of tenant set-up data that REST v1 cannot list (see each field''s gap).'
+        Most of these are IDs of account set-up data that REST v1 cannot list (see each field''s gap).'
     UserRead:
       type: object
       properties:
@@ -1856,7 +1840,7 @@ components:
           readOnly: true
           maxLength: 50
           description: |-
-            First name. Empty for the technical users.
+            First name.
 
             Contains personal data.
 
@@ -1909,7 +1893,7 @@ components:
 
             | Value | Name | Meaning |
             |---|---|---|
-            | `Employee` | Employee | A person working in the tenant (the normal case). Integer 0 in the database. |
+            | `Employee` | Employee | A person working in the account (the normal case). |
             | `ApiUser` | ApiUser | Technical account created by TimeLog (e.g. SYSTEM, ECNuser); not a person. Integer 1. |
             | `ExternalRessource` | ExternalRessource | Obsolete external-resource type (integer 2). Saving such a user converts it to Employee, so it only appears on rows not saved since. |
             | `AnonymizedEmployee` | AnonymizedEmployee | Placeholder account that anonymized (GDPR) employee data is moved to. Integer 3. |
@@ -1931,13 +1915,12 @@ components:
           readOnly: true
           maxLength: 255
           description: |-
-            E-mail address. Empty for the technical users.
+            E-mail address.
 
             Contains personal data.
       description: 'A TimeLog user as REST v1 returns it: identifiers, name, initials, e-mail, active flag, user type and
         legal entity. In TimeLog a user and an employee are the same person seen from two sides: the user is the login, the
-        employee record carries the HR data. Every row of the user table is returned, including the inactive technical users
-        "SYSTEM" and "ECNuser" (UserType ApiUser) and anonymized former employees.'
+        employee record carries the HR data.'
     UserUpdate.update:
       type: object
       properties:
@@ -1947,7 +1930,7 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            GUID of the user to change (User.ID from any user read). Not the integer UserID.
+            GUID of the user to change. Not the integer UserID.
 
             Refers to `UserRead.ID`. Look up valid values with `GET /v1/user`.
 
@@ -2004,8 +1987,6 @@ components:
 
             - Time-of-day sent — Only the date part is stored (valid-from day).
 
-            - Later than today — Stored as a manager change in the user's change history; the current approval manager stays until a background job applies it (per source comment).
-
             > **Not yet documented:** behaviour → detail.
         UserLicenseType:
           type: integer
@@ -2039,13 +2020,13 @@ components:
 
             - Same as the current licence — No role or module change.
 
-            - Value not allowed by the tenant features (see UserCreate.UserLicenseType) — 400.
+            - Value not allowed by the account features (see UserCreate.UserLicenseType) — 400.
 
             Allowed values:
 
             | Value | Name | Meaning |
             |---|---|---|
-            | `2` | Standard | Standard user: access to most functionality, depending on the tenant's licence model. The only value accepted when neither ExternalUserLicense nor TimeExpenseUserLicense is on. |
+            | `2` | Standard | Standard user: access to most functionality, depending on the account's licence model. The only value accepted when neither ExternalUserLicense nor TimeExpenseUserLicense is on. |
             | `7` | Limited | Limited user. Accepted only when feature ExternalUserLicense is on; the system role 'Limited user' is assigned and UserRoleIDs must be empty. |
             | `8` | TimeExpense | Time and expense tracking with reports. Accepted only when feature TimeExpenseUserLicense is on; the system role 'Time and expense registrations' is assigned and UserRoleIDs must be empty. |
             | `1` | External | External user (time tracking only). Rejected by this operation. |

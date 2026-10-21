@@ -15,10 +15,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -41,7 +39,7 @@ paths:
         - Check whether a contract already has a rate before calling create-hourly-rate (which matches by name)
 
         **Not for:**
-        - Price-list rates of the tenant (use `GET /v1/hourly-rate`)
+        - Price-list rates of the account (use `GET /v1/hourly-rate`)
         - Rate history / which rate was valid on a past date (indexed rows are hidden; no dates exposed)
 
         **Behaviour:**
@@ -91,7 +89,7 @@ paths:
         required: false
         schema:
           type: string
-        description: 'Not supported: forwarded to the procedure, which declares no Expand parameter.'
+        description: ''
       responses:
         '200':
           description: |-
@@ -250,7 +248,7 @@ paths:
       description: |-
         Checks a contract-hourly-rate create body without writing anything.
 
-        A dry run of create-hourly-rate, but with DIFFERENT rules: it additionally refuses fixed-price-style contracts (38003) and unknown product numbers (37939, looked up in the tenant's default legal entity), and its "existing Standard rate" match requires the same name AND amount, so it does not warn that create would re-price a Standard rate with the same name. When an existing rate matches, no further rule is checked. Success is 200 with the literal body null.
+        A dry run of create-hourly-rate, but with DIFFERENT rules: it additionally refuses fixed-price-style contracts (38003) and unknown product numbers (37939, looked up in the account's default legal entity), and its "existing Standard rate" match requires the same name AND amount, so it does not warn that create would re-price a Standard rate with the same name. When an existing rate matches, no further rule is checked. Success is 200 with the literal body null.
 
         **Use it to:**
         - Pre-flight a data import before calling create-hourly-rate
@@ -303,7 +301,7 @@ paths:
 
             - **Code 37042** — ProjectSubContractID (> 0) is not a contract of ProjectID (or does not exist). — When: ProjectSubContractId is not a contract of ProjectId. — Fix: Send a contract of the same project, or 0 / omit it to use the project's default contract.
 
-            - **Code 37939** — ProductNo is not blank and is not a product number of the tenant's DEFAULT legal entity — the project's legal entity is not used. create-hourly-rate does not check ProductNo at all. — When: ProductNo not blank and not in the default legal entity. — Fix: Use a product number that exists in the default legal entity, or omit ProductNo.
+            - **Code 37939** — ProductNo is not blank and is not a product number of the account's DEFAULT legal entity — the project's legal entity is not used. create-hourly-rate does not check ProductNo at all. — When: ProductNo not blank and not in the default legal entity. — Fix: Use a product number that exists in the default legal entity, or omit ProductNo.
 
             - **Code 38003** — The contract's model is FixedPriceBasic, ContinuousItemInvoicing, RecurringProductContract or TaskDrivenRevenue — hourly rates are refused for them by the dry run. Only reached when no existing rate matched first. create-hourly-rate does NOT apply this rule. — When: No existing rate matched and the contract model does not take hourly rates. — Fix: Add hourly rates only to time-and-material style contracts.
 
@@ -421,7 +419,7 @@ paths:
       operationId: getHourlyRates
       summary: List hourly rates
       description: |-
-        Lists every active price-list hourly rate of the tenant — all legal entities, all currencies, standard and customer-specific lists.
+        Lists every active price-list hourly rate of the account — all legal entities, all currencies, standard and customer-specific lists.
 
         Returns the price-list entries (service × price group) that contracts copy their rates from. There is no filter: the list mixes every legal entity, every price group / currency and both the standard price lists (CustomerID null) and customer-specific negotiated lists. Filter client-side by LegalEntityID, CustomerID and CurrencyISO. Inactive entries are not returned. Changing a price-list rate does not change rates already copied to contracts (see `GET /v1/contract-hourly-rate`).
 
@@ -597,9 +595,9 @@ paths:
       operationId: getPaymentTerms
       summary: List payment terms
       description: |-
-        Lists the tenant's payment terms (due-date rule, interest, reminder fee).
+        Lists the account's payment terms (due-date rule, interest, reminder fee).
 
-        Returns every payment term that is visible in the system (hidden ones are excluded; inactive ones are included), ordered by ID. Use it to pick PaymentTermID for a customer. The procedure also returns the term's legal entity, but the API drops it, so terms of different legal entities cannot be told apart.
+        Returns every payment term that is visible in the system (hidden ones are excluded; inactive ones are included), ordered by ID. Use it to pick PaymentTermID for a customer.
 
         **Use it to:**
         - Pick PaymentTermID for `POST /v1/customer/create`
@@ -790,7 +788,7 @@ components:
 
             Refers to `ProductNumberRead.ProductNumber`. Look up valid values with `GET /v1/product`.
 
-            - validate-hourly-rate, non-blank and not a product number of the tenant's DEFAULT legal entity — 37939 — 500 Code 102. Checked against the default legal entity, not the project's.
+            - validate-hourly-rate, non-blank and not a product number of the account's DEFAULT legal entity — 37939 — 500 Code 102. Checked against the default legal entity, not the project's.
 
             - create-hourly-rate, any value — Not checked — an unknown product number is stored.
 
@@ -856,10 +854,6 @@ components:
             GUID of the rate row. No operation accepts it. On the LIST it is always 00000000-0000-0000-0000-000000000000; get-by-id and create return the real value.
 
             Alternate key, unique per TimeLog site.
-
-            - Returned by GET /v1/contract-hourly-rate (list) — All-zero GUID: the list mapper fills the DTO's ContractHourlyRateGUID, but the read model reads the DTO's ID.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         ProjectSubContractID:
           type: integer
           format: int32
@@ -957,7 +951,7 @@ components:
 
             > **Not yet documented:** example.
       description: |-
-        One hourly (sales) rate that a contract (ProjectSubContract) charges for time. A contract carries its own list of rates; tasks and allocations on the contract point at one of them, and registered hours are priced with it. A rate is a COPY: Standard and Customer rates are copied from the tenant's price list (standard or customer specific) when they are added to the contract, Project rates exist only on this contract. Changing a rate's amount ("indexation") does not edit the row — the old row is marked indexed and a new row with a new ContractHourlyRateID takes over; the list hides indexed rows, get-by-id still returns them.
+        One hourly (sales) rate that a contract (ProjectSubContract) charges for time. A contract carries its own list of rates; tasks and allocations on the contract point at one of them, and registered hours are priced with it. A rate is a COPY: Standard and Customer rates are copied from the account's price list (standard or customer specific) when they are added to the contract, Project rates exist only on this contract. Changing a rate's amount ("indexation") does not edit the row — the old row is marked indexed and a new row with a new ContractHourlyRateID takes over; the list hides indexed rows, get-by-id still returns them.
 
         > **Not yet documented:** description.
     CostPriceRead:
@@ -1014,8 +1008,6 @@ components:
             GUID of the group. No REST v1 operation accepts it.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         LegalEntityId:
           type: integer
           format: int32
@@ -1117,8 +1109,6 @@ components:
             GUID of the price-list entry. No REST v1 operation accepts it.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         ServiceID:
           type: integer
           format: int32
@@ -1265,7 +1255,7 @@ components:
           type: boolean
           readOnly: true
           description: |-
-            true = the tenant's default payment term.
+            true = the account's default payment term.
 
             > **Not yet documented:** description.
         IsActive:
@@ -1300,8 +1290,6 @@ components:
             GUID of the term. No REST v1 operation accepts it.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
       description: 'A payment term: how an invoice''s due date is computed (CreditTerm + DaysOfCredit), the text printed on
         the invoice, and the late-payment interest and reminder fee. Customers reference one (CustomerCreate.PaymentTermID).'
     ResponseError:

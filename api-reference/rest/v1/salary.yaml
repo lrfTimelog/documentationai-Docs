@@ -17,10 +17,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -187,7 +185,7 @@ paths:
       description: |-
         Registers a full day of absence for the calling user on an absence code; the hours are the user's normal working time that day.
 
-        Creates an absence time registration for the authenticated user on Date with the caller's full normal working hours for that date (employee projection, else the weekday of the normal working time). Type in the body is ignored. On a full/half-day absence CODE a second registration on the same code and date is refused (37954). Returns no body.
+        Creates an absence time registration for the authenticated user on Date with the caller's full normal working hours for that date. Type in the body is ignored. On a full/half-day absence CODE a second registration on the same code and date is refused (37954). Returns no body.
 
         **Use it to:**
         - Self-service sick-day or vacation-day registration from an employee app.
@@ -272,7 +270,7 @@ paths:
       description: |-
         Registers half a day (Type 0) or a full day (Type 1) of absence for the calling user on an absence code.
 
-        Creates an absence time registration for the authenticated user on Date. The duration is not sent: it is half (or all) of the caller's normal working hours on that date — from the employee projection when one exists, else from the weekday of the caller's normal working time. Any Type other than 1 means half day. On a full/half-day absence CODE a second registration on the same code and date is refused (37954). Returns no body.
+        Creates an absence time registration for the authenticated user on Date. Any Type other than 1 means half day. On a full/half-day absence CODE a second registration on the same code and date is refused (37954). Returns no body.
 
         **Use it to:**
         - Self-service: register a half day off (morning appointment) from an employee app.
@@ -498,7 +496,7 @@ paths:
 
             - **Code 37714** — The absence code requires approval, so it cannot be tracked with a stopwatch.
 
-            - **Code 37672** — The tracker's date is closed for the employee (employee projection IsClosed — e.g. a closed timesheet).
+            - **Code 37672** — The tracker's date is closed for the employee.
 
             - **Code 37671** — The tracker's date is in a closed accounting period for the employee.
 
@@ -530,7 +528,7 @@ paths:
         - Map an HR system's leave types to TimeLog AbsenceCodeIDs (call as a user in the relevant salary group).
 
         **Not for:**
-        - A tenant-wide catalogue of every absence code — the list is filtered by the caller's salary group.
+        - A account-wide catalogue of every absence code — the list is filtered by the caller's salary group.
 
         **Behaviour:**
         - Idempotent.
@@ -594,7 +592,7 @@ paths:
             operators:
             - contains
         description: |-
-          Substring match on Name OR AbsenceCode (SQL LIKE '%text%'; % and _ in the text act as wildcards).
+          Substring match on Name OR AbsenceCode.
 
           Filters on `AbsenceCodeRead.Name` (contains).
       - name: $page
@@ -730,9 +728,9 @@ paths:
       operationId: listAllowanceLegislations
       summary: List allowance legislations
       description: |-
-        Lists the tenant's allowance (per-diem) legislations — the value set for AllowanceLegislationID on user create.
+        Lists the account's allowance (per-diem) legislations — the value set for AllowanceLegislationID on user create.
 
-        Returns every allowance legislation, newest ID first. Initial tenant data has four (SE, DK, DE, FI). Map them by Description: the CountryID of the DK and SE rows is swapped in the initial data.
+        Returns every allowance legislation, newest ID first. Initial account data has four (SE, DK, DE, FI). Map them by Description: the CountryID of the DK and SE rows is swapped in the initial data.
 
         **Use it to:**
         - Pick AllowanceLegislationID when creating users from an HR system (by the employee's country).
@@ -842,7 +840,7 @@ paths:
       operationId: listHolidayCalendars
       summary: List holiday calendars
       description: |-
-        Lists the tenant's holiday calendars, newest first.
+        Lists the account's holiday calendars, newest first.
 
         The value set for HolidayCalendarID on user create. Returns names and descriptions only, not the holiday dates of a calendar.
 
@@ -948,7 +946,7 @@ paths:
       operationId: listSalaryAccounts
       summary: List salary accounts
       description: |-
-        Lists every salary account of the tenant, active or not, newest first.
+        Lists every salary account of the account, active or not, newest first.
 
         The value set for salaryAccountId on the posting and aggregation operations and for SalaryAccountID on absence codes. Returns account definitions only — no balances and no BalanceFormat (the unit of the account's balance).
 
@@ -1057,7 +1055,7 @@ paths:
       description: |-
         Returns each active employee's balance on one salary account at the end of a date (or one employee's, with userId).
 
-        For salaryAccountId and balanceDate, returns one row per active employee of the tenant — user ID, first and last name and AccountBalance (balance at the end of balanceDate, 2 decimals), ordered by user ID and paged. With userId only that employee is returned. The balance unit follows the account's BalanceFormat, which no curated operation returns (hours, minutes or days). Inactive (deactivated) users are never included.
+        For salaryAccountId and balanceDate, returns one row per active employee of the account — user ID, first and last name and AccountBalance (balance at the end of balanceDate, 2 decimals), ordered by user ID and paged. With userId only that employee is returned. Inactive (deactivated) users are never included.
 
         **Use it to:**
         - Payroll export: read flex / vacation balances of all employees at period end.
@@ -1279,13 +1277,11 @@ paths:
 
             - **Code 37931** — An EmployeeUsers[].UserId is an inactive user. The whole batch is refused. — Fix: Remove inactive employees from the batch.
 
-            - **Code 37995** — BalanceDate is later than today + N months, or on/before today − M months (tenant settings SalaryAccountEmployeePostingDateNoOfMonthsAhead / ...Backdate). — Fix: Use a posting date inside the tenant's permitted window.
+            - **Code 37995** — BalanceDate is later than today + N months, or on/before today − M months (account settings SalaryAccountEmployeePostingDateNoOfMonthsAhead / ...Backdate). — Fix: Use a posting date inside the account's permitted window.
 
             - **Code 37993** — Header violation for one employee whose posting failed a business rule; the employee's own violations follow it in Details. — When: Header per failing employee, followed by 30181 / 30167 — Fix: Read the violations that follow; fix or remove that employee and resend the batch.
 
-            - **Code 30181** — BalanceDate is before the tenant's site creation date. — Fix: Use a later posting date.
-
-            - **Code 30167** — BalanceDate is before the employee's employment date or after the resignation date. — Fix: Remove the employee or use a date inside the employment period.
+            - **Code 30181** — BalanceDate is before the account's site creation date. — Fix: Use a later posting date.
 
             - **Code 100** — Unhandled server error.
           content:
@@ -1298,7 +1294,7 @@ paths:
       operationId: listSalaryGroups
       summary: List salary groups
       description: |-
-        Lists the tenant's salary groups, newest first.
+        Lists the account's salary groups, newest first.
 
         The value set for SalaryGroupID on user create. Active and inactive groups are both returned. IsSystemSalaryGroup marks the group user create requires while the SalaryGroups feature is off.
 
@@ -1438,11 +1434,9 @@ components:
           readOnly: true
           maxLength: 255
           description: |-
-            The tenant's short code for the absence (e.g. "30", "20"); matched by searchText on GET /v1/absence-code/{status}.
+            The account's short code for the absence (e.g. "30", "20"); matched by searchText on GET /v1/absence-code/{status}.
 
             Filterable via `searchText` (contains).
-
-            > **Not yet documented:** identity → role.
         Name:
           type: string
           readOnly: true
@@ -1513,8 +1507,6 @@ components:
           description: |-
             Reference to another object.
 
-            > **Not yet documented:** identity → references.
-
             > **Not yet documented:** values → lookup op.
 
             > **Not yet documented:** description.
@@ -1569,7 +1561,7 @@ components:
           - 'null'
           readOnly: true
           description: |-
-            Whether the CALLER has marked this code as a favourite. Always true/false on both list operations (the procedures always return the column).
+            Whether the CALLER has marked this code as a favourite. Always true/false on both list operations.
 
             Filterable via `includeFavouriteOnly` (eq).
         ID:
@@ -1585,8 +1577,6 @@ components:
             GUID of the absence code (AbsenceCodeGUID). Rows without a GUID are dropped by the mapper.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
       description: 'An absence code: a reason an employee can be away (illness, vacation, leave …) that absence time is registered
         on. Each code posts to one salary account (SalaryAccountID) with a factor and sign, and fixes how absence on it is
         expressed (TimeTrackingFormat: hours, full day or half day). Send AbsenceCodeID as AbsenceID on the absence registration
@@ -1634,7 +1624,7 @@ components:
           - 'null'
           x-timelog-condition: Required when the tenant feature MandatoryComment is active (300116); optional otherwise.
           description: |-
-            **Conditional.** Required when the tenant feature MandatoryComment is active (300116); optional otherwise.
+            **Conditional.** Required when the account feature MandatoryComment is active (300116); optional otherwise.
 
             Can be set on create only.
 
@@ -1739,7 +1729,7 @@ components:
           - 'null'
           x-timelog-condition: Required when the tenant feature MandatoryComment is active (300116); optional otherwise.
           description: |-
-            **Conditional.** Required when the tenant feature MandatoryComment is active (300116); optional otherwise.
+            **Conditional.** Required when the account feature MandatoryComment is active (300116); optional otherwise.
 
             Can be set on create only.
 
@@ -1842,7 +1832,7 @@ components:
           - 'null'
           x-timelog-condition: Required when the tenant feature MandatoryComment is active (300116); optional otherwise.
           description: |-
-            **Conditional.** Required when the tenant feature MandatoryComment is active (300116); optional otherwise.
+            **Conditional.** Required when the account feature MandatoryComment is active (300116); optional otherwise.
 
             Can be set on create only.
 
@@ -1934,14 +1924,12 @@ components:
             Refers to `CountryRead.CountryID`. Look up valid values with `GET /v1/country/get-all`.
 
             Valid values come from `GET /v1/country/get-all`.
-
-            > **Not yet documented:** identity → references.
         Description:
           type: string
           readOnly: true
           description: Short label — in the initial data the country's ISO code (SE, DK, DE, FI).
       description: 'An allowance legislation: the country rule set used for travel allowances (per diem) of employees. It
-        is the value set for AllowanceLegislationID on user create. The initial tenant data has four: SE, DK, DE, FI.'
+        is the value set for AllowanceLegislationID on user create. The initial account data has four: SE, DK, DE, FI.'
     HolidayCalendarRead:
       type: object
       properties:
@@ -1976,8 +1964,6 @@ components:
             Calendar GUID. Not accepted as input by user create.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         Description:
           type: string
           readOnly: true
@@ -2054,9 +2040,9 @@ components:
           format: double
           readOnly: true
           description: |-
-            The employee's balance on the account at the end of balanceDate (weekly aggregate up to the previous week plus the postings of the current week up to the date), rounded to 2 decimals. For a resigned employee and a date after the resignation, the balance on the resignation date. 0 before the tenant's 6.1 migration date.
+            The employee's balance on the account at the end of balanceDate (weekly aggregate up to the previous week plus the postings of the current week up to the date), rounded to 2 decimals.
 
-            Unit: Depends on the account's BalanceFormat (not returned): Hours → hours (tenant TimeFormat Hours) or minutes (TimeFormat Minutes); Days → days.
+            Unit: Depends on the account's BalanceFormat (not returned): Hours → hours (account TimeFormat Hours) or minutes (TimeFormat Minutes); Days → days.
 
             Contains financial data.
 
@@ -2075,7 +2061,7 @@ components:
 
             Date only — no time component.
 
-            - Later than today + the tenant setting SalaryAccountEmployeePostingDateNoOfMonthsAhead months — 37995 (HTTP 500).
+            - Later than today + the account setting SalaryAccountEmployeePostingDateNoOfMonthsAhead months — 37995 (HTTP 500).
 
             - On or before today − SalaryAccountEmployeePostingDateNoOfMonthsBackdate months — 37995 (HTTP 500).
 
@@ -2120,7 +2106,7 @@ components:
           type: number
           format: double
           description: |-
-            The adjustment, ALWAYS in hours (positive adds, negative deducts). Hours accounts: posted as hours (and as whole minutes when the tenant's TimeFormat is minutes). Days accounts: converted to days with the employee's average daily normal working time. Count accounts: dropped — a 0 posting is written.
+            The adjustment, ALWAYS in hours (positive adds, negative deducts). Hours accounts: posted as hours (and as whole minutes when the account's TimeFormat is minutes). Days accounts: converted to days with the employee's average daily normal working time. Count accounts: dropped — a 0 posting is written.
 
             Can be set on create only.
 
@@ -2181,10 +2167,7 @@ components:
             unique_scope: tenant
             uniqueness_enforced: unknown
             id_format: guid
-          description: |-
-            Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
+          description: Alternate key, unique per TimeLog site.
         Description:
           type: string
           readOnly: true
@@ -2199,7 +2182,7 @@ components:
           readOnly: true
           description: '> **Not yet documented:** description.'
       description: |-
-        A salary account: a per-employee balance TimeLog keeps for payroll (the captured tenant has e.g. an absence account and a "Suppliment" account; flex is a system account).
+        A salary account: a per-employee balance TimeLog keeps for payroll (the captured account has e.g. an absence account and a "Suppliment" account; flex is a system account).
 
         > **Not yet documented:** BalanceFormat.
     SalaryGroupRead:
@@ -2236,8 +2219,6 @@ components:
             Group GUID. Not accepted as input by user create.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         Description:
           type: string
           readOnly: true
@@ -2252,7 +2233,7 @@ components:
         IsSystemSalaryGroup:
           type: boolean
           readOnly: true
-          description: true for the tenant's system salary group — the only group user create accepts while the SalaryGroups
+          description: true for the account's system salary group — the only group user create accepts while the SalaryGroups
             feature is off.
       description: 'A salary group: the payroll grouping of employees that decides which absence codes and salary accounts
         apply to them (see the Salary service). The value set for SalaryGroupID on user create; with the SalaryGroups feature
@@ -2297,7 +2278,7 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            Start from an existing registration: copies comment, additional text, factor and monthly period, and LINKS the tracker when the registration is dated today (server date). The registration is not checked to belong to the caller.
+            Start from an existing registration: copies comment, additional text, factor and monthly period, and LINKS the tracker when the registration is dated today (server date).
 
             Refers to `TimeRegistrationRead.TimeRegistrationID`. Look up valid values with `GET /v1/time-registration/{timeRegistrationID}`.
         Minute:

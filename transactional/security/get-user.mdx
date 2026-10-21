@@ -1,0 +1,191 @@
+---
+title: "GetUser"
+description: "Security service 1.2: Returns the calling user's employee ID, initials, name, UI language and roles."
+---
+
+| | |
+|---|---|
+| Service | Security 1.2 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/Security/V1_2/SecurityServiceSecure.svc` |
+| SOAPAction | `GetUserRequest` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Permissions | No privilege is needed and none is checked. Nothing about other users is reachable: there is no user parameter. |
+| Changes data | No |
+| Safe to retry | Yes |
+
+## How it works
+
+"Who am I" for a token. Returns one User: the employee ID, initials, first and last name, UI language and security roles. It takes no user argument and cannot read anyone else. Useful right after GetToken to confirm the integration user and to obtain its EmployeeID / initials for operations that need them.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/WebServices/Security/V1_2/SecurityServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "GetUserRequest"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:security="http://www.timelog.com/api/tlp/v1_2">
+  <soapenv:Body>
+    <security:GetUser>
+      <security:token>
+        <security:Initials>{Initials from GetToken}</security:Initials>
+        <security:Expires>{Expires from GetToken, unchanged}</security:Expires>
+        <security:Hash>{Hash from GetToken}</security:Hash>
+      </security:token>
+    </security:GetUser>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/Security/V1_2/SecurityServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "GetUserRequest"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/Security/V1_2/SecurityServiceSecure.svc"
+SOAP_ACTION = '"GetUserRequest"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:security="http://www.timelog.com/api/tlp/v1_2">
+  <soapenv:Body>
+    <security:GetUser>
+      <security:token>
+        <security:Initials>{Initials from GetToken}</security:Initials>
+        <security:Expires>{Expires from GetToken, unchanged}</security:Expires>
+        <security:Hash>{Hash from GetToken}</security:Hash>
+      </security:token>
+    </security:GetUser>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="User[]">
+Response&lt;User>: Return holds one User - the context user after authentication. ResponseState Success; only the 'Duration of call' message. Success with an empty Return only if no current user can be resolved after a successful authentication - not expected.
+
+<Expandable title="User fields">
+
+<ResponseField name="ID" field-type="integer">
+It is the integer employee ID that other Transactional operations use.
+</ResponseField>
+
+<ResponseField name="Initials" field-type="string">
+The caller's initials - the same value as SecurityToken.Initials.
+</ResponseField>
+
+<ResponseField name="FirstName" field-type="string">
+The caller's first name.
+</ResponseField>
+
+<ResponseField name="LastName" field-type="string">
+The caller's last name.
+</ResponseField>
+
+<ResponseField name="LanguageID" field-type="integer">
+ 
+</ResponseField>
+
+<ResponseField name="Roles" field-type="string[]">
+The caller's security roles, as RoleTypes member names. Roles are not the whole permission model - area privileges decide most API checks - so treat this as informative.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetUserResponse xmlns="http://www.timelog.com/api/tlp/v1_2">
+      <GetUserResult xmlns:a="http://www.timelog.com/api/tlp/v1_1"
+                     xmlns:b="http://www.timelog.com/api/tlp/v1_2"
+                     xmlns:c="http://schemas.datacontract.org/2004/07/TimeLog.TLP.Security"
+                     xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:User>
+            <b:ID>1001</b:ID>
+            <b:Initials>ABC</b:Initials>
+            <b:FirstName>Example first</b:FirstName>
+            <b:LastName>Example last</b:LastName>
+            <b:LanguageID>1001</b:LanguageID>
+            <b:Roles>
+              <c:RoleTypes>ExternalContractor</c:RoleTypes>
+            </b:Roles>
+          </b:User>
+        </a:Return>
+        <a:ReturnTypeDescription>User</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+      </GetUserResult>
+    </GetUserResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+This operation has no errors of its own beyond the shared ones.

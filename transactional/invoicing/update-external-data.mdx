@@ -1,0 +1,478 @@
+---
+title: "UpdateExternalData"
+description: "Invoicing service 1.1: Stores the number and status an external finance system gave an invoice; external status Checked also checks the invoice."
+---
+
+| | |
+|---|---|
+| Service | Invoicing 1.1 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/Invoicing/V1_1/InvoicingServiceSecure.svc` |
+| SOAPAction | `http://www.timelog.com/api/tlp/v1/InvoicingService/UpdateExternalData` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | Yes |
+| Safe to retry | Yes |
+
+## How it works
+
+No status rule applies: drafts, booked, overdue and checked invoices are all accepted, and any InvoiceState name is stored. When externalInvoiceStatus is Checked and the invoice is not yet Checked, the invoice itself is CHECKED as by MarkInvoiceAsChecked. An external status of Booked / Draft never un-checks an invoice. The status is parsed from externalInvoiceStatus.Name only. The stored external status cannot be read back - it is not on the Invoice contract - and the returned invoice still shows the PREVIOUS InvoiceNoExternal; re-read with GetInvoiceByGUID to confirm. Nothing records the external-data write itself: no event, so the feed does not report it.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="guid" field-type="guid" required="true">
+GUID of the invoice.
+
+</ResponseField>
+
+<ResponseField name="externalInvoiceNumber" field-type="string">
+**Optional.** The finance system's invoice number.
+
+</ResponseField>
+
+<ResponseField name="externalInvoiceStatus" field-type="InvoiceState" required="true">
+External status; only Name is read. Checked also checks the invoice.
+
+<Expandable title="InvoiceState fields">
+
+<ResponseField name="IsCustomFieldsLoaded" field-type="boolean">
+**Optional.** Set to `true` to save the `CustomFields` you send.
+</ResponseField>
+
+<ResponseField name="CustomFields" field-type="CustomField[]">
+**Optional.** Custom field values. Saved only when `IsCustomFieldsLoaded` is `true`.
+</ResponseField>
+
+<ResponseField name="IsExternalKeysLoaded" field-type="boolean">
+**Optional.** Set to `true` to save the `ExternalKeys` you send.
+</ResponseField>
+
+<ResponseField name="ExternalKeys" field-type="ExternalSystemContext[]">
+**Optional.** The record's IDs in other systems. Saved only when `IsExternalKeysLoaded` is `true`.
+</ResponseField>
+
+<ResponseField name="ID" field-type="integer">
+**Optional.** Integer value of the status. Ignored on input.
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+**Optional.** The enum name of ID - English, not localised.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/WebServices/Invoicing/V1_1/InvoicingServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/api/tlp/v1/InvoicingService/UpdateExternalData"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:invoicing="http://www.timelog.com/api/tlp/v1"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <invoicing:UpdateExternalData>
+      <invoicing:guid>{guid}</invoicing:guid>
+      <invoicing:externalInvoiceNumber>{externalInvoiceNumber}</invoicing:externalInvoiceNumber>
+      <invoicing:externalInvoiceStatus>
+        <invoicing:ID>{ID}</invoicing:ID>
+        <invoicing:Name>{Name}</invoicing:Name>
+        <!-- more fields: see Parameters -->
+      </invoicing:externalInvoiceStatus>
+      <invoicing:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </invoicing:token>
+    </invoicing:UpdateExternalData>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/Invoicing/V1_1/InvoicingServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/api/tlp/v1/InvoicingService/UpdateExternalData"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/Invoicing/V1_1/InvoicingServiceSecure.svc"
+SOAP_ACTION = '"http://www.timelog.com/api/tlp/v1/InvoicingService/UpdateExternalData"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:invoicing="http://www.timelog.com/api/tlp/v1"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <invoicing:UpdateExternalData>
+      <invoicing:guid>{guid}</invoicing:guid>
+      <invoicing:externalInvoiceNumber>{externalInvoiceNumber}</invoicing:externalInvoiceNumber>
+      <invoicing:externalInvoiceStatus>
+        <invoicing:ID>{ID}</invoicing:ID>
+        <invoicing:Name>{Name}</invoicing:Name>
+        <!-- more fields: see Parameters -->
+      </invoicing:externalInvoiceStatus>
+      <invoicing:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </invoicing:token>
+    </invoicing:UpdateExternalData>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="Invoice[]">
+Response&lt;Invoice>: Return[0] = the invoice as read BEFORE the write, except Status. InvoiceNoExternal still shows the previous value. No 'Successfully called' message.
+
+<Expandable title="Invoice fields">
+
+<ResponseField name="Action" field-type="string">
+Allowed values: `Original`, `Created`, `Updated`, `Deleted`, `Copied`, `Undefined`.
+</ResponseField>
+
+<ResponseField name="IsCustomFieldsLoaded" field-type="boolean">
+`true` when `CustomFields` is filled.
+</ResponseField>
+
+<ResponseField name="CustomFields" field-type="CustomField[]">
+Custom field values.
+</ResponseField>
+
+<ResponseField name="IsExternalKeysLoaded" field-type="boolean">
+`true` when `ExternalKeys` is filled.
+</ResponseField>
+
+<ResponseField name="ExternalKeys" field-type="ExternalSystemContext[]">
+The record's IDs in other systems.
+</ResponseField>
+
+<ResponseField name="ID" field-type="integer">
+Integer ID of the invoice.
+</ResponseField>
+
+<ResponseField name="InvoiceNo" field-type="string">
+The invoice number, taken from the account's number series when the invoice is booked.
+</ResponseField>
+
+<ResponseField name="Header" field-type="string">
+Header text of the invoice.
+</ResponseField>
+
+<ResponseField name="Message" field-type="string">
+Message text printed on the invoice.
+</ResponseField>
+
+<ResponseField name="InvoiceDate" field-type="dateTime">
+The invoice's document date.
+</ResponseField>
+
+<ResponseField name="DueDate" field-type="dateTime">
+Payment due date. A booked invoice read after this date is moved to Overdue by the single-invoice reads.
+</ResponseField>
+
+<ResponseField name="Status" field-type="string">
+The status as its enum name: Draft, Booked, Overdue or Checked. Same value as Details.Status.Name.
+</ResponseField>
+
+<ResponseField name="Type" field-type="string">
+Always 'Invoice'.
+</ResponseField>
+
+<ResponseField name="RequisitionNo" field-type="string">
+The customer's purchase / requisition number.
+</ResponseField>
+
+<ResponseField name="InvoicingAddress" field-type="Address">
+The billing address stored on the invoice. Country is the ISO code.
+</ResponseField>
+
+<ResponseField name="CustomerID" field-type="integer">
+Integer ID of the invoice's customer.
+</ResponseField>
+
+<ResponseField name="ContactID" field-type="integer">
+Integer ID of the customer contact on the invoice; 0 = none.
+</ResponseField>
+
+<ResponseField name="CustomerReference" field-type="string">
+Free-text reference at the customer; empty string when none.
+</ResponseField>
+
+<ResponseField name="InternalReference" field-type="string">
+ 
+</ResponseField>
+
+<ResponseField name="CalculateVAT" field-type="boolean">
+true when VAT is calculated on this invoice; false = VATIncluded is 0.
+</ResponseField>
+
+<ResponseField name="NetAmount" field-type="double">
+Total EXCLUDING VAT in the invoice's currency.
+</ResponseField>
+
+<ResponseField name="VATIncluded" field-type="double">
+The invoice's VAT AMOUNT in the invoice's currency: the sum of the LOADED lines' VAT, rounded to the account's number of amount decimals; 0 when CalculateVAT is false. Computed from the lines on every read, not stored - so it is 0 wherever the invoice comes without lines. Not comparable with CreditNote.VATIncluded, which is a rate.
+</ResponseField>
+
+<ResponseField name="Rounding" field-type="double">
+Rounding adjustment of the total, in the invoice's currency; 0 when the account does not round totals. The rounded total is AmountDue + Rounding.
+</ResponseField>
+
+<ResponseField name="AmountDue" field-type="double">
+NetAmount + VAT in the invoice's currency, BEFORE the Rounding adjustment.
+</ResponseField>
+
+<ResponseField name="InvoiceLines" field-type="InvoiceLine[]">
+The invoice's lines, sorted by sort order.
+</ResponseField>
+
+<ResponseField name="Currency" field-type="string">
+The currency is in Details.Currency.
+</ResponseField>
+
+<ResponseField name="EAN" field-type="string">
+EAN / GLN location number for electronic invoicing, resolved from the customer, project, contact and billing-address type; empty when none applies.
+</ResponseField>
+
+<ResponseField name="InvoiceCurrencyRate" field-type="double">
+Exchange rate of the invoice's currency against the account's base currency, per 100: base amount = amount x InvoiceCurrencyRate / 100.
+</ResponseField>
+
+<ResponseField name="GUID" field-type="guid">
+ 
+</ResponseField>
+
+<ResponseField name="InvoicingAttention" field-type="string">
+ 
+</ResponseField>
+
+<ResponseField name="InvoicingCustomerName" field-type="string">
+Customer name on the stored billing address; falls back to the customer's current name when the address has none.
+</ResponseField>
+
+<ResponseField name="CustomerReferenceID" field-type="integer">
+Integer ID stored as the invoice's customer reference; 0 when none. Unlike CreditNote it IS filled on invoices.
+</ResponseField>
+
+<ResponseField name="InvoiceNoExternal" field-type="string">
+The external STATUS stored alongside it is not on the contract.
+</ResponseField>
+
+<ResponseField name="Details" field-type="InvoiceDetails">
+ 
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <UpdateExternalDataResponse xmlns="http://www.timelog.com/api/tlp/v1">
+      <UpdateExternalDataResult xmlns:a="http://api.timelog.com"
+                                xmlns:b="http://www.timelog.com/api/tlp/v1"
+                                xmlns:c="http://www.timelog.com/api/tlp/v1_1"
+                                xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:Invoice>
+            <a:Action>Original</a:Action>
+            <a:IsCustomFieldsLoaded>false</a:IsCustomFieldsLoaded>
+            <a:CustomFields i:nil="true"/>
+            <a:IsExternalKeysLoaded>false</a:IsExternalKeysLoaded>
+            <a:ExternalKeys i:nil="true"/>
+            <b:ID>1001</b:ID>
+            <b:InvoiceNo>1001</b:InvoiceNo>
+            <b:Header>Example</b:Header>
+            <b:Message>Example</b:Message>
+            <b:InvoiceDate>2026-10-01T00:00:00</b:InvoiceDate>
+            <b:DueDate>2026-10-01T00:00:00</b:DueDate>
+            <b:Status>Example</b:Status>
+            <b:Type>Example</b:Type>
+            <b:RequisitionNo>1001</b:RequisitionNo>
+            <b:InvoicingAddress>
+              <c:Address1>Example</c:Address1>
+              <c:Address2>Example</c:Address2>
+              <c:Address3>Example</c:Address3>
+              <c:ZipCode>1000</c:ZipCode>
+              <c:City>Copenhagen</c:City>
+              <c:State>Example</c:State>
+              <c:Country>DK</c:Country>
+            </b:InvoicingAddress>
+            <b:CustomerID>1001</b:CustomerID>
+            <b:ContactID>1001</b:ContactID>
+            <b:CustomerReference>Example</b:CustomerReference>
+            <b:InternalReference>Example</b:InternalReference>
+            <b:CalculateVAT>false</b:CalculateVAT>
+            <b:NetAmount>0</b:NetAmount>
+            <b:VATIncluded>0</b:VATIncluded>
+            <b:Rounding>0</b:Rounding>
+            <b:AmountDue>0</b:AmountDue>
+            <b:InvoiceLines>
+              <b:InvoiceLine>
+                <a:Action>Original</a:Action>
+                <a:IsCustomFieldsLoaded>false</a:IsCustomFieldsLoaded>
+                <a:CustomFields i:nil="true"/>
+                <a:IsExternalKeysLoaded>false</a:IsExternalKeysLoaded>
+                <a:ExternalKeys i:nil="true"/>
+                <b:ID>1001</b:ID>
+                <b:InvoiceID>1001</b:InvoiceID>
+                <b:Date>2026-10-01T00:00:00</b:Date>
+                <b:ProductNo>1001</b:ProductNo>
+                <b:Text>Example</b:Text>
+                <b:Quantity>0</b:Quantity>
+                <b:Rate>0</b:Rate>
+                <b:Amount>0</b:Amount>
+                <b:Discount>0</b:Discount>
+                <b:InvoiceLineType>0</b:InvoiceLineType>
+                <b:VAT>0</b:VAT>
+                <b:Details>
+                  <b:ProjectHeader i:nil="true"/>
+                  <b:Comment>Example</b:Comment>
+                </b:Details>
+              </b:InvoiceLine>
+            </b:InvoiceLines>
+            <b:Currency>DKK</b:Currency>
+            <b:EAN>Example</b:EAN>
+            <b:InvoiceCurrencyRate>0</b:InvoiceCurrencyRate>
+            <b:GUID>3f2504e0-4f89-41d3-9a0c-305000000001</b:GUID>
+            <b:InvoicingAttention>Example</b:InvoicingAttention>
+            <b:InvoicingCustomerName>Example invoicing customer</b:InvoicingCustomerName>
+            <b:CustomerReferenceID>1001</b:CustomerReferenceID>
+            <b:InvoiceNoExternal>Example</b:InvoiceNoExternal>
+            <b:Details>
+              <b:Status>
+                <a:Action>Original</a:Action>
+                <a:IsCustomFieldsLoaded>false</a:IsCustomFieldsLoaded>
+                <a:CustomFields i:nil="true"/>
+                <a:IsExternalKeysLoaded>false</a:IsExternalKeysLoaded>
+                <a:ExternalKeys i:nil="true"/>
+                <b:ID>1001</b:ID>
+                <b:Name>Example </b:Name>
+              </b:Status>
+              <b:Type>
+                <a:Action>Original</a:Action>
+                <a:IsCustomFieldsLoaded>false</a:IsCustomFieldsLoaded>
+                <a:CustomFields i:nil="true"/>
+                <a:IsExternalKeysLoaded>false</a:IsExternalKeysLoaded>
+                <a:ExternalKeys i:nil="true"/>
+                <b:ID>1001</b:ID>
+                <b:Name>Example </b:Name>
+              </b:Type>
+              <b:InternalReference>
+                <c:ID>1001</c:ID>
+                <c:Initials>ABC</c:Initials>
+                <c:FullName>Example full</c:FullName>
+              </b:InternalReference>
+              <b:Currency>
+                <c:ID>1001</c:ID>
+                <c:Abbreviation>DKK</c:Abbreviation>
+                <c:Rate>0</c:Rate>
+                <c:RateDate>2026-10-01T00:00:00</c:RateDate>
+                <c:DescriptiveName>Example descriptive</c:DescriptiveName>
+              </b:Currency>
+              <b:CustomerHeader>
+                <c:ID>1001</c:ID>
+                <c:Name>Example </c:Name>
+                <c:No>1001</c:No>
+                <c:GUID>3f2504e0-4f89-41d3-9a0c-305000000002</c:GUID>
+              </b:CustomerHeader>
+              <b:ContactHeader>
+                <c:GUID>3f2504e0-4f89-41d3-9a0c-305000000003</c:GUID>
+                <c:FirstName>Example first</c:FirstName>
+                <c:LastName>Example last</c:LastName>
+              </b:ContactHeader>
+              <b:ProjectHeader>
+                <c:ID>1001</c:ID>
+                <c:Name>Example </c:Name>
+                <c:No>1001</c:No>
+                <c:IsActive>true</c:IsActive>
+                <c:IsGeneralProject>false</c:IsGeneralProject>
+                <c:StartDate>2026-10-01T00:00:00</c:StartDate>
+                <c:EndDate>2026-10-01T00:00:00</c:EndDate>
+              </b:ProjectHeader>
+            </b:Details>
+          </b:Invoice>
+        </a:Return>
+        <a:ReturnTypeDescription>Invoice</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </UpdateExternalDataResult>
+    </UpdateExternalDataResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Error | 40001 | Error during call on TimeLog.API, Message 'Requested value '\{Name\}' was not found.' | Nothing is written. | Send Name exactly as Draft, Booked, Overdue or Checked. |
+| Error | 40001 | Error during call on TimeLog.API, Message 'You can't check an invoice in draft state' | Status Checked on a DRAFT invoice - the external number and status ARE already stored. | — |
+| Error | 40001 | Error during call on TimeLog.API, Message 'Unable to retrieve invoiceDTO with GUID:\{guid\} In Stored Procedure: …' | No invoicing document has this GUID (the 'Invoice not found. | Check the GUID. |
+| Error | 40001 | Error during call on TimeLog.API, Message 'Invoice was requested has the wrong type (Expected: Invoice, Was: \{CreditNote\|Reminder\|Voucher\})' | The GUID belongs to a credit note, reminder or voucher. Nothing is written. | Use the credit-note operations for credit notes; reminders and vouchers have no operation in this service. |

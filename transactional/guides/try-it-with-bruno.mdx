@@ -1,0 +1,66 @@
+---
+title: "Try it with Bruno"
+description: "Download a ready-to-run Bruno collection with every Transactional API operation, and make your first calls in minutes."
+---
+
+The fastest way to see how the Transactional API behaves is to call it. We publish a ready-to-run collection for
+[Bruno](https://www.usebruno.com), a free, open-source API client: every operation on these pages, with the request
+already built, the token handled for you, and a test that tells you whether the call worked.
+
+<Card title="Download the Transactional API collection" icon="download" href="https://github.com/lrfTimelog/documentationai-Docs/releases/latest/download/timelog-transactional-api.zip">
+A zip file with the Bruno collection: one folder per service, split into reads and writes.
+</Card>
+
+## What's in the collection
+
+| Folder | What it contains |
+|---|---|
+| `01 Authentication (Security V1_2)` | GetToken (run this first), GetUser, GetTimeRegistrationSettings |
+| `02 CRM V1_4` … `09 Transaction V1_0` | One folder per service, each split into **Reads** and **Writes (changes data)** |
+
+Every request has a **Docs** tab with what it does and its parameters, and a **Tests** tab that checks the result.
+
+## Get started
+
+<Steps>
+<Step title="Install Bruno" icon="download">
+Download Bruno from [usebruno.com](https://www.usebruno.com) and install it. No account is needed.
+</Step>
+<Step title="Open the collection" icon="folder-open">
+Unzip the download. In Bruno, choose **Open Collection** and select the unzipped folder.
+</Step>
+<Step title="Fill in the environment" icon="settings">
+Select the **TimeLog** environment (top right) and set `baseUrl` to your TimeLog address,
+`https://app{server-number}.timelog.com/{account}`. Then set the secrets `username` and `password` of the TimeLog
+user the integration runs as. Bruno keeps secrets on your machine only.
+</Step>
+<Step title="Get a token" icon="key-round">
+Run **01 Authentication / GetToken**. It stores the token, and every other request uses it automatically for the next
+12 hours. See [Authentication](/transactional/guides/authentication).
+</Step>
+<Step title="Make your first call" icon="send">
+Open any request under **Reads** and run it. The **Tests** tab shows whether `ResponseState` is `Success`; the
+response shows the data in `Return`.
+</Step>
+</Steps>
+
+## How the requests are built
+
+- **Simple parameters** are pre-filled with neutral values (`false`, `0`, page `1`, page size `10`, an empty GUID).
+  Replace IDs with real ones from your account before running.
+- **Object parameters** in write requests have every field commented out. Uncomment the fields you need and keep the
+  order shown. Run as-is, a write is a safe dry run: it answers with the validation messages for the required fields.
+- **CRM requests are chained**: a customer search stores the customer's GUID and ID, so you can go straight on to
+  *GetCustomerByGUID* and *GetContactsByCustomerPaged*.
+- **InsertCustomer with external key** (CRM writes) shows how to link a TimeLog record to its ID in another system.
+
+## Reading the result
+
+A failed call still returns **HTTP 200**: the Tests tab checks `ResponseState` for you. When it fails, look at
+`ErrorCode` and `Messages` in the response, and find the code in [Responses and errors](/transactional/guides/responses-and-errors).
+
+<Callout kind="alert">**Writes change real data.** Try the requests under *Writes (changes data)* on a test or demo
+account first.</Callout>
+
+<Callout kind="tip">Use a dedicated TimeLog user for your integration, and keep its password out of screenshots and
+shared files.</Callout>

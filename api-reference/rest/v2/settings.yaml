@@ -15,10 +15,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -30,11 +28,11 @@ paths:
   /v2/features:
     put:
       operationId: updateFrontPageFeatureV2
-      summary: Switch a tenant feature on or off
+      summary: Switch a account feature on or off
       description: |-
-        Turns one tenant-wide feature flag on or off — any feature, despite the front-page name.
+        Turns one account-wide feature flag on or off — any feature, despite the front-page name.
 
-        TENANT-WIDE CONFIGURATION WRITE. The feature is named in the `identifier` query parameter (FeatureIdentifier name or number) and the body carries only `Enabled`. It runs exactly the same manager code as PUT /v1/feature (`PUT /v1/feature`): setting a feature to its current value does nothing and returns 200; a real change is validated, written, and then triggers the feature's side effects, some of which rewrite tenant data (AllocationDates off rewrites every allocation's dates). Unlike v1, there is no internal-client restriction.
+        ACCOUNT-WIDE CONFIGURATION WRITE. The feature is named in the `identifier` query parameter (FeatureIdentifier name or number) and the body carries only `Enabled`. It runs exactly the same manager code as PUT /v1/feature (`PUT /v1/feature`): setting a feature to its current value does nothing and returns 200; a real change is validated, written, and then triggers the feature's side effects, some of which rewrite account data (AllocationDates off rewrites every allocation's dates). Unlike v1, there is no internal-client restriction.
 
         **Use it to:**
         - WidgetPlannedAbsence) on or off
@@ -47,7 +45,7 @@ paths:
         - Idempotent.
         - Safe to retry.
         - Duplicates: Same value again = no write, no events, 200 null.
-        - Side effect: Identical to `PUT /v1/feature`: writes the feature value for the whole tenant, invalidates the cached system configuration, runs the feature's pre / post actions and dependent-settings updates (e.g. AllocationDates OFF rewrites every allocation's dates to its task's dates — not reversible by switching back).
+        - AllocationDates OFF rewrites every allocation's dates to its task's dates — not reversible by switching back).
         - Side effect: Post actions run TWICE per call.
 
         **Call first:** `GET /v2/features/{id}`
@@ -125,10 +123,10 @@ paths:
       operationId: getFrontPageFeatureV2
       summary: List the front-page feature flags
       description: |-
-        Always the same nine entries, in this order: FrontPageInternalMessage (the administrator's notice box), DesignSevenNotificationCenter, ShowMileStones (with `value` = the tenant setting FrontPageMilestonePeriod), WidgetInvoicedPerMonth, WidgetPlannedAbsence, WidgetProjectEconomyHealth, WidgetAverageHourlyRate, WidgetTimeTrackingDelay (with `value` = the setting FrontPageCompanyTarget) and WidgetVacationCalculation. Tenant configuration only — the same answer for every user of the tenant. Which widgets a given USER sees is decided by roles and personal order (`GET /v2/page-settings/widgets`).
+        Always the same nine entries, in this order: FrontPageInternalMessage (the administrator's notice box), DesignSevenNotificationCenter, ShowMileStones (with `value` = the account setting FrontPageMilestonePeriod), WidgetInvoicedPerMonth, WidgetPlannedAbsence, WidgetProjectEconomyHealth, WidgetAverageHourlyRate, WidgetTimeTrackingDelay (with `value` = the setting FrontPageCompanyTarget) and WidgetVacationCalculation. Account configuration only — the same answer for every user of the account. Which widgets a given USER sees is decided by roles and personal order (`GET /v2/page-settings/widgets`).
 
         **Use it to:**
-        - Front-page client deciding which boxes and widgets to render for the tenant
+        - Front-page client deciding which boxes and widgets to render for the account
 
         **Not for:**
         - The caller's own widget list → `GET /v2/page-settings/widgets`
@@ -137,7 +135,6 @@ paths:
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Consistency: immediate on the serving web server (cached system configuration, invalidated on change)
 
         **Next:** `GET /v2/page-settings/widgets`, `GET /v2/settings/frontpage-internal-message`
 
@@ -228,7 +225,7 @@ paths:
       description: |-
         Returns the on/off state of the resource-management features — today only Competences.
 
-        A one-entry list: { name: Competences, identifier: 470, enabled }. Tenant configuration only — the same answer for every user. The list is code-defined; new resource-management features appear only when the code adds them.
+        Account configuration only — the same answer for every user. The list is code-defined; new resource-management features appear only when the code adds them.
 
         **Use it to:**
         - Resource-management client deciding whether to show competence features
@@ -239,7 +236,6 @@ paths:
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Consistency: immediate on the serving web server (cached system configuration)
 
         **See also:** `GET /v2/features/{id}`, `GET /v2/features/front-page`
       responses:
@@ -298,12 +294,12 @@ paths:
       operationId: getFeatureByIdV2
       summary: Get a feature flag
       description: |-
-        Returns whether one tenant feature flag is on, by its integer FeatureIdentifier.
+        Returns whether one account feature flag is on, by its integer FeatureIdentifier.
 
-        Looks up any feature of the tenant's configuration — not only front-page ones — and returns its name, number, on/off state and CanUserOverride. 426 CurrencyMatrix, 213 AllocationDates) before calling that operation.
+        Looks up any feature of the account's configuration — not only front-page ones — and returns its name, number, on/off state and CanUserOverride. 426 CurrencyMatrix, 213 AllocationDates) before calling that operation.
 
         **Use it to:**
-        - Check a tenant feature that changes another operation's behaviour (settings_gates) before calling it
+        - Check a account feature that changes another operation's behaviour (settings_gates) before calling it
 
         **Not for:**
         - Changing a feature → `PUT /v2/features`
@@ -311,7 +307,6 @@ paths:
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Consistency: immediate on the serving web server (cached system configuration, invalidated on change)
 
         **Next:** `PUT /v2/features`
 
@@ -323,7 +318,7 @@ paths:
         schema:
           $ref: '#/components/schemas/FeatureIdentifier'
         description: |-
-          FeatureIdentifier integer value (see the FeatureIdentifier enum card). Names are NOT accepted ({id:int}: a non-integer is 404 rest.route-not-found).
+          FeatureIdentifier integer value. Names are NOT accepted ({id:int}: a non-integer is 404 rest.route-not-found).
 
           Allowed values: see `FeatureIdentifier`.
       responses:
@@ -388,13 +383,13 @@ paths:
       description: |-
         Returns the calling user's front-page widgets in their personal display order.
 
-        The widgets the caller sees on the front page, first to last. A widget is listed only when one of the caller's roles grants the widget page AND it appears in the caller's stored widget order (front-page setting PersonalWidgetSettings, "{pageId}:{position};…"). Each item gives the widget's page id (the id to send to PATCH displayorder) and its PageIdentifier name.
+        The widgets the caller sees on the front page, first to last. A widget is listed only when one of the caller's roles grants the widget page AND it appears in the caller's stored widget order (front-page setting PersonalWidgetSettings, "&#123;pageId&#125;:&#123;position&#125;;…"). Each item gives the widget's page id (the id to send to PATCH displayorder) and its PageIdentifier name.
 
         **Use it to:**
         - Render the caller's front-page widgets in order; get WidgetID values for reordering
 
         **Not for:**
-        - Which widget features the tenant has on → `GET /v2/features/front-page`
+        - Which widget features the account has on → `GET /v2/features/front-page`
 
         **Behaviour:**
         - Idempotent.
@@ -489,7 +484,7 @@ paths:
         - Persist a drag-and-drop reorder of the caller's front-page widgets
 
         **Not for:**
-        - Switching a widget on / off for the tenant → `PUT /v2/features`
+        - Switching a widget on / off for the account → `PUT /v2/features`
 
         **Behaviour:**
         - Idempotent.
@@ -536,10 +531,9 @@ paths:
         Per-user UI state (default view, default filter, load-data-automatically, widget order, import options, …) stored for the CALLER on the given page. Only keys the caller actually has a stored row for are returned — no defaults are filled in. A page the caller has nothing stored for, or any page number with no PageIdentifier member, returns an empty object. Never returns another user's preferences.
 
         **Use it to:**
-        - UI restoring a page's remembered view / filter for the signed-in user
 
         **Not for:**
-        - Tenant settings → `GET /v2/settings/frontpage-internal-message` / `GET /v2/features/{id}`
+        - Account settings → `GET /v2/settings/frontpage-internal-message` / `GET /v2/features/{id}`
         - Front-page widget order as a list → `GET /v2/page-settings/widgets`
 
         **Behaviour:**
@@ -630,8 +624,6 @@ paths:
       operationId: uploadFrontPageImage
       summary: Upload an image for the front-page internal message
       description: |-
-        Stores one image (JPEG, PNG, GIF, WebP, ≤ 2 MB) in the tenant's blob storage and returns a 15-minute read URL to embed in the front-page internal message.
-
         Used by the front-page message editor: the image is uploaded here, the returned URL is inserted into the HTML, and the HTML is then saved as the FrontPageInternalMessage setting (a separate PUT). Only users whose role has the front-page privilege may upload. Send multipart/form-data; only the FIRST part is used, and its own Content-Type header decides whether it is accepted — the bytes are not inspected. The image is stored under a new random name; nothing is ever overwritten, and nothing deletes it later.
 
         **Use it to:**
@@ -643,19 +635,16 @@ paths:
 
         **Behaviour:**
         - Not idempotent.
-        - Safe to retry. Each call stores a new blob under a new random name; a retry only leaves an unused copy behind.
-        - Duplicates: Not deduplicated: the same image uploaded twice becomes two blobs.
-        - Side effect: Writes the bytes to the tenant blob container (tlp-<CustomerProductId>) as FrontPageImage-<random GUID><extension of the uploaded file name>; no Content-Type is set on the blob (only .pdf blobs get one).
+        - Safe to retry.
         - Side effect: Does NOT change the FrontPageInternalMessage setting — the caller must insert the URL into the HTML and save it.
         - On failure: 403 / 400 / 415 / 413: nothing is stored.
-        - On failure: A failure while signing the URL after the write leaves an orphan blob (src_only).
         - Changes are visible to the next read immediately.
 
         > **Not yet documented:** behaviour → batch semantics; examples.
       responses:
         '200':
           description: |-
-            The body is returned without the TAF envelope. A bare object {"location": "<blob URL with a 15-minute read SAS token>"} — no TAF envelope.
+            The body is returned without the TAF envelope.
 
             Order: none
 
@@ -699,10 +688,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ResponseError'
         '500':
-          description: |-
-            - Writing the blob or signing its URL failed; {0} is the raw .NET exception message. — Fix: Retry later; if persistent, blob storage is unavailable for the site.
-
-            - **Code 100** — Unhandled server error.
+          description: '- **Code 100** — Unhandled server error.'
           content:
             application/json:
               schema:
@@ -715,7 +701,7 @@ paths:
       description: |-
         Returns the administrator's front-page notice (HTML) and whether the caller may edit it.
 
-        The FrontPageInternalMessage tenant setting: rich-text HTML that an administrator writes for every user's front page. Any Azure-blob image URL in it is re-signed with a fresh 15-minute read token on every call (stored tokens expire), so images uploaded with POST /v2/settings/frontpage-image keep working. IsEditable tells the client whether to offer the editor (front-page privilege). The message is returned even when the feature FrontPageInternalMessage is off — clients should check the feature (GET /v2/features/front-page) before showing the box.
+        The FrontPageInternalMessage account setting: rich-text HTML that an administrator writes for every user's front page. IsEditable tells the client whether to offer the editor (front-page privilege). The message is returned even when the feature FrontPageInternalMessage is off — clients should check the feature (GET /v2/features/front-page) before showing the box.
 
         **Use it to:**
         - Front page rendering the administrator's notice; deciding whether to show the edit button
@@ -726,7 +712,6 @@ paths:
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Consistency: immediate on the serving web server (cached system configuration)
 
         **Call first:** `GET /v2/features/front-page`
 
@@ -785,11 +770,11 @@ paths:
   /v2/settings/{settingIdentifier}:
     put:
       operationId: updateSettingValue
-      summary: Change a tenant setting
+      summary: Change a account setting
       description: |-
-        Sets the value of one tenant setting — any setting, for users with the front-page privilege.
+        Sets the value of one account setting — any setting, for users with the front-page privilege.
 
-        TENANT-WIDE CONFIGURATION WRITE. 200 with a JSON null body.
+        ACCOUNT-WIDE CONFIGURATION WRITE. 200 with a JSON null body.
 
         **Use it to:**
         - Front-page editor saving the administrator's notice (FrontPageInternalMessage)
@@ -800,7 +785,6 @@ paths:
 
         **Behaviour:**
         - Duplicates: Not deduplicated: the same value is written again and the events re-raised.
-        - Side effect: FlexTruncationDate creates / deletes today's flex postings), invalidates the cached system configuration and runs post-invalidation work — always, even when the value is unchanged.
 
         **Call first:** `GET /v2/settings/frontpage-internal-message`, `POST /v2/settings/frontpage-image`
 
@@ -882,7 +866,7 @@ paths:
                 $ref: '#/components/schemas/ResponseError'
         '500':
           description: |-
-            - **Code 100** — When: ValidateSettingForUser violations (policies incl. InsightsServiceUrl on a non-TLP product, missing page access, setting-specific rules). — Fix: Change the setting in the TimeLog UI, where the reason is shown.
+            - **Code 100** — When: ValidateSettingForUser violations. — Fix: Change the setting in the TimeLog UI, where the reason is shown.
 
             - **Code 100** — Unhandled server error.
           content:
@@ -895,20 +879,18 @@ paths:
       operationId: userSettingsGetV2
       summary: Get my UI context (language, sign-up button, segmentation)
       description: |-
-        Returns the caller's language, whether to show the trial sign-up button, and the in-app-guidance segmentation of the caller and tenant.
+        Returns the caller's language, whether to show the trial sign-up button, and the in-app-guidance segmentation of the caller and account.
 
-        Everything is about the CALLER or the caller's tenant: profile language (LCID + code), the sign-up-button flag, and two string maps used to segment in-app guidance — the user map (name, user name, e-mail, role flags, department, …) and the account map. Both maps are cached per user id.
+        Everything is about the CALLER or the caller's account: profile language (LCID + code), the sign-up-button flag, and two string maps used to segment in-app guidance — the user map (name, user name, e-mail, role flags, department, …) and the account map.
 
         **Use it to:**
-        - Client shell choosing the UI language and initialising in-app guidance for the signed-in user
 
         **Not for:**
-        - Tenant time / expense configuration → GET /v1/user-setting (Common service)
+        - Account time / expense configuration → GET /v1/user-setting (Common service)
 
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Side effect: Caches both segmentation maps per user id (TimelogCustomerSegmentationUser<id> / …Account<id>); later calls return the cached maps, so changes (role, department, integrations) may show only after the cache entry expires.
 
         > **Not yet documented:** behaviour → consistency.
       responses:
@@ -1943,7 +1925,7 @@ components:
       - ''
       - ''
       description: |-
-        Identifies one tenant feature flag. REST v2 writes the member NAME in FeatureRead.Name and accepts the name or the integer in the identifier query parameter of PUT /v2/features; v1 PUT /v1/feature takes the integer.
+        Identifies one account feature flag. REST v2 writes the member NAME in FeatureRead.Name and accepts the name or the integer in the identifier query parameter of PUT /v2/features; v1 PUT /v1/feature takes the integer.
 
         Allowed values:
 
@@ -5402,13 +5384,13 @@ components:
         enabled:
           type: boolean
           readOnly: true
-          description: true when the feature is on for the tenant.
+          description: true when the feature is on for the account.
         value:
           type: number
           format: double
           readOnly: true
           description: |-
-            Present only for two front-page entries: ShowMileStones carries the tenant setting FrontPageMilestonePeriod, WidgetTimeTrackingDelay the setting FrontPageCompanyTarget. Absent on every other item (the property is not written at all, not written as null).
+            Present only for two front-page entries: ShowMileStones carries the account setting FrontPageMilestonePeriod, WidgetTimeTrackingDelay the setting FrontPageCompanyTarget. Absent on every other item (the property is not written at all, not written as null).
 
             - name = ShowMileStones — value = setting FrontPageMilestonePeriod
 
@@ -8393,7 +8375,7 @@ components:
         Enabled:
           type: boolean
           readOnly: true
-          description: true when the feature is switched on for the tenant (IFeature.IsActive).
+          description: true when the feature is switched on for the account (IFeature.IsActive).
         CanUserOverride:
           type:
           - boolean
@@ -8415,8 +8397,8 @@ components:
             Always null on this route, so never present in the JSON (the IFeature constructor sets Value = null).
 
             Null: Always null here; omitted (NullValueHandling.Ignore).
-      description: 'The current state of one tenant feature flag: its name, numeric identifier, whether it is on for the tenant
-        and whether users may override it.'
+      description: 'The current state of one account feature flag: its name, numeric identifier, whether it is on for the
+        account and whether users may override it.'
     FeatureUpdateV2.update:
       type: object
       properties:
@@ -8424,7 +8406,7 @@ components:
           type: boolean
           writeOnly: true
           description: |-
-            true = switch the feature on for the whole tenant, false = switch it off.
+            true = switch the feature on for the whole account, false = switch it off.
 
             - omitted (e.g. body {}) — false — the feature is switched OFF; nothing validates the body.
 
@@ -8440,7 +8422,7 @@ components:
           format: uri
           readOnly: true
           description: |-
-            Absolute URL of the stored image in the tenant's PRIVATE blob container (tlp-<CustomerProductId>, blob FrontPageImage-<GUID><extension of the uploaded file name>) carrying a read-only SAS token valid for 15 minutes (start 15 minutes in the past). It is a bearer link: anyone holding it can read the image until it expires.
+            It is a bearer link: anyone holding it can read the image until it expires.
 
             Set by TimeLog.
 
@@ -10001,7 +9983,7 @@ components:
           description: |-
             One entry per stored preference of the caller on that page. Property name = PageSettingKey member name; value = the stored string. The value's real type depends on the key's PageSettingType attribute (String, Boolean as "True"/"False", Int32, Double, approval enums, ";"-style separators, region LCID) — e.g. PersonalWidgetSettings on the front page is "{pageId}:{order};…". Keys are unique (dictionary).
 
-            - property name — A PageSettingKey member name (see the PageSettingKey enum card).
+            - property name — A PageSettingKey member name.
 
             > **Not yet documented:** nullable.
       description: 'The caller''s OWN stored UI preferences for one page: a JSON object whose property names are PageSettingKey
@@ -10597,7 +10579,7 @@ components:
       - ''
       - ''
       description: |-
-        Identifies one typed tenant setting — e.g. FrontPageInternalMessage, InsightsServiceUrl, FlexTruncationDate. Path parameter of PUT /v2/settings/{settingIdentifier}; the integer ID of PUT /v1/setting.
+        Identifies one typed account setting — e.g. FrontPageInternalMessage, InsightsServiceUrl, FlexTruncationDate. Path parameter of PUT /v2/settings/{settingIdentifier}; the integer ID of PUT /v1/setting.
 
         Allowed values:
 
@@ -10905,14 +10887,12 @@ components:
           - 'null'
           format: html
           readOnly: true
-          description: 'The stored value as a string. For FrontPageInternalMessage: rich-text HTML written by an administrator;
-            every Azure blob URL in it is re-signed with a fresh 15-minute read token on each read (URLs that fail to re-sign
-            are left as stored). Empty string when no message is set.'
+          description: The stored value as a string. Empty string when no message is set.
         IsEditable:
           type: boolean
           readOnly: true
-      description: One tenant setting's value, plus whether the CALLER may change it. Today only the front-page internal message
-        is served this way.
+      description: One account setting's value, plus whether the CALLER may change it. Today only the front-page internal
+        message is served this way.
     SettingUpdateV2.update:
       type: object
       properties:
@@ -10927,7 +10907,7 @@ components:
             > **Not yet documented:** behaviour.
       required:
       - Value
-      description: The new value of the tenant setting named in the path, as a string.
+      description: The new value of the account setting named in the path, as a string.
     TafAction:
       type: object
       description: A hypermedia action the caller may take on the object. Present only where the operation registers actions.
@@ -10975,26 +10955,22 @@ components:
           type: boolean
           readOnly: true
           description: |-
-            true when the UI should show the trial "sign up" button: the platform engine says the caller should see sign-up notifications AND (the tenant's product is not Time, OR it is Time and the demo expires within the configured notification window).
+            true when the UI should show the trial "sign up" button: the platform engine says the caller should see sign-up notifications AND (the account's product is not Time, OR it is Time and the demo expires within the configured notification window).
 
             > **Not yet documented:** description.
         CustomerSegmentationUser:
           type: object
           readOnly: true
           description: |-
-            String→string map about the CALLER, cached per user id: userId ("<shortName>_<UserId>"), fullName, firstName, userName, userIdentifier, email, userLanguage (LCID), compactTimesheetView ("0"/"1"), defaultTimesheetView, userCreatedYear/Month/Day, role flags "0"/"1" (roleProject, roleContract, roleCustomer, roleApproval, roleEmployee, roleEmployeeModify, roleExpense, roleSystemAdm, roleInvoice, roleMileage, roleMyAccount), "timeLogResponsible " (key has a trailing space), gDPRResponsible, userDepartmentName (level-1 department), moduleCrm, moduleOutlook. Every value is a string.
+            Every value is a string.
 
             Contains personal data.
         CustomerSegmentationAccount:
           type: object
           readOnly: true
-          description: 'String→string map about the TENANT, cached per user id: account (the URL short name), customerProductId,
-            major/minor/buildVersion of the TimeLog build, database, product, productionStatus, plan, one "0"/"1" flag per
-            integration type (intEcn, intExact, intFortnox, intVisma, intNav, intDinero, intUniconta, intBjörnLundén, intDanløn,
-            intVismasalary, intHogia, intZenegy, intCrona, intDataloen, intFortnoxLön, intLessorPayroll, intSLS — some keys
-            contain non-ASCII letters), mle (multiple legal entities), timelogResponsibleOnSite, resourcePlanner.'
+          description: ''
       description: 'The CALLER''s own UI context: profile language, whether to show the trial sign-up button, and the in-app-guidance
-        (WalkMe) segmentation of the caller and of the tenant. Everything is about the caller or the caller''s tenant; no
+        (WalkMe) segmentation of the caller and of the account. Everything is about the caller or the caller''s account; no
         other user''s data is returned.'
     UserWidgetDisplayOrderUpdate.update:
       type: object

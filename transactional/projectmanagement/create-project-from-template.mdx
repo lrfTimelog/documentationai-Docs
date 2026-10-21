@@ -1,0 +1,339 @@
+---
+title: "CreateProjectFromTemplate"
+description: "Project management service 1.8: Creates a project from a named project template for a customer given by name, choosing which template parts to copy."
+---
+
+| | |
+|---|---|
+| Service | Project management 1.8 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc` |
+| SOAPAction | `CreateProjectFromTemplateRequest` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | Yes |
+| Safe to retry | No |
+
+## How it works
+
+The project number is the caller's projectNo unless useProjectNumberSeries = true. What is copied from the template: ALWAYS its contracts with their contract hourly rates and contract customers, its products and recurrences; tasks and milestones only with useTasksAndMileStonesFromTemplate; the resource group only with useResourceGroupFromTemplate; allocations only when useAllocationsFromTemplate AND the two previous flags are true; budgets and payment plans only with usePaymentPlanFromTemplate. Afterwards the project is moved to the account's default external-project status.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="projectTemplateName" field-type="string" required="true">
+Name of the project template. Empty -> 10002; null -> null-reference error.
+
+</ResponseField>
+
+<ResponseField name="projectName" field-type="string" required="true">
+Name of the new project. Empty -> 10002.
+
+</ResponseField>
+
+<ResponseField name="projectNo" field-type="string">
+**Conditional.** Project number of the new project.
+
+</ResponseField>
+
+<ResponseField name="customerName" field-type="string" required="true">
+Customer name, matched EXACTLY; with duplicates one of them is used. Unknown / empty -> 30053.
+
+</ResponseField>
+
+<ResponseField name="legalEntityID" field-type="guid" required="true">
+GUID of the legal entity. Unknown or all zeros -> 30097.
+
+</ResponseField>
+
+<ResponseField name="priceGroupID" field-type="guid" required="true">
+GUID of one of the legal entity's price groups; sets the currency list and the currency. Otherwise -> 30098.
+
+</ResponseField>
+
+<ResponseField name="projectManagerInitials" field-type="string" required="true">
+Empty -> 10002; unknown -> 30050.
+
+</ResponseField>
+
+<ResponseField name="accountManagerInitials" field-type="string" required="true">
+Unknown -> 30051.
+
+</ResponseField>
+
+<ResponseField name="handledByDepartmentNo" field-type="string">
+**Optional.** Default empty = not set. Department number of the handling department. Unknown -> 30054.
+
+</ResponseField>
+
+<ResponseField name="orderedByDepartmentNo" field-type="string">
+**Optional.** Default empty = not set. Department number of the ordering department. Unknown -> 30054.
+
+</ResponseField>
+
+<ResponseField name="useProjectNumberSeries" field-type="boolean" required="true">
+ 
+
+</ResponseField>
+
+<ResponseField name="useTasksAndMileStonesFromTemplate" field-type="boolean" required="true">
+Copy the template's tasks and milestones.
+
+</ResponseField>
+
+<ResponseField name="useResourceGroupFromTemplate" field-type="boolean" required="true">
+Copy the template's resource group.
+
+</ResponseField>
+
+<ResponseField name="useAllocationsFromTemplate" field-type="boolean" required="true">
+Copy allocations - effective ONLY when useTasksAndMileStonesFromTemplate and useResourceGroupFromTemplate are also true.
+
+</ResponseField>
+
+<ResponseField name="usePaymentPlanFromTemplate" field-type="boolean" required="true">
+Copy budgets and payment plans.
+
+</ResponseField>
+
+<ResponseField name="source" field-type="integer">
+**Optional.** Default `0`.
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "CreateProjectFromTemplateRequest"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:pm="http://www.timelog.com/api/tlp/v1_8"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <pm:CreateProjectFromTemplate>
+      <pm:projectTemplateName>{projectTemplateName}</pm:projectTemplateName>
+      <pm:projectName>{projectName}</pm:projectName>
+      <pm:projectNo>{projectNo}</pm:projectNo>
+      <pm:customerName>{customerName}</pm:customerName>
+      <pm:legalEntityID>{legalEntityID}</pm:legalEntityID>
+      <pm:priceGroupID>{priceGroupID}</pm:priceGroupID>
+      <pm:projectManagerInitials>{projectManagerInitials}</pm:projectManagerInitials>
+      <pm:accountManagerInitials>{accountManagerInitials}</pm:accountManagerInitials>
+      <pm:handledByDepartmentNo>{handledByDepartmentNo}</pm:handledByDepartmentNo>
+      <pm:orderedByDepartmentNo>{orderedByDepartmentNo}</pm:orderedByDepartmentNo>
+      <pm:useProjectNumberSeries>false</pm:useProjectNumberSeries>
+      <pm:useTasksAndMileStonesFromTemplate>false</pm:useTasksAndMileStonesFromTemplate>
+      <pm:useResourceGroupFromTemplate>false</pm:useResourceGroupFromTemplate>
+      <pm:useAllocationsFromTemplate>false</pm:useAllocationsFromTemplate>
+      <pm:usePaymentPlanFromTemplate>false</pm:usePaymentPlanFromTemplate>
+      <pm:source>0</pm:source>
+      <pm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </pm:token>
+    </pm:CreateProjectFromTemplate>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "CreateProjectFromTemplateRequest"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc"
+SOAP_ACTION = '"CreateProjectFromTemplateRequest"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:pm="http://www.timelog.com/api/tlp/v1_8"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <pm:CreateProjectFromTemplate>
+      <pm:projectTemplateName>{projectTemplateName}</pm:projectTemplateName>
+      <pm:projectName>{projectName}</pm:projectName>
+      <pm:projectNo>{projectNo}</pm:projectNo>
+      <pm:customerName>{customerName}</pm:customerName>
+      <pm:legalEntityID>{legalEntityID}</pm:legalEntityID>
+      <pm:priceGroupID>{priceGroupID}</pm:priceGroupID>
+      <pm:projectManagerInitials>{projectManagerInitials}</pm:projectManagerInitials>
+      <pm:accountManagerInitials>{accountManagerInitials}</pm:accountManagerInitials>
+      <pm:handledByDepartmentNo>{handledByDepartmentNo}</pm:handledByDepartmentNo>
+      <pm:orderedByDepartmentNo>{orderedByDepartmentNo}</pm:orderedByDepartmentNo>
+      <pm:useProjectNumberSeries>false</pm:useProjectNumberSeries>
+      <pm:useTasksAndMileStonesFromTemplate>false</pm:useTasksAndMileStonesFromTemplate>
+      <pm:useResourceGroupFromTemplate>false</pm:useResourceGroupFromTemplate>
+      <pm:useAllocationsFromTemplate>false</pm:useAllocationsFromTemplate>
+      <pm:usePaymentPlanFromTemplate>false</pm:usePaymentPlanFromTemplate>
+      <pm:source>0</pm:source>
+      <pm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </pm:token>
+    </pm:CreateProjectFromTemplate>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="BatchContainerOfProjectApiReadModel[]">
+The result. Always a list: read the first item for operations that return one object.
+
+<Expandable title="BatchContainerOfProjectApiReadModel fields">
+
+<ResponseField name="Item" field-type="ProjectApiReadModel">
+ 
+</ResponseField>
+
+<ResponseField name="Status" field-type="string">
+Allowed values: `NotSet`, `Success`, `Invalid`, `Error`.
+</ResponseField>
+
+<ResponseField name="Message" field-type="string">
+ 
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <CreateProjectFromTemplateResponse xmlns="http://www.timelog.com/api/tlp/v1_8">
+      <CreateProjectFromTemplateResult xmlns:a="http://www.timelog.com/api/tlp/v1_2"
+                                       xmlns:b="http://api.timelog.com"
+                                       xmlns:c="http://www.timelog.com/api/tlp/v1_8"
+                                       xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <a:BatchContainerOfProjectApiReadModel>
+            <a:Item>
+              <b:Action>Original</b:Action>
+              <b:IsCustomFieldsLoaded>false</b:IsCustomFieldsLoaded>
+              <b:CustomFields i:nil="true"/>
+              <b:IsExternalKeysLoaded>false</b:IsExternalKeysLoaded>
+              <b:ExternalKeys i:nil="true"/>
+              <c:ID>3f2504e0-4f89-41d3-9a0c-305000000001</c:ID>
+              <c:ProjectID>1001</c:ProjectID>
+              <c:CustomerID>1001</c:CustomerID>
+              <c:Name>Example </c:Name>
+              <c:No>1001</c:No>
+              <c:Description>Example</c:Description>
+              <c:Link>Example</c:Link>
+              <c:StartDate>2026-10-01T00:00:00</c:StartDate>
+              <c:EndDate>2026-10-01T00:00:00</c:EndDate>
+              <c:IsInternalProject>false</c:IsInternalProject>
+              <c:ProjectManagerID>1001</c:ProjectManagerID>
+              <c:AccountManagerID>1001</c:AccountManagerID>
+              <c:DepartmentHandledByID>1001</c:DepartmentHandledByID>
+              <c:DepartmentOrderedByID>1001</c:DepartmentOrderedByID>
+              <c:TypeID>1001</c:TypeID>
+              <c:CategoryID>1001</c:CategoryID>
+              <c:StageID>1001</c:StageID>
+              <c:LegalEntityID>1001</c:LegalEntityID>
+              <c:PriceGroupID>1001</c:PriceGroupID>
+              <c:ExchangeRate>0</c:ExchangeRate>
+              <c:CurrencyID>1001</c:CurrencyID>
+              <c:MainContractID>1001</c:MainContractID>
+              <c:BudgetWorkHoursFixedPriceProject>0</c:BudgetWorkHoursFixedPriceProject>
+              <c:BudgetWorkHoursFixedPriceTasks>0</c:BudgetWorkHoursFixedPriceTasks>
+              <c:BudgetWorkHoursTimeAndMaterial>0</c:BudgetWorkHoursTimeAndMaterial>
+              <c:BudgetWorkAmountFixedPriceProject>0</c:BudgetWorkAmountFixedPriceProject>
+              <c:BudgetWorkAmountFixedPriceTasks>0</c:BudgetWorkAmountFixedPriceTasks>
+              <c:BudgetWorkAmountTimeAndMaterial>0</c:BudgetWorkAmountTimeAndMaterial>
+              <c:BudgetAmountExpenses>0</c:BudgetAmountExpenses>
+              <c:BudgetAmountTravelExpenses>0</c:BudgetAmountTravelExpenses>
+              <c:ProjectContactID>1001</c:ProjectContactID>
+              <c:PurchaseOrderNumber>1001</c:PurchaseOrderNumber>
+            </a:Item>
+            <a:Status>Success</a:Status>
+            <a:Message>Example</a:Message>
+          </a:BatchContainerOfProjectApiReadModel>
+        </a:Return>
+        <a:ReturnTypeDescription>BatchContainerOfProjectApiReadModel</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <b:APIMessage>
+            <b:Message>Duration of call was 0,0421337 sec.</b:Message>
+            <b:Severity>Message</b:Severity>
+            <b:ErrorCode>0</b:ErrorCode>
+          </b:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </CreateProjectFromTemplateResult>
+    </CreateProjectFromTemplateResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Invalid | 30053 | Unable to find a customer with the name \{customerName\}   (ByCustomerID: 'CustomerID on the Project is invalid. It should be greater then 0', same code 30053) | No customer with exactly this name. | — |
+| Invalid | 10002 | \{field\}, was null or empty | 'FirstName, was null or empty', 'Country, was null or empty'). | Send the named value. |
+| Invalid | 30051 | Unable to find a accountmanger with the initials \{accountManagerInitials\} | — | Send the initials of an existing employee. |
+| Invalid | 30054 | Unable to find a department with the number \{departmentNo\}. Use empty string for default. | CreateProjectFromTemplate: handledByDepartmentNo or orderedByDepartmentNo is not a department number. Empty = not set. | Send a department number or an empty string. |
+| Invalid | 30097 | Price list with id \{legalEntityID\} is not found | There is no default: the parameter is required. | Send LegalEntity.ID from GetLegalEntities. |
+| Invalid | 30098 | Price group \{priceGroupID\} is not part of price list with \{legalEntityID\} | CreateProjectFromTemplate: priceGroupID is not one of the legal entity's price groups. The text is code 30111's; the envelope carries code 30098. | Send PriceGroup.PriceGroupGUID of a price group of that legal entity. |
+| Invalid | 30052 | Unable to find a project template with the name \{projectTemplateName\} | CreateProjectFromTemplate: no project template has this name. Nothing is created; Return is empty. | — |
+| Error | 40001 | Error during call on TimeLog.API, Message 'This API endpoint is disabled due to the Currency Matrix feature being turned on. Please upgrade your Project API version to 1_8 or later.' | — | Move to the version named in the message. |
+| Invalid | 40004 | V1_\{n\} is deprecated. Please upgrade to V1_\{m\} or later. | Nothing is read or written and the token is NOT checked. | Call the same operation on the current version. |

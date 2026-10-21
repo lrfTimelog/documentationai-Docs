@@ -1,0 +1,446 @@
+---
+title: "GetExpensesRaw"
+description: "Reporting API: Returns the account's project expenses in a purchase-date range, with amounts, VAT, supplier, payment method and approval / payment / invoicing flags."
+---
+
+| | |
+|---|---|
+| API | Reporting API (raw extracts) |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/Service.asmx` |
+| SOAPAction | `http://www.timelog.com/ws/tlp/v4_4/GetExpensesRaw` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | `siteCode`, `apiID` and `apiPassword` as the first three parameters. See [Authentication](/reporting/guides/authentication) |
+| Changes data | No. Safe to retry. |
+| Paging | No: the whole result comes in one response. Narrow it with the filters. |
+
+## How it works
+
+Receipts are NOT returned. 9999-12-31).
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="siteCode" field-type="string" required="true">
+Your account's site code, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiID" field-type="string" required="true">
+The Reporting API ID, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiPassword" field-type="string" required="true">
+The Reporting API password, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="customerID" field-type="integer" required="true">
+Customer of the expense's PROJECT. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="projectID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+<ResponseField name="supplierCustomerID" field-type="integer" required="true">
+Supplier. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="employeeID" field-type="integer" required="true">
+Employee who registered the expense. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="employeeDepartmentID" field-type="integer" required="true">
+Department of the employee's CURRENT user profile, INCLUDING its sub-departments: matches when the given ID is in the department's ancestor path. The department at the time of the expense is not considered. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="expenseTypeID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+<ResponseField name="paymentMethodID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+<ResponseField name="startDate" field-type="dateTime" required="true">
+Purchase date >= value. ALWAYS applied - there is no 'no limit' value. An invalid value -> ASMX fault.
+</ResponseField>
+
+<ResponseField name="endDate" field-type="dateTime" required="true">
+Purchase date &lt;= value. Same rules as startDate.
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/Service.asmx HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetExpensesRaw"
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetExpensesRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:customerID>0</tlp:customerID>
+      <tlp:projectID>0</tlp:projectID>
+      <tlp:supplierCustomerID>0</tlp:supplierCustomerID>
+      <tlp:employeeID>0</tlp:employeeID>
+      <tlp:employeeDepartmentID>0</tlp:employeeDepartmentID>
+      <tlp:expenseTypeID>0</tlp:expenseTypeID>
+      <tlp:paymentMethodID>0</tlp:paymentMethodID>
+      <tlp:startDate>{startDate}</tlp:startDate>
+      <tlp:endDate>{endDate}</tlp:endDate>
+    </tlp:GetExpensesRaw>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/Service.asmx" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetExpensesRaw"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/Service.asmx"
+SOAP_ACTION = '"http://www.timelog.com/ws/tlp/v4_4/GetExpensesRaw"'
+
+envelope = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetExpensesRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:customerID>0</tlp:customerID>
+      <tlp:projectID>0</tlp:projectID>
+      <tlp:supplierCustomerID>0</tlp:supplierCustomerID>
+      <tlp:employeeID>0</tlp:employeeID>
+      <tlp:employeeDepartmentID>0</tlp:employeeDepartmentID>
+      <tlp:expenseTypeID>0</tlp:expenseTypeID>
+      <tlp:paymentMethodID>0</tlp:paymentMethodID>
+      <tlp:startDate>{startDate}</tlp:startDate>
+      <tlp:endDate>{endDate}</tlp:endDate>
+    </tlp:GetExpensesRaw>
+  </soap:Body>
+</soap:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=300,
+)
+rows = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The result is an XML document inside `GetExpensesRawResult`: a `tlp:Expenses` root with one `tlp:Expense` element per record. Check the [response format](/reporting/guides/responses-and-errors) first: the same slot also carries the empty result and errors.
+
+Order: Purchase date DESCENDING; ties in no defined order.
+
+<ResponseField name="tlp:Expense" field-type="Expense[]">
+One element per record. Fields without a value are left out of the element, so treat every field as optional.
+
+<Expandable title="Expense fields">
+
+<ResponseField name="ID" field-type="integer (attribute)">
+**Expense ID.** The expense's ID.
+</ResponseField>
+
+<ResponseField name="CustomerName" field-type="string">
+**Customer name.** Company name of the PROJECT's customer.
+</ResponseField>
+
+<ResponseField name="CustomerNo" field-type="string">
+**Customer number.** Customer number of the project's customer.
+</ResponseField>
+
+<ResponseField name="CustomerID" field-type="integer">
+**Customer ID.** The project's customer. customerID filters on the project's customer.
+</ResponseField>
+
+<ResponseField name="ProjectName" field-type="string">
+**Project name.** Project name, cleaned of characters XML forbids.
+</ResponseField>
+
+<ResponseField name="ProjectNo" field-type="string">
+**Project number.** The project's number.
+</ResponseField>
+
+<ResponseField name="ProjectID" field-type="integer">
+**Project ID.** Project the expense is registered on.
+</ResponseField>
+
+<ResponseField name="ContractName" field-type="string">
+**Contract name.** Name of the project sub-contract the expense is on.
+</ResponseField>
+
+<ResponseField name="ContractID" field-type="integer">
+**Contract ID.** Project sub-contract ID.
+</ResponseField>
+
+<ResponseField name="ExpenseType" field-type="string">
+**Expense type.** Expense category name; omitted when the expense has no category.
+</ResponseField>
+
+<ResponseField name="ExpenseTypeID" field-type="integer">
+**Expense type ID.** Expense category ID; omitted when no category.
+</ResponseField>
+
+<ResponseField name="SupplierCustomerName" field-type="string">
+**Supplier name.** Company name of the supplier; omitted when no supplier.
+</ResponseField>
+
+<ResponseField name="SupplierCustomerID" field-type="integer">
+**Supplier ID.** Supplier; omitted when none.
+</ResponseField>
+
+<ResponseField name="Date" field-type="string">
+**Purchase date.** Purchase date.
+</ResponseField>
+
+<ResponseField name="Amount" field-type="decimal">
+**Amount (expense currency).** Amount in the expense's own currency, as MONEY.
+</ResponseField>
+
+<ResponseField name="AmountSystemCurrency" field-type="decimal">
+**Amount incl. VAT (system currency).**
+</ResponseField>
+
+<ResponseField name="VAT" field-type="decimal">
+**VAT.** VAT amount as MONEY.
+</ResponseField>
+
+<ResponseField name="CurrencyABB" field-type="string">
+**Currency code.** Abbreviation of the expense's currency.
+</ResponseField>
+
+<ResponseField name="CurrencyRate" field-type="decimal">
+**Currency rate.** Exchange rate expense currency -> base reference currency, as MONEY.
+</ResponseField>
+
+<ResponseField name="PaymentMethod" field-type="string">
+**Payment method.** Payment method name.
+</ResponseField>
+
+<ResponseField name="PaymentMethodID" field-type="integer">
+**Payment method ID.** Payment method ID.
+</ResponseField>
+
+<ResponseField name="Comment" field-type="string">
+**Comment.** The expense text. Free text; NOT cleaned of XML-forbidden characters.
+</ResponseField>
+
+<ResponseField name="ApprovedStatus" field-type="integer">
+**Approval status (raw).** The full value set is not an enum in code.
+</ResponseField>
+
+<ResponseField name="IsControlled" field-type="integer">
+**Is controlled.** 1 when the expense has a control date, else 0.
+</ResponseField>
+
+<ResponseField name="IsPaid" field-type="integer">
+**Is paid out.** 1 when the expense has a payout date, else 0.
+</ResponseField>
+
+<ResponseField name="Billable" field-type="integer">
+**Billable.**
+</ResponseField>
+
+<ResponseField name="EmployeeFirstName" field-type="string">
+**Employee first name.** First name of the employee who registered the expense.
+</ResponseField>
+
+<ResponseField name="EmployeeLastName" field-type="string">
+**Employee last name.** Last name.
+</ResponseField>
+
+<ResponseField name="EmployeeInitials" field-type="string">
+**Employee initials.** Initials.
+</ResponseField>
+
+<ResponseField name="EmployeeID" field-type="integer">
+**Employee ID.** Employee who registered the expense.
+</ResponseField>
+
+<ResponseField name="UserID" field-type="integer">
+**User ID.**
+</ResponseField>
+
+<ResponseField name="RegAmount" field-type="decimal">
+**Registered amount.**
+</ResponseField>
+
+<ResponseField name="RegAmountCurrency" field-type="decimal">
+**Registered amount (other currency).** RegAmountCurrency as MONEY.
+</ResponseField>
+
+<ResponseField name="EstimatedAmount" field-type="decimal">
+**Adjusted amount.** Despite the wire name, the ADJUSTED amount as MONEY.
+</ResponseField>
+
+<ResponseField name="EstimatedAmountCurrency" field-type="decimal">
+**Adjusted amount (other currency).**
+</ResponseField>
+
+<ResponseField name="InvAmount" field-type="decimal">
+**Invoiced amount.**
+</ResponseField>
+
+<ResponseField name="InvAmountCurrency" field-type="decimal">
+**Invoiced amount (other currency).** InvAmountCurrency as MONEY.
+</ResponseField>
+
+<ResponseField name="ProfitRatio" field-type="decimal">
+**Profit ratio.**
+</ResponseField>
+
+<ResponseField name="InvoiceLineID" field-type="integer">
+**Invoice line ID.** Invoice line the expense was invoiced on; omitted when not invoiced. Wire name 'InvoiceLineID'.
+</ResponseField>
+
+<ResponseField name="SupplierInvoiceNo" field-type="string">
+**Supplier invoice number.** The supplier's invoice number; omitted when empty or NULL.
+</ResponseField>
+
+<ResponseField name="Created" field-type="string">
+**Created.**
+</ResponseField>
+
+<ResponseField name="ExpenseIsBooked" field-type="integer">
+**Is booked.** 1 when the expense is on an invoice line whose invoice has InvoiceStatus > 0, else 0.
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - data,HTTP 200 - no rows" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetExpensesRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetExpensesRawResult>
+        <tlp:Expenses xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Expense ID="1001">
+            <tlp:CustomerName>Example Customer A/S</tlp:CustomerName>
+            <tlp:CustomerNo>1001</tlp:CustomerNo>
+            <tlp:CustomerID>12</tlp:CustomerID>
+            <tlp:ProjectName>Example project</tlp:ProjectName>
+            <tlp:ProjectNo>1001</tlp:ProjectNo>
+            <tlp:ProjectID>12</tlp:ProjectID>
+            <tlp:ContractName>Example contract</tlp:ContractName>
+            <tlp:ContractID>12</tlp:ContractID>
+            <tlp:ExpenseType>Example text</tlp:ExpenseType>
+            <tlp:ExpenseTypeID>12</tlp:ExpenseTypeID>
+            <tlp:SupplierCustomerName>Example Customer A/S</tlp:SupplierCustomerName>
+            <tlp:SupplierCustomerID>12</tlp:SupplierCustomerID>
+            <tlp:Date>2026-10-01T00:00:00</tlp:Date>
+            <tlp:Amount>950.0000</tlp:Amount>
+            <tlp:AmountSystemCurrency>950.0000</tlp:AmountSystemCurrency>
+            <tlp:VAT>0.0000</tlp:VAT>
+            <tlp:CurrencyABB>DKK</tlp:CurrencyABB>
+            <tlp:CurrencyRate>950.0000</tlp:CurrencyRate>
+            <tlp:PaymentMethod>Example text</tlp:PaymentMethod>
+            <tlp:PaymentMethodID>12</tlp:PaymentMethodID>
+            <tlp:Comment>Example text</tlp:Comment>
+            <tlp:ApprovedStatus>1</tlp:ApprovedStatus>
+            <tlp:IsControlled>0</tlp:IsControlled>
+            <tlp:IsPaid>0</tlp:IsPaid>
+            <tlp:Billable>0</tlp:Billable>
+            <tlp:EmployeeFirstName>Anna</tlp:EmployeeFirstName>
+            <tlp:EmployeeLastName>Example</tlp:EmployeeLastName>
+            <tlp:EmployeeInitials>ABC</tlp:EmployeeInitials>
+            <tlp:EmployeeID>12</tlp:EmployeeID>
+            <tlp:UserID>12</tlp:UserID>
+            <tlp:RegAmount>950.0000</tlp:RegAmount>
+            <tlp:RegAmountCurrency>950.0000</tlp:RegAmountCurrency>
+            <tlp:EstimatedAmount>950.0000</tlp:EstimatedAmount>
+            <tlp:EstimatedAmountCurrency>950.0000</tlp:EstimatedAmountCurrency>
+            <tlp:InvAmount>950.0000</tlp:InvAmount>
+            <tlp:InvAmountCurrency>950.0000</tlp:InvAmountCurrency>
+            <tlp:ProfitRatio>0.0000</tlp:ProfitRatio>
+            <tlp:InvoiceLineID>12</tlp:InvoiceLineID>
+            <tlp:SupplierInvoiceNo>1001</tlp:SupplierInvoiceNo>
+            <tlp:Created>2026-10-01T00:00:00</tlp:Created>
+            <tlp:ExpenseIsBooked>0</tlp:ExpenseIsBooked>
+          </tlp:Expense>
+        </tlp:Expenses>
+      </GetExpensesRawResult>
+    </GetExpensesRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetExpensesRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetExpensesRawResult>
+        <tlp:Expenses resultEmpty="true" xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4"></tlp:Expenses>
+      </GetExpensesRawResult>
+    </GetExpensesRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</CodeGroup>
+
+### Example error
+
+Wrong credentials, or a call over plain HTTP:
+
+<CodeGroup tabs="HTTP 401 - access denied" show-lines={true}>
+
+```xml
+HTTP/1.1 401 Unauthorized
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetExpensesRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetExpensesRawResult>
+        <tlp:Errors xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Error>Access denied. Check siteCode, apiID, apiPassword and SSL settings</tlp:Error>
+        </tlp:Errors>
+      </GetExpensesRawResult>
+    </GetExpensesRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
+
+## Errors
+
+The errors every method can return (access denied, operation failed, invalid request) are listed once in [Responses and errors](/reporting/guides/responses-and-errors#errors).
+
+This method has no errors of its own beyond the shared ones.

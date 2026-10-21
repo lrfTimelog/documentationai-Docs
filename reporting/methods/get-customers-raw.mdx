@@ -1,0 +1,389 @@
+---
+title: "GetCustomersRaw"
+description: "Reporting API: Extract customers"
+---
+
+| | |
+|---|---|
+| API | Reporting API (raw extracts) |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/Service.asmx` |
+| SOAPAction | `http://www.timelog.com/ws/tlp/v4_4/GetCustomersRaw` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | `siteCode`, `apiID` and `apiPassword` as the first three parameters. See [Authentication](/reporting/guides/authentication) |
+| Changes data | No. Safe to retry. |
+| Paging | No: the whole result comes in one response. Narrow it with the filters. |
+
+## How it works
+
+SecondaryAccountManagerID is 0 when there is none. Includes company phone / e-mail and the free-text customer comment, which may hold personal data.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="siteCode" field-type="string" required="true">
+Your account's site code, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiID" field-type="string" required="true">
+The Reporting API ID, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiPassword" field-type="string" required="true">
+The Reporting API password, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="customerID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+<ResponseField name="customerStatusID" field-type="integer" required="true">
+Use `-1` for no filter. Customer status ID. NOTE: 0 - the 'all' value of GetCustomerCommentsRaw - IS sent here and matches nothing: the result is empty.
+</ResponseField>
+
+<ResponseField name="accountManagerID" field-type="integer" required="true">
+0 = no filter.
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/Service.asmx HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetCustomersRaw"
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetCustomersRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:customerID>0</tlp:customerID>
+      <tlp:customerStatusID>-1</tlp:customerStatusID>
+      <tlp:accountManagerID>0</tlp:accountManagerID>
+    </tlp:GetCustomersRaw>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/Service.asmx" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetCustomersRaw"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/Service.asmx"
+SOAP_ACTION = '"http://www.timelog.com/ws/tlp/v4_4/GetCustomersRaw"'
+
+envelope = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetCustomersRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:customerID>0</tlp:customerID>
+      <tlp:customerStatusID>-1</tlp:customerStatusID>
+      <tlp:accountManagerID>0</tlp:accountManagerID>
+    </tlp:GetCustomersRaw>
+  </soap:Body>
+</soap:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=300,
+)
+rows = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The result is an XML document inside `GetCustomersRawResult`: a `tlp:Customers` root with one `tlp:Customer` element per record. Check the [response format](/reporting/guides/responses-and-errors) first: the same slot also carries the empty result and errors.
+
+Order: Customer name, then customer number.
+
+<ResponseField name="tlp:Customer" field-type="CustomerRaw[]">
+One element per record. Fields without a value are left out of the element, so treat every field as optional.
+
+<Expandable title="Customer fields">
+
+<ResponseField name="ID" field-type="integer (attribute)">
+**Customer ID.**
+</ResponseField>
+
+<ResponseField name="GUID" field-type="string (attribute)">
+**Customer GUID.**
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+**Name.** Company name.
+</ResponseField>
+
+<ResponseField name="NickName" field-type="string">
+**Nickname.** Short name. NOT NULL with default '' - present, possibly as an empty element.
+</ResponseField>
+
+<ResponseField name="No" field-type="string">
+**Customer number.** Customer number.
+</ResponseField>
+
+<ResponseField name="CustomerStatusID" field-type="integer">
+**Customer status ID.** Customer status.
+</ResponseField>
+
+<ResponseField name="CustomerStatus" field-type="string">
+**Customer status.** Status name.
+</ResponseField>
+
+<ResponseField name="Address1" field-type="string">
+**Address line 1.** Visiting address line 1. Not the invoicing address.
+</ResponseField>
+
+<ResponseField name="Address2" field-type="string">
+**Address line 2.** Adresse2.
+</ResponseField>
+
+<ResponseField name="Address3" field-type="string">
+**Address line 3.** Adresse3.
+</ResponseField>
+
+<ResponseField name="ZipCode" field-type="string">
+**Postal code.** Postnummer.
+</ResponseField>
+
+<ResponseField name="City" field-type="string">
+**City.**
+</ResponseField>
+
+<ResponseField name="State" field-type="string">
+**State.** Stat.
+</ResponseField>
+
+<ResponseField name="Country" field-type="string">
+**Country.** English country name.
+</ResponseField>
+
+<ResponseField name="Phone" field-type="string">
+**Phone.** Company phone.
+</ResponseField>
+
+<ResponseField name="Fax" field-type="string">
+**Fax.** Company fax.
+</ResponseField>
+
+<ResponseField name="Email" field-type="string">
+**E-mail.** Company e-mail.
+</ResponseField>
+
+<ResponseField name="WebPage" field-type="string">
+**Web page.** WWW.
+</ResponseField>
+
+<ResponseField name="EanNo" field-type="string">
+**EAN number.** EAN number from the customer's invoice settings.
+</ResponseField>
+
+<ResponseField name="InvoiceTemplateID" field-type="integer">
+**Invoice template ID.** Invoice template of the customer's invoice settings.
+</ResponseField>
+
+<ResponseField name="VATNo" field-type="string">
+**VAT number.** VAT number.
+</ResponseField>
+
+<ResponseField name="Comment" field-type="string">
+**Comment.** Free-text customer comment. May contain personal data.
+</ResponseField>
+
+<ResponseField name="AccountManagerID" field-type="integer">
+**Account manager ID.** Omitted when none.
+</ResponseField>
+
+<ResponseField name="AccountManagerFullName" field-type="string">
+**Account manager name.** First + last name. Omitted when none.
+</ResponseField>
+
+<ResponseField name="AccountManagerInitials" field-type="string">
+**Account manager initials.** Initials.
+</ResponseField>
+
+<ResponseField name="SecondaryAccountManagerID" field-type="integer">
+**Secondary account manager ID.**
+</ResponseField>
+
+<ResponseField name="SecondaryAccountManagerFullName" field-type="string">
+**Secondary account manager name.** ; EMPTY element when none.
+</ResponseField>
+
+<ResponseField name="SecondaryAccountManagerInitials" field-type="string">
+**Secondary account manager initials.** ; empty element when none.
+</ResponseField>
+
+<ResponseField name="IndustryID" field-type="integer">
+**Industry ID.** Omitted when no industry.
+</ResponseField>
+
+<ResponseField name="IndustryName" field-type="string">
+**Industry.** Industry name.
+</ResponseField>
+
+<ResponseField name="CustomerSince" field-type="string">
+**Customer since.** kundedato, CONVERT - date only.
+</ResponseField>
+
+<ResponseField name="RegistrationNumber" field-type="string">
+**Registration number.** Company registration number.
+</ResponseField>
+
+<ResponseField name="CreatedAt" field-type="string">
+**Created at.** Creation timestamp of the record.
+</ResponseField>
+
+<ResponseField name="CreatedByEmployeeId" field-type="integer">
+**Created by (ID).** Creating employee.
+</ResponseField>
+
+<ResponseField name="CreatedBy" field-type="string">
+**Created by (initials).** Initials of the creating employee.
+</ResponseField>
+
+<ResponseField name="LastModifiedAt" field-type="string">
+**Last modified at.** Last-modification timestamp.
+</ResponseField>
+
+<ResponseField name="LastModifiedByEmployeeId" field-type="integer">
+**Last modified by (ID).** Last modifying employee.
+</ResponseField>
+
+<ResponseField name="LastModifiedBy" field-type="string">
+**Last modified by (initials).** Initials of the last modifying employee.
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - data,HTTP 200 - no rows" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetCustomersRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetCustomersRawResult>
+        <tlp:Customers xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Customer ID="1001" GUID="3F2504E0-4F89-41D3-9A0C-0305E82C3305">
+            <tlp:Name>Example </tlp:Name>
+            <tlp:NickName>Example nick</tlp:NickName>
+            <tlp:No>1001</tlp:No>
+            <tlp:CustomerStatusID>12</tlp:CustomerStatusID>
+            <tlp:CustomerStatus>Example text</tlp:CustomerStatus>
+            <tlp:Address1>Example text</tlp:Address1>
+            <tlp:Address2>Example text</tlp:Address2>
+            <tlp:Address3>Example text</tlp:Address3>
+            <tlp:ZipCode>1000</tlp:ZipCode>
+            <tlp:City>Copenhagen</tlp:City>
+            <tlp:State>Example text</tlp:State>
+            <tlp:Country>Example text</tlp:Country>
+            <tlp:Phone>+45 00 00 00 00</tlp:Phone>
+            <tlp:Fax>Example text</tlp:Fax>
+            <tlp:Email>anna.example@example.com</tlp:Email>
+            <tlp:WebPage>Example text</tlp:WebPage>
+            <tlp:EanNo>1001</tlp:EanNo>
+            <tlp:InvoiceTemplateID>12</tlp:InvoiceTemplateID>
+            <tlp:VATNo>1001</tlp:VATNo>
+            <tlp:Comment>Example text</tlp:Comment>
+            <tlp:AccountManagerID>12</tlp:AccountManagerID>
+            <tlp:AccountManagerFullName>Anna Example</tlp:AccountManagerFullName>
+            <tlp:AccountManagerInitials>ABC</tlp:AccountManagerInitials>
+            <tlp:SecondaryAccountManagerID>12</tlp:SecondaryAccountManagerID>
+            <tlp:SecondaryAccountManagerFullName>Anna Example</tlp:SecondaryAccountManagerFullName>
+            <tlp:SecondaryAccountManagerInitials>ABC</tlp:SecondaryAccountManagerInitials>
+            <tlp:IndustryID>12</tlp:IndustryID>
+            <tlp:IndustryName>Example industry</tlp:IndustryName>
+            <tlp:CustomerSince>2026-10-01T00:00:00</tlp:CustomerSince>
+            <tlp:RegistrationNumber>1001</tlp:RegistrationNumber>
+            <tlp:CreatedAt>2026-10-01T00:00:00</tlp:CreatedAt>
+            <tlp:CreatedByEmployeeId>12</tlp:CreatedByEmployeeId>
+            <tlp:CreatedBy>ABC</tlp:CreatedBy>
+            <tlp:LastModifiedAt>2026-10-01T00:00:00</tlp:LastModifiedAt>
+            <tlp:LastModifiedByEmployeeId>12</tlp:LastModifiedByEmployeeId>
+            <tlp:LastModifiedBy>ABC</tlp:LastModifiedBy>
+          </tlp:Customer>
+        </tlp:Customers>
+      </GetCustomersRawResult>
+    </GetCustomersRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetCustomersRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetCustomersRawResult>
+        <tlp:Customers resultEmpty="true" xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4"></tlp:Customers>
+      </GetCustomersRawResult>
+    </GetCustomersRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</CodeGroup>
+
+### Example error
+
+Wrong credentials, or a call over plain HTTP:
+
+<CodeGroup tabs="HTTP 401 - access denied" show-lines={true}>
+
+```xml
+HTTP/1.1 401 Unauthorized
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetCustomersRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetCustomersRawResult>
+        <tlp:Errors xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Error>Access denied. Check siteCode, apiID, apiPassword and SSL settings</tlp:Error>
+        </tlp:Errors>
+      </GetCustomersRawResult>
+    </GetCustomersRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
+
+## Errors
+
+The errors every method can return (access denied, operation failed, invalid request) are listed once in [Responses and errors](/reporting/guides/responses-and-errors#errors).
+
+This method has no errors of its own beyond the shared ones.

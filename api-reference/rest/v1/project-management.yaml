@@ -17,10 +17,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -34,12 +32,12 @@ paths:
       operationId: listContractModels
       summary: List contract models
       description: |-
-        Lists the contract (payment) models enabled in the tenant.
+        Lists the contract (payment) models enabled in the account.
 
-        The value set for a contract's model. The models are fixed in code (ContractModelType); the list contains the ones whose tenant feature is on (for example ContractModelPrepaidServices). Names are enum member names, not UI titles. No paging: the whole list (at most 8 entries) is returned.
+        The value set for a contract's model. The models are fixed in code (ContractModelType); the list contains the ones whose account feature is on (for example ContractModelPrepaidServices). Names are enum member names, not UI titles. No paging: the whole list (at most 8 entries) is returned.
 
         **Use it to:**
-        - Check which contract models the tenant has enabled before creating contracts
+        - Check which contract models the account has enabled before creating contracts
 
         **Behaviour:**
         - Idempotent.
@@ -127,7 +125,7 @@ paths:
       operationId: listProjectCategories
       summary: List project categories
       description: |-
-        Lists the tenant's project categories, by name.
+        Lists the account's project categories, by name.
 
         The value set for ProjectCategoryID on project create and update. Active and inactive categories are both returned. The list is not gated by the ProjectCategory feature; that feature only decides whether project create / update write the field (see ProjectCreate).
 
@@ -235,7 +233,7 @@ paths:
       operationId: listProjectTypes
       summary: List project types
       description: |-
-        Lists the tenant's project types, by name.
+        Lists the account's project types, by name.
 
         The value set for ProjectTypeID on project create and update (ProjectCreate requires it). Active and inactive types are both returned; filter IsActive client-side.
 
@@ -319,7 +317,7 @@ paths:
       operationId: listTaskTypes
       summary: List task types
       description: |-
-        Lists the tenant's task types, by name.
+        Lists the account's task types, by name.
 
         The value set for TaskTypeID on task create and update. Active and inactive types are both returned; filter IsActive client-side. One task type with a NULL GUID makes the whole list fail.
 
@@ -405,7 +403,7 @@ paths:
       description: |-
         Deletes an allocation that has no time registrations.
 
-        Removes a user's allocation from a task, through the same path as every UI delete: the allocation and its ETC rows go, the task's HasAllocations flag is cleared when it was the last allocation, the task dates are re-synced to the remaining allocations when the tenant uses that, and the project is re-saved. Allocations with time registrations or a running time tracker are refused (400). Answers 200 with `null`. Requires project privileges on the task's project. Not atomic.
+        Removes a user's allocation from a task, through the same path as every UI delete: the allocation and its ETC rows go, the task's HasAllocations flag is cleared when it was the last allocation, the task dates are re-synced to the remaining allocations when the account uses that, and the project is re-saved. Allocations with time registrations or a running time tracker are refused (400). Answers 200 with `null`. Requires project privileges on the task's project. Not atomic.
 
         **Use it to:**
         - Un-staff a user who never registered on the task (resource-planning sync)
@@ -420,8 +418,6 @@ paths:
         - Safe to retry only under a condition. Treat a 404 on retry as 'already deleted'.
         - Side effect: Raises the allocation-deleted event with EventAction BothAuditLogAndEmail (audit log + notification e-mail).
         - Side effect: When it was the task's last allocation (any status), refreshes the task's HasAllocations flag without a task event.
-        - Side effect: With ChangeTaskDateBasedAllocation on, marks the task dirty so its dates follow the remaining allocations in the project save.
-        - Side effect: Re-saves the project and evicts it from the application cache.
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v1/task/{taskID}/allocation`, `POST /v1/allocation/{allocationID}/validate-delete`
@@ -493,7 +489,7 @@ paths:
 
         **Use it to:**
         - Read back an allocation before changing it (GET-modify-PUT)
-        - Resolve the AllocationID returned in a 409 from POST /v1/task/{taskID}/allocation
+        - Resolve the AllocationID returned in a 409 from POST /v1/task/&#123;taskID&#125;/allocation
 
         **Not for:**
         - All allocations of a task → `GET /v1/task/{taskID}/allocation`
@@ -578,12 +574,12 @@ paths:
       description: |-
         Changes the planned hours, hourly rate and/or period of an existing allocation and returns it.
 
-        Partial update (AllocationUpdate): only AllocatedHours, HourlyRateID, StartDate and EndDate can change, and at least one must be sent. Dates need the tenant feature 'Enable start and end date on allocations' and are refused on allocations of recurring tasks. A changed HourlyRateID must be an active rate of the task's contract; an unchanged one is not re-checked. Runs the same follow-up as the project-plan save: the task's dates may follow the allocation span, the project is re-saved, subscribed project managers are e-mailed. Answers 200 with the allocation as stored (AllocationRead). Requires project privileges on the task's project. Not atomic.
+        Partial update (AllocationUpdate): only AllocatedHours, HourlyRateID, StartDate and EndDate can change, and at least one must be sent. Dates need the account feature 'Enable start and end date on allocations' and are refused on allocations of recurring tasks. A changed HourlyRateID must be an active rate of the task's contract; an unchanged one is not re-checked. Runs the same follow-up as the project-plan save: the task's dates may follow the allocation span, the project is re-saved, subscribed project managers are e-mailed. Answers 200 with the allocation as stored (AllocationRead). Requires project privileges on the task's project. Not atomic.
 
         **Use it to:**
         - Re-plan hours of a staffed user from a resource-planning or PSA tool
         - Move an allocation's period (AllocationDates feature)
-        - Resolve a 409 from POST /v1/task/{taskID}/allocation by updating the existing allocation
+        - Resolve a 409 from POST /v1/task/&#123;taskID&#125;/allocation by updating the existing allocation
 
         **Not for:**
         - Allocating a new user → `POST /v1/task/{taskID}/allocation`
@@ -598,7 +594,6 @@ paths:
         - Sending the same values again stores the same state; it still runs a full save (audit / e-mail event, project save).
         - Safe to retry only under a condition. Safe after a 2xx or a timeout. After a 400 from the project save (allocation-save-violation) or a 500, the allocation may already be updated — re-read it first.
         - Side effect: Updates the allocation row with an audit-log + e-mail event (EventAction BothAuditLogAndEmail, like the project-plan UI save), so subscribed project managers are mailed.
-        - Side effect: With ChangeTaskDateBasedAllocation on and an allocation span that differs from the task dates, the task is marked dirty so its dates follow the allocations in the project save.
         - Side effect: With AutomaticallyCloseTaskWhenLastAllocationIsClosed on: if the task is In progress and has no active (not completed) allocation, the task is set to Completed, the project saved and close notifications sent — called on every update, whatever changed.
         - Side effect: Re-saves the project.
         - Side effect: Dates changed, no task date sync, AllocationDates on: sends the 'allocation exceeds task dates' notification when the period goes beyond the task.
@@ -628,7 +623,7 @@ paths:
       responses:
         '200':
           description: The object, wrapped in the TAF envelope (`Properties`). The allocation mapped from the saved domain
-            object (a re-read would hit the per-request cache). HourlyRateCurrencyAbb is the project's currency.
+            object. HourlyRateCurrencyAbb is the project's currency.
           content:
             application/json:
               schema:
@@ -837,7 +832,7 @@ paths:
 
             Order: ContractID descending (newest first).
 
-            Empty result: 200 with empty Entities — also for a projectID that does not exist (the procedure always returns both result sets).
+            Empty result: 200 with empty Entities — also for a projectID that does not exist.
           content:
             application/json:
               schema:
@@ -993,9 +988,9 @@ paths:
 
             - **Code 37931** — ContractOwnerUserID is a deactivated user. — Fix: Choose an active user as contract owner.
 
-            - **Code 37957** — The tenant feature ContractTypeIsRequired is on and ContractTypeID is 0 or negative. Checked after project and owner, before the contract is built. — Fix: Send the ContractTypeID of one of the tenant's contract types.
+            - **Code 37957** — The account feature ContractTypeIsRequired is on and ContractTypeID is 0 or negative. Checked after project and owner, before the contract is built. — Fix: Send the ContractTypeID of one of the account's contract types.
 
-            - **Code 37958** — ContractTypeID > 0 is not a contract type of the tenant. Raised by the contract's save business rules before the insert, so nothing is written. — Fix: Use an existing contract type ID, or 0 when the feature ContractTypeIsRequired is off.
+            - **Code 37958** — ContractTypeID > 0 is not a contract type of the account. Raised by the contract's save business rules before the insert, so nothing is written. — Fix: Use an existing contract type ID, or 0 when the feature ContractTypeIsRequired is off.
 
             - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: Other save rules of the contract (ValidateSaveBusinessRules, contract customers) or of the project save.
           content:
@@ -1102,9 +1097,9 @@ paths:
 
             - **Code 37931** — ContractOwnerUserID is a deactivated user. — Fix: Choose an active user as contract owner.
 
-            - **Code 37957** — The tenant feature ContractTypeIsRequired is on and ContractTypeID is 0 or negative. Checked after project and owner, before the contract is built. — Fix: Send the ContractTypeID of one of the tenant's contract types.
+            - **Code 37957** — The account feature ContractTypeIsRequired is on and ContractTypeID is 0 or negative. Checked after project and owner, before the contract is built. — Fix: Send the ContractTypeID of one of the account's contract types.
 
-            - **Code 37958** — ContractTypeID > 0 is not a contract type of the tenant. Raised by the contract's save business rules before the insert, so nothing is written. — Fix: Use an existing contract type ID, or 0 when the feature ContractTypeIsRequired is off.
+            - **Code 37958** — ContractTypeID > 0 is not a contract type of the account. Raised by the contract's save business rules before the insert, so nothing is written. — Fix: Use an existing contract type ID, or 0 when the feature ContractTypeIsRequired is off.
 
             - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: Other save rules of the contract (ValidateSaveBusinessRules, contract customers) or of the project save.
           content:
@@ -1210,9 +1205,9 @@ paths:
 
             - **Code 37931** — ContractOwnerUserID is a deactivated user. — Fix: Choose an active user as contract owner.
 
-            - **Code 37957** — The tenant feature ContractTypeIsRequired is on and ContractTypeID is 0 or negative. Checked after project and owner, before the contract is built. — Fix: Send the ContractTypeID of one of the tenant's contract types.
+            - **Code 37957** — The account feature ContractTypeIsRequired is on and ContractTypeID is 0 or negative. Checked after project and owner, before the contract is built. — Fix: Send the ContractTypeID of one of the account's contract types.
 
-            - **Code 37958** — ContractTypeID > 0 is not a contract type of the tenant. Raised by the contract's save business rules before the insert, so nothing is written. — Fix: Use an existing contract type ID, or 0 when the feature ContractTypeIsRequired is off.
+            - **Code 37958** — ContractTypeID > 0 is not a contract type of the account. Raised by the contract's save business rules before the insert, so nothing is written. — Fix: Use an existing contract type ID, or 0 when the feature ContractTypeIsRequired is off.
 
             - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: Other save rules of the contract (ValidateSaveBusinessRules, contract customers) or of the project save.
           content:
@@ -1314,9 +1309,9 @@ paths:
 
             - **Code 37931** — ContractOwnerUserID is a deactivated user. — Fix: Choose an active user as contract owner.
 
-            - **Code 37957** — The tenant feature ContractTypeIsRequired is on and ContractTypeID is 0 or negative. Checked after project and owner, before the contract is built. — Fix: Send the ContractTypeID of one of the tenant's contract types.
+            - **Code 37957** — The account feature ContractTypeIsRequired is on and ContractTypeID is 0 or negative. Checked after project and owner, before the contract is built. — Fix: Send the ContractTypeID of one of the account's contract types.
 
-            - **Code 37958** — ContractTypeID > 0 is not a contract type of the tenant. Raised by the contract's save business rules before the insert, so nothing is written. — Fix: Use an existing contract type ID, or 0 when the feature ContractTypeIsRequired is off.
+            - **Code 37958** — ContractTypeID > 0 is not a contract type of the account. Raised by the contract's save business rules before the insert, so nothing is written. — Fix: Use an existing contract type ID, or 0 when the feature ContractTypeIsRequired is off.
 
             - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: Other save rules of the contract (ValidateSaveBusinessRules, contract customers) or of the project save.
           content:
@@ -1418,9 +1413,9 @@ paths:
 
             - **Code 37931** — ContractOwnerUserID is a deactivated user. — Fix: Choose an active user as contract owner.
 
-            - **Code 37957** — The tenant feature ContractTypeIsRequired is on and ContractTypeID is 0 or negative. Checked after project and owner, before the contract is built. — Fix: Send the ContractTypeID of one of the tenant's contract types.
+            - **Code 37957** — The account feature ContractTypeIsRequired is on and ContractTypeID is 0 or negative. Checked after project and owner, before the contract is built. — Fix: Send the ContractTypeID of one of the account's contract types.
 
-            - **Code 37958** — ContractTypeID > 0 is not a contract type of the tenant. Raised by the contract's save business rules before the insert, so nothing is written. — Fix: Use an existing contract type ID, or 0 when the feature ContractTypeIsRequired is off.
+            - **Code 37958** — ContractTypeID > 0 is not a contract type of the account. Raised by the contract's save business rules before the insert, so nothing is written. — Fix: Use an existing contract type ID, or 0 when the feature ContractTypeIsRequired is off.
 
             - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: Other save rules of the contract (ValidateSaveBusinessRules, contract customers) or of the project save.
           content:
@@ -1529,7 +1524,7 @@ paths:
       description: |-
         Dry run of the FixedPriceBasic contract create (model 2) — runs the pre-insert checks, writes nothing.
 
-        Takes the same body as `POST /v1/contract/create-fixed-price-basic-contract` and answers 200 with the literal JSON `null` when the contract would pass create's PRE-INSERT checks. A 200 is therefore necessary but not sufficient: create can still fail. No side effects (no database write, no event).
+        Takes the same body as `POST /v1/contract/create-fixed-price-basic-contract` and answers 200 with the literal JSON `null` when the contract would pass create's PRE-INSERT checks. A 200 is therefore necessary but not sufficient: create can still fail. No side effects.
 
         **Use it to:**
         - Check an imported contract line (owner, project, amounts, decimals) before creating it
@@ -1602,7 +1597,7 @@ paths:
 
             - **Code 37931** — ContractOwnerUserID is a deactivated user. — Fix: Choose an active user as contract owner.
 
-            - **Code 37958** — ContractTypeID > 0 is not a contract type of the tenant. Raised by the contract's save business rules before the insert, so nothing is written. — Fix: Use an existing contract type ID, or 0 when the feature ContractTypeIsRequired is off.
+            - **Code 37958** — ContractTypeID > 0 is not a contract type of the account. Raised by the contract's save business rules before the insert, so nothing is written. — Fix: Use an existing contract type ID, or 0 when the feature ContractTypeIsRequired is off.
 
             - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: Other violations of the contract's domain Validate().
           content:
@@ -1617,7 +1612,7 @@ paths:
       description: |-
         Dry run of the PrepaidServices contract create (model 5) — runs the pre-insert checks, writes nothing.
 
-        Takes the same body as `POST /v1/contract/create-prepaid-services-contract` and answers 200 with the literal JSON `null` when the contract would pass create's PRE-INSERT checks. A 200 is therefore necessary but not sufficient: create can still fail. No side effects (no database write, no event).
+        Takes the same body as `POST /v1/contract/create-prepaid-services-contract` and answers 200 with the literal JSON `null` when the contract would pass create's PRE-INSERT checks. A 200 is therefore necessary but not sufficient: create can still fail. No side effects.
 
         **Use it to:**
         - Check an imported contract line (owner, project, amounts, decimals) before creating it
@@ -1691,7 +1686,7 @@ paths:
 
             - **Code 37931** — ContractOwnerUserID is a deactivated user. — Fix: Choose an active user as contract owner.
 
-            - **Code 37958** — ContractTypeID > 0 is not a contract type of the tenant. Raised by the contract's save business rules before the insert, so nothing is written. — Fix: Use an existing contract type ID, or 0 when the feature ContractTypeIsRequired is off.
+            - **Code 37958** — ContractTypeID > 0 is not a contract type of the account. Raised by the contract's save business rules before the insert, so nothing is written. — Fix: Use an existing contract type ID, or 0 when the feature ContractTypeIsRequired is off.
 
             - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: Other violations of the contract's domain Validate().
           content:
@@ -1706,7 +1701,7 @@ paths:
       description: |-
         Dry run of the TaskDrivenRevenue contract create (model 6) — runs the pre-insert checks, writes nothing.
 
-        Takes the same body as `POST /v1/contract/create-task-driven-revenue-contract` and answers 200 with the literal JSON `null` when the contract would pass create's PRE-INSERT checks. A 200 is therefore necessary but not sufficient: create can still fail. No side effects (no database write, no event).
+        Takes the same body as `POST /v1/contract/create-task-driven-revenue-contract` and answers 200 with the literal JSON `null` when the contract would pass create's PRE-INSERT checks. A 200 is therefore necessary but not sufficient: create can still fail. No side effects.
 
         **Use it to:**
         - Check an imported contract line (owner, project, amounts, decimals) before creating it
@@ -1779,7 +1774,7 @@ paths:
 
             - **Code 37931** — ContractOwnerUserID is a deactivated user. — Fix: Choose an active user as contract owner.
 
-            - **Code 37958** — ContractTypeID > 0 is not a contract type of the tenant. Raised by the contract's save business rules before the insert, so nothing is written. — Fix: Use an existing contract type ID, or 0 when the feature ContractTypeIsRequired is off.
+            - **Code 37958** — ContractTypeID > 0 is not a contract type of the account. Raised by the contract's save business rules before the insert, so nothing is written. — Fix: Use an existing contract type ID, or 0 when the feature ContractTypeIsRequired is off.
 
             - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: Other violations of the contract's domain Validate().
           content:
@@ -1794,7 +1789,7 @@ paths:
       description: |-
         Dry run of the TimeMaterialAccountEndBalancing contract create (model 3) — runs the pre-insert checks, writes nothing.
 
-        Takes the same body as `POST /v1/contract/create-time-material-account-end-balancing-contract` and answers 200 with the literal JSON `null` when the contract would pass create's PRE-INSERT checks. A 200 is therefore necessary but not sufficient: create can still fail. No side effects (no database write, no event).
+        Takes the same body as `POST /v1/contract/create-time-material-account-end-balancing-contract` and answers 200 with the literal JSON `null` when the contract would pass create's PRE-INSERT checks. A 200 is therefore necessary but not sufficient: create can still fail. No side effects.
 
         **Use it to:**
         - Check an imported contract line (owner, project, amounts, decimals) before creating it
@@ -1863,7 +1858,7 @@ paths:
 
             - **Code 37931** — ContractOwnerUserID is a deactivated user. — Fix: Choose an active user as contract owner.
 
-            - **Code 37958** — ContractTypeID > 0 is not a contract type of the tenant. Raised by the contract's save business rules before the insert, so nothing is written. — Fix: Use an existing contract type ID, or 0 when the feature ContractTypeIsRequired is off.
+            - **Code 37958** — ContractTypeID > 0 is not a contract type of the account. Raised by the contract's save business rules before the insert, so nothing is written. — Fix: Use an existing contract type ID, or 0 when the feature ContractTypeIsRequired is off.
 
             - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: Other violations of the contract's domain Validate().
           content:
@@ -1878,7 +1873,7 @@ paths:
       description: |-
         Dry run of the TimeMaterialBasic contract create (model 1) — runs the pre-insert checks, writes nothing.
 
-        Takes the same body as `POST /v1/contract/create-time-material-basic-contract` and answers 200 with the literal JSON `null` when the contract would pass create's PRE-INSERT checks. A 200 is therefore necessary but not sufficient: create can still fail. No side effects (no database write, no event).
+        Takes the same body as `POST /v1/contract/create-time-material-basic-contract` and answers 200 with the literal JSON `null` when the contract would pass create's PRE-INSERT checks. A 200 is therefore necessary but not sufficient: create can still fail. No side effects.
 
         **Use it to:**
         - Check an imported contract line (owner, project, amounts, decimals) before creating it
@@ -1947,7 +1942,7 @@ paths:
 
             - **Code 37931** — ContractOwnerUserID is a deactivated user. — Fix: Choose an active user as contract owner.
 
-            - **Code 37958** — ContractTypeID > 0 is not a contract type of the tenant. Raised by the contract's save business rules before the insert, so nothing is written. — Fix: Use an existing contract type ID, or 0 when the feature ContractTypeIsRequired is off.
+            - **Code 37958** — ContractTypeID > 0 is not a contract type of the account. Raised by the contract's save business rules before the insert, so nothing is written. — Fix: Use an existing contract type ID, or 0 when the feature ContractTypeIsRequired is off.
 
             - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: Other violations of the contract's domain Validate().
           content:
@@ -1960,8 +1955,6 @@ paths:
       operationId: validateUpdateRecurringContractPaymentPlanAmount
       summary: Validate a payment-plan amount update of a recurring contract
       description: |-
-        Dry run of the recurring payment-plan amount update — applies the amount in memory, runs the contract rules, writes nothing.
-
         Takes the same body as `POST /v1/contract/update-recurring-contract-payment-plan-amount` and answers 200 with the literal JSON `null`. A non-recurring contract answers 200 as well.
 
         **Use it to:**
@@ -1977,7 +1970,7 @@ paths:
         **Behaviour:**
         - Idempotent.
         - Safe to retry. Writes nothing; repeatable.
-        - Side effect: None persisted. The contract object loaded through the application cache is modified in memory (amount, BudgetWorkAmount) and becomes dirty; a dirty cached object is refetched on its next read, so the unsaved values should not leak (see gaps).
+        - Side effect: None persisted.
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v1/project/get-all`, `GET /v1/contract`
@@ -2035,7 +2028,7 @@ paths:
       description: |-
         Returns one contract of a project — model, status, type and expense/mileage defaults.
 
-        Reads one contract by its integer ID and returns it as ContractRead with a self link and the ten contract TAF actions. The read model is thin: it has no budgets, amounts, dates or owner. An unknown ID is a 500 with Code 100 and no detail, not a 404.
+        Reads one contract by its integer ID and returns it as ContractRead with a self link and the ten contract TAF actions. An unknown ID is a 500 with Code 100 and no detail, not a 404.
 
         **Use it to:**
         - Resolve the ProjectSubContractID of a payment, expense or mileage registration to its contract model and status
@@ -2043,7 +2036,6 @@ paths:
 
         **Not for:**
         - All contracts of a project → `GET /v1/contract`
-        - Budgets, amounts or the payment plan of a contract — not exposed by this read model; instalments → `GET /v1/payment`
 
         **Behaviour:**
         - Idempotent.
@@ -2417,7 +2409,7 @@ paths:
       description: |-
         Deletes a contract payment (billing-plan instalment) that is not on an invoice.
 
-        Removes one instalment from its project's billing plan and re-saves the project. Refused (400) when the contract model does not allow deleting payments, or when the instalment is booked, on a draft invoice, or (unbooked) has auto expenses on a draft invoice. Deleting a task's fixed-price instalment switches that task's payment recognition to the overall payment plan. Answers 200 with `null`. Requires access to the payment's project (same gate as GET /v1/payment/{paymentID}).
+        Removes one instalment from its project's billing plan and re-saves the project. Refused (400) when the contract model does not allow deleting payments, or when the instalment is booked, on a draft invoice, or (unbooked) has auto expenses on a draft invoice. Deleting a task's fixed-price instalment switches that task's payment recognition to the overall payment plan. Answers 200 with `null`. Requires access to the payment's project (same gate as GET /v1/payment/&#123;paymentID&#125;).
 
         **Use it to:**
         - Remove an instalment that was created by mistake or is no longer agreed
@@ -2499,7 +2491,7 @@ paths:
       description: |-
         Returns one contract payment (billing-plan instalment) by its integer PaymentID, if the caller may see its project.
 
-        Reads one instalment (PaymentRead). Unknown IDs and instalments without a project answer 404. The caller needs access to the payment's project under the same rule as GET /v1/project/{projectID}.
+        Reads one instalment (PaymentRead). Unknown IDs and instalments without a project answer 404. The caller needs access to the payment's project under the same rule as GET /v1/project/&#123;projectID&#125;.
 
         **Use it to:**
         - Read back a payment after POST /v1/payment
@@ -2576,7 +2568,7 @@ paths:
       description: |-
         Changes the name, amount, invoice date and/or quantity of a contract payment (billing-plan instalment) and returns it.
 
-        Partial update (PaymentUpdate): only the fields you send change; an empty object is accepted and changes nothing. Quantity recalculates the amount from the unit rate; Amount recalculates the unit rate (and wins when both are sent); a new invoice date refreshes the exchange rate to system currency. Refused (400) for payments without a contract, booked or on a draft invoice, on contract models that do not allow editing payments, for an amount that cannot be derived (quantity 0, discount 100 %), and for an invoice-date change on a Time & Material Basic contract. Answers 200 with the payment re-read as PaymentRead. Requires access to the payment's project (same gate as GET /v1/payment/{paymentID}).
+        Partial update (PaymentUpdate): only the fields you send change; an empty object is accepted and changes nothing. Quantity recalculates the amount from the unit rate; Amount recalculates the unit rate (and wins when both are sent); a new invoice date refreshes the exchange rate to system currency. Refused (400) for payments without a contract, booked or on a draft invoice, on contract models that do not allow editing payments, for an amount that cannot be derived (quantity 0, discount 100 %), and for an invoice-date change on a Time & Material Basic contract. Answers 200 with the payment re-read as PaymentRead. Requires access to the payment's project (same gate as GET /v1/payment/&#123;paymentID&#125;).
 
         **Use it to:**
         - Re-schedule an instalment (InvoiceDate) or change its amount from an ERP / PSA billing plan
@@ -2593,7 +2585,7 @@ paths:
 
         **Behaviour:**
         - Idempotent.
-        - Same body → same stored values. An empty object saves nothing (the payment is not dirty).
+        - Same body → same stored values. An empty object saves nothing.
         - Safe to retry.
         - Side effect: Updates the instalment row and its budget periods (recurrence contracts).
         - Side effect: Recalculates dependants by contract type: fixed-price recurrence (rate / quantity changes), task-driven revenue (task + contract), fixed-price basic (contract), multi-customer split, continuous item invoicing (disbursements), contract payment-plan sync, invoicing potential, registration currency data, pending-booking status.
@@ -2623,8 +2615,8 @@ paths:
               $ref: '#/components/schemas/PaymentUpdate.update'
       responses:
         '200':
-          description: The object, wrapped in the TAF envelope (`Properties`). The payment re-read through GET /v1/payment/{paymentID}
-            (read model), with its self link and TAF actions.
+          description: The object, wrapped in the TAF envelope (`Properties`). The payment re-read through GET /v1/payment/{paymentID},
+            with its self link and TAF actions.
           content:
             application/json:
               schema:
@@ -2863,14 +2855,13 @@ paths:
       description: |-
         Creates an employee expense (out-of-pocket cost to be reimbursed) on a project, for the caller or on behalf of another user.
 
-        Registers an expense an employee paid — amount, VAT, currency, expense type, payment method — on a project, optionally billable to its customer. The contract is the one you send, or the project's default expense contract. On success the API does not return the expense: it answers 302 with a Location header pointing to GET /v1/employee-expense/{id}. Receipts cannot be attached here.
+        Registers an expense an employee paid — amount, VAT, currency, expense type, payment method — on a project, optionally billable to its customer. The contract is the one you send, or the project's default expense contract. On success the API does not return the expense: it answers 302 with a Location header pointing to GET /v1/employee-expense/&#123;id&#125;. Receipts cannot be attached here.
 
         **Use it to:**
         - Expense app submitting a receipt line after the user picked a project from search-for-expense-travel-registration-…
-        - Importing card transactions from a corporate-card provider on behalf of employees (UserID)
 
         **Not for:**
-        - Expenses paid by the company on a project (project expenses) — a different Expenses operation (not curated)
+        - Expenses paid by the company on a project (project expenses) — a different Expenses operation
 
         **Rules across fields:**
         - R1: ProjectSubContractID, when > 0, must belong to ProjectID, be Active and not be prepaid services.
@@ -2882,9 +2873,9 @@ paths:
         - Not idempotent.
         - Not safe to retry blindly. Each call creates a new expense with a new GUID; nothing deduplicates. After a lost response, check the owner's expenses before retrying.
         - Duplicates: Not deduplicated.
-        - Side effect: Creates the employee expense (category Employee, interface WebApi) with the currency conversion rates to the project's and the owner's legal-entity currencies.
+        - Side effect: Creates the employee expense with the currency conversion rates to the project's and the owner's legal-entity currencies.
         - Side effect: Writes registration currency data for the expense.
-        - On failure: No transaction scope wraps the insert and the follow-up writes. A failure after the insert — e.g. in the currency-data notification or the read-back — returns 500 while the expense row stays (src_only).
+        - On failure: No transaction scope wraps the insert and the follow-up writes. A failure after the insert — e.g. in the currency-data notification or the read-back — returns 500 while the expense row stays.
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v1/project-header/search-for-expense-travel-registration-order-by-recent-registration`, `GET /v1/currency/{status}`
@@ -2901,7 +2892,7 @@ paths:
       responses:
         '302':
           description: |-
-            Success without content: HTTP 204 with an empty body. Found. Location = the URL of GET /v1/employee-expense/{employeeExpenseID} (route EmployeeExpenseGetByID) for the new expense; no body. Read the new ID from the Location path. A client that follows the redirect receives the expense (EmployeeExpenseRead, not curated yet) — provided it re-sends the Authorization header.
+            Success without content: HTTP 204 with an empty body. Found. Location = the URL of GET /v1/employee-expense/{employeeExpenseID} (route EmployeeExpenseGetByID) for the new expense; no body. Read the new ID from the Location path. A client that follows the redirect receives the expense — provided it re-sends the Authorization header.
 
             Order: none
 
@@ -2959,10 +2950,6 @@ paths:
             - **Code 31140** — The contract the expense is booked on is fixed-price and IsBillable is false. — Fix: Send IsBillable true for fixed-price contracts.
 
             - **Code 37018** — PaymentMethodID does not exist. — Fix: Use an existing payment method ID.
-
-            - **Code 37699** — Date falls in a closed accounting period of the owner's employee projection. — Fix: Use a date in an open period.
-
-            - **Code 38022** — The owner has no employee projection on Date (for example a date before the employment start). — Fix: Use a date inside the owner's employment.
           content:
             application/json:
               schema:
@@ -2975,14 +2962,14 @@ paths:
       description: |-
         Creates a mileage (car travel) registration on a project, for the caller or on behalf of another user.
 
-        Registers a trip by car on a project so it is reimbursed to the employee and, when billable, invoiced to the customer at the mileage rate. The contract is the one you send, or the project's default mileage contract. On success the API does not return the registration: it answers 302 with a Location header pointing to GET /v1/mileage-registration/{id}.
+        Registers a trip by car on a project so it is reimbursed to the employee and, when billable, invoiced to the customer at the mileage rate. The contract is the one you send, or the project's default mileage contract. On success the API does not return the registration: it answers 302 with a Location header pointing to GET /v1/mileage-registration/&#123;id&#125;.
 
         **Use it to:**
         - Mobile or expense app posting a trip after the user picked a project from search-for-expense-travel-registration-…
         - An assistant or admin system registering mileage for other employees (UserID)
 
         **Not for:**
-        - Travel TIME (hours) — use a time registration; the Expenses route POST /v1/mileage-registration can create both together (not curated yet)
+        - Travel TIME (hours) — use a time registration; the Expenses route POST /v1/mileage-registration can create both together
 
         **Rules across fields:**
         - R1: ProjectSubContractID, when > 0, must belong to ProjectID.
@@ -2994,7 +2981,7 @@ paths:
         - Not idempotent.
         - Not safe to retry blindly. Each call creates a new registration with a new GUID; nothing deduplicates. After a lost response, check the owner's mileage registrations before retrying.
         - Duplicates: Not deduplicated (except: one mileage registration per TimeRegistrationID, 37825).
-        - Side effect: Creates the mileage registration (source interface WebApi), with an expense number when the auto-number series is on, the travel product number and a generated system text.
+        - Side effect: Creates the mileage registration, with an expense number when the auto-number series is on, the travel product number and a generated system text.
         - Side effect: Creates mileage financial data and invoicing potential, recalculates the contract's estimated values, and creates the employee reimbursement posting.
         - Changes are visible to the next read immediately.
         - The insert and the side effects run in one transaction scope; the redirect target reads the new row.
@@ -3013,7 +3000,7 @@ paths:
       responses:
         '302':
           description: |-
-            Success without content: HTTP 204 with an empty body. Found. Location = the URL of GET /v1/mileage-registration/{mileageRegistrationID} (route MileageRegistrationGetByID) for the new registration; no body. Read the new ID from the Location path. A client that follows the redirect issues a GET and receives the mileage registration (MileageRegistrationRead, not curated yet) — provided it re-sends the Authorization header.
+            Success without content: HTTP 204 with an empty body. Found. Location = the URL of GET /v1/mileage-registration/{mileageRegistrationID} (route MileageRegistrationGetByID) for the new registration; no body. Read the new ID from the Location path. A client that follows the redirect issues a GET and receives the mileage registration — provided it re-sends the Authorization header.
 
             Order: none
 
@@ -3064,8 +3051,6 @@ paths:
 
             - **Code 37825** — TimeRegistrationID is set and another mileage registration is already linked to that time registration. — Fix: Link to a different time registration, or omit TimeRegistrationID.
 
-            - **Code 37827** — Date falls in a closed accounting period of the owner's employee projection. — Fix: Use a date in an open period, or ask finance to reopen the period.
-
             - **Code 37845** — MileageRateID has no rate period covering Date. — Fix: Choose a mileage rate that is valid on the date.
 
             - **Code 37932** — CarID is a personal car assigned to an employee other than the registration's owner. Shared cars (no employee) are accepted. — Fix: Use the owner's car or a shared car.
@@ -3081,7 +3066,7 @@ paths:
       description: |-
         Lists one customer's projects the caller can book an expense or mileage on — allocated projects by recent use, or (searchAll) every active project by name.
 
-        The project step of a customer → project picker in an expense or mileage client. Scoping, ordering, the searchAll tenant-feature gate and the field meanings are those of `GET /v1/project-header/search-for-expense-travel-registration-order-by-recent-registration`, restricted to customerID. Customer is always filled on every entity.
+        The project step of a customer → project picker in an expense or mileage client. Scoping, ordering, the searchAll account-feature gate and the field meanings are those of `GET /v1/project-header/search-for-expense-travel-registration-order-by-recent-registration`, restricted to customerID. Customer is always filled on every entity.
 
         **Use it to:**
         - Customer → project picker in an expense app (customer from `GET /v1/customer/search-for-expense-travel-registration-order-by-recent-registration`)
@@ -3131,7 +3116,7 @@ paths:
         schema:
           type: boolean
           default: false
-        description: true = all active non-template projects of the customer, ordered by name. Needs the tenant feature EnableAllEmployeesRegisterOnAllActiveProjects.
+        description: true = all active non-template projects of the customer, ordered by name. Needs the account feature EnableAllEmployeesRegisterOnAllActiveProjects.
       - name: $page
         in: query
         required: false
@@ -3151,7 +3136,7 @@ paths:
           description: |-
             **When `searchAll=false (default)` is sent:** A list, wrapped in the TAF list envelope (`Entities[].Properties`). Customer filled. Ordered by the caller's latest TimeRegistrationID on the project, descending. MainContractId = default expense contract.
 
-            **When `searchAll=true` is sent:** A list, wrapped in the TAF list envelope (`Entities[].Properties`). Customer filled. Ordered by project name ascending. MainContractId = stored main contract; ExpenseIsBillable = project column.
+            **When `searchAll=true` is sent:** A list, wrapped in the TAF list envelope (`Entities[].Properties`). Customer filled. Ordered by project name ascending.
 
             Paged with `$page` (default 1) and `$pagesize` (default 10).
 
@@ -3228,7 +3213,7 @@ paths:
       description: |-
         Lists the projects the caller can book an expense or mileage on — their allocated projects by recent use, or (searchAll) every active project by name.
 
-        The project picker of an expense or mileage client; the ProjectID, MainContractId and ExpenseIsBillable it returns feed `POST /v1/project-header/employee-expense` / .create. Without searchAll it is identical to search-for-time-tracking-order-by-recent-registration: projects with a task the caller is allocated to, ordered by the caller's latest time registration. With searchAll=true — allowed only when the tenant feature EnableAllEmployeesRegisterOnAllActiveProjects is on — it returns every active, non-template project (no task, allocation or contract needed), ordered by project NAME, and the ExpenseIsBillable / MainContractId values come straight from the project row.
+        The project picker of an expense or mileage client; the ProjectID, MainContractId and ExpenseIsBillable it returns feed `POST /v1/project-header/employee-expense` / .create. Without searchAll it is identical to search-for-time-tracking-order-by-recent-registration: projects with a task the caller is allocated to, ordered by the caller's latest time registration. With searchAll=true — allowed only when the account feature EnableAllEmployeesRegisterOnAllActiveProjects is on — it returns every active, non-template project (no task, allocation or contract needed), ordered by project NAME, and the ExpenseIsBillable / MainContractId values come straight from the project row.
 
         **Use it to:**
         - Project picker in an expense or mileage app
@@ -3266,7 +3251,7 @@ paths:
         schema:
           type: boolean
           default: false
-        description: true = all active non-template projects, ordered by name. Needs the tenant feature EnableAllEmployeesRegisterOnAllActiveProjects.
+        description: true = all active non-template projects, ordered by name. Needs the account feature EnableAllEmployeesRegisterOnAllActiveProjects.
       - name: $expand
         in: query
         required: false
@@ -3303,7 +3288,7 @@ paths:
           description: |-
             **When `searchAll=false (default)` is sent:** A list, wrapped in the TAF list envelope (`Entities[].Properties`). Ordered by the caller's latest TimeRegistrationID on the project, descending. MainContractId = default expense contract; ExpenseIsBillable = its IsBillable.
 
-            **When `searchAll=true` is sent:** A list, wrapped in the TAF list envelope (`Entities[].Properties`). Ordered by project name ascending. MainContractId = the project's stored main contract; ExpenseIsBillable = the project's ExpenseIsBillable column.
+            **When `searchAll=true` is sent:** A list, wrapped in the TAF list envelope (`Entities[].Properties`). Ordered by project name ascending.
 
             Paged with `$page` (default 1) and `$pagesize` (default 10).
 
@@ -3347,7 +3332,7 @@ paths:
         '403':
           description: '- **Code 103** — The authenticated user lacks a privilege the operation requires. On time registrations
             this is raised when the caller is not the registration''s owner and has no registration privilege that covers
-            the owner. — When: searchAll=true while the tenant feature EnableAllEmployeesRegisterOnAllActiveProjects is off'
+            the owner. — When: searchAll=true while the account feature EnableAllEmployeesRegisterOnAllActiveProjects is off'
           content:
             application/json:
               schema:
@@ -3369,7 +3354,7 @@ paths:
         For a list scoped to the caller's allocations and ordered by their latest registration, use `GET /v1/project-header/search-for-time-tracking-order-by-recent-registration`.
 
         **Use it to:**
-        - Project drop-down before choosing a task (then search tasks by project — not curated yet)
+        - Project drop-down before choosing a task
 
         **Not for:**
         - Projects the caller is allocated to → `GET /v1/project-header/search-for-time-tracking-order-by-recent-registration`
@@ -3932,7 +3917,7 @@ paths:
       operationId: listProjectTemplates
       summary: List project templates
       description: |-
-        Lists every project template of the tenant, by name.
+        Lists every project template of the account, by name.
 
         The value set for ProjectTemplateID on project create-from-template. Active and inactive templates are both returned; filter on IsActive client-side. No paging: the whole table comes back in one response.
 
@@ -3999,7 +3984,7 @@ paths:
       description: |-
         Creates a new project by copying a project template, and returns it.
 
-        Copies the template's task plan, milestones, resource group, contracts and payment plan into a new project and overrides name, customer, people, dates, type, category, currency and legal entity from the body. The project manager (and the milestone assignee, when the template has milestones) is added as a project resource. The status and time-registration flag come from the template. Answers 200 with the new project (ProjectRead). Only available when the tenant's ProjectManagerToolbox business process is on.
+        Copies the template's task plan, milestones, resource group, contracts and payment plan into a new project and overrides name, customer, people, dates, type, category, currency and legal entity from the body. The project manager (and the milestone assignee, when the template has milestones) is added as a project resource. The status and time-registration flag come from the template. Answers 200 with the new project (ProjectRead). Only available when the account's ProjectManagerToolbox business process is on.
 
         **Use it to:**
         - CRM / quote-to-project integration: create the delivery project when a deal is won
@@ -4082,8 +4067,6 @@ paths:
             - **Code 37931** — ProjectManagerID, AccountManagerID or PartnerID is a deactivated user. — Fix: Choose an active user.
 
             - **Code 30097** — The (resolved) legal entity has no standard price group in CurrencyID. — Fix: Use a currency the legal entity has a standard price list for, or set one up.
-
-            - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: ProjectManager.ValidateBusinessRules on the new project: customer, contact, currency, exchange rate, legal entity, price list, project number, …
           content:
             application/json:
               schema:
@@ -4096,7 +4079,7 @@ paths:
       description: |-
         Lists the active (or inactive) non-template projects the caller may see, optionally for one customer, by project number.
 
-        Returns one page of ProjectRead. Filtered in the database by the caller's project privileges (same privilege set as GET /v1/project/{id}), by the active flag (default active only) and optionally by customer. Template projects are never listed. Customer is always null, even with $expand=customer.
+        Returns one page of ProjectRead. Template projects are never listed. Customer is always null, even with $expand=customer.
 
         **Use it to:**
         - Sync the project register into an ERP / PSA
@@ -4202,7 +4185,7 @@ paths:
       description: |-
         Runs the create-from-template checks on a body without creating anything.
 
-        Runs body validation, the user / price-list checks of the body mapping, the template existence check, the project's domain validation and ProjectManager.ValidateBusinessRules, then answers 200 with the body `null`. It does NOT check the ProjectManagerToolbox business process and does not map InvoicingCustomerReferenceID / the default invoice language, so a 200 here does not guarantee that create succeeds.
+        It does NOT check the ProjectManagerToolbox business process and does not map InvoicingCustomerReferenceID / the default invoice language, so a 200 here does not guarantee that create succeeds.
 
         **Use it to:**
         - Validate a project form before submitting
@@ -4254,8 +4237,6 @@ paths:
             - **Code 37931** — ProjectManagerID, AccountManagerID or PartnerID is a deactivated user. — Fix: Choose an active user.
 
             - **Code 30097** — The (resolved) legal entity has no standard price group in CurrencyID. — Fix: Use a currency the legal entity has a standard price list for, or set one up.
-
-            - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: ProjectManager.ValidateBusinessRules on the new project.
           content:
             application/json:
               schema:
@@ -4278,7 +4259,6 @@ paths:
         - Idempotent.
         - Safe to retry.
         - Changes are visible to the next read immediately.
-        - Access is checked against the uncached project header, deliberately not the 5-minute cached accessible-ID list, so a project created a moment ago is readable.
 
         **Call first:** `GET /v1/project/get-all`
 
@@ -4358,7 +4338,7 @@ paths:
       description: |-
         Updates a project's header fields (name, customer, people, type, dates, budgets).
 
-        MIXED replace / patch semantics: Name, CustomerID, ContactID, Description and ProjectManagerID are always written; the nullable fields are written only when sent. Answers 200 with the body `null`; read the project back with GET. Status is changed with PUT /v1/project/{projectID}/status.
+        MIXED replace / patch semantics: Name, CustomerID, ContactID, Description and ProjectManagerID are always written; the nullable fields are written only when sent. Answers 200 with the body `null`; read the project back with GET. Status is changed with PUT /v1/project/&#123;projectID&#125;/status.
 
         **Use it to:**
         - Sync name, project manager or budget changes from a CRM / PSA
@@ -4374,7 +4354,6 @@ paths:
         - Safe to retry only under a condition. Repeating the same body gives the same state, but omitted Description / ContactID are cleared each time.
         - Side effect: Writes the project row (last-modified fields set), saves invoice settings, adds the project manager to the resource group, and notifies contract customers, task search and sales-share read models.
         - Side effect: When project dates are locked to the task plan, Save recalculates the project dates from the task plan.
-        - On failure: The project object is taken from the application cache and modified before validation; a failed save may leave the unsaved values in the cache.
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v1/project/{projectID}`
@@ -4436,8 +4415,6 @@ paths:
             - **Code 37040** — ProjectManagerID, AccountManagerID or PartnerID is not an existing user ID (AccountManagerID / PartnerID only when their feature is on). — Fix: Send user IDs (`GET /v1/user`), not employee IDs.
 
             - **Code 37931** — ProjectManagerID, AccountManagerID or PartnerID is a deactivated user. — Fix: Choose an active user.
-
-            - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: ProjectManager.ValidateBusinessRules: customer exists / can change customer, contact exists, employee exists, type / category / department exist, main contract valid, …
           content:
             application/json:
               schema:
@@ -4560,7 +4537,7 @@ paths:
                 $ref: '#/components/schemas/MessageError'
         '500':
           description: |-
-            - **Code 37045** — externalSystemID (query) or ExternalSystemID (body) is not an external system of the tenant. Checked before the project / task exists. — When: (single) externalSystemID is not an external system (37045) — checked first — Fix: Use an ExternalSystemID from the external-systems list (not curated yet), or create the external system first.
+            - **Code 37045** — externalSystemID (query) or ExternalSystemID (body) is not an external system of the account. Checked before the project / task exists. — When: (single) externalSystemID is not an external system (37045) — checked first — Fix: Use an ExternalSystemID from the external-systems list, or create the external system first.
 
             - **Code 37014** — The projectID in the path (update, update-status) or ProjectID in the payment body does not exist (0 and negative included). Not a 404. — When: The project does not exist (37014); NOT 404 — Fix: Use a ProjectID from `GET /v1/project/get-all`.
 
@@ -4657,7 +4634,7 @@ paths:
                 $ref: '#/components/schemas/MessageError'
         '500':
           description: |-
-            - **Code 37045** — externalSystemID (query) or ExternalSystemID (body) is not an external system of the tenant. Checked before the project / task exists. — When: ExternalSystemID is not an external system (37045) — checked before the project — Fix: Use an ExternalSystemID from the external-systems list (not curated yet), or create the external system first.
+            - **Code 37045** — externalSystemID (query) or ExternalSystemID (body) is not an external system of the account. Checked before the project / task exists. — When: ExternalSystemID is not an external system (37045) — checked before the project — Fix: Use an ExternalSystemID from the external-systems list, or create the external system first.
 
             - **Code 37014** — The projectID in the path (update, update-status) or ProjectID in the payment body does not exist (0 and negative included). Not a 404. — When: The project does not exist (37014); NOT 404 — Fix: Use a ProjectID from `GET /v1/project/get-all`.
           content:
@@ -4682,9 +4659,8 @@ paths:
         - Not idempotent.
         - Every call raises the events again; there is no record of a previous raise and no dedup.
         - Not safe to retry blindly. Each retry replays the create to every subscriber (audit log, notifications, financial project transfer, Resource Planner export).
-        - Duplicates: None in TLP.
         - Side effect: Logs a ProjectCreate event and, with the AuditLogProject setting, an audit-log entry 'project created' — again for an existing project.
-        - Side effect: Financial integrations: the integration-service mediator publishes a project-transfer notification for tenants whose integration supports and has activated project transfer, then sleeps 2 s in the request thread; the legacy integration services (e-conomic, Business Central, generic financial, Fortnox, Uniconta, Björn Lundén) handle ProjectCreate with the same SaveProject path as ProjectUpdate when UseTransferProject is set.
+        - Side effect: Financial integrations: the integration-service mediator publishes a project-transfer notification for accounts whose integration supports and has activated project transfer, then sleeps 2 s in the request thread; the legacy integration services (e-conomic, Business Central, generic financial, Fortnox, Uniconta, Björn Lundén) handle ProjectCreate with the same SaveProject path as ProjectUpdate when UseTransferProject is set.
         - Consistency: eventual
         - Mediator publish and Resource Planner export are started in the request; how fast the external systems apply them is not measured.
 
@@ -4700,7 +4676,7 @@ paths:
         schema:
           type: integer
           format: int32
-        description: The project whose created events are raised. Route constraint :int.
+        description: Route constraint :int.
       responses:
         '200':
           description: 'Success without content: HTTP 200 with the literal JSON body `null`. The literal `null`: the events
@@ -4987,12 +4963,10 @@ paths:
         **Behaviour:**
         - Not idempotent.
         - Not safe to retry blindly. Every call inserts a new task; there is no external key or dedup. After a timeout or a 500, list the project's tasks (`GET /v1/task`) before retrying.
-        - Side effect: Inserts the task at the project's next root WBS number; writes its row in the task search table in the same request.
         - Side effect: TDR + FixedPricePayment, or a time-and-material-basic contract: if the task then has exactly one instalment, sets its name / invoice date / product number / amount (TDR: PaymentAmount; TMB: the task budget amount) and IsReadyForInvoicing, and saves the billing plan.
         - Side effect: Re-saves the project: the project row is updated, project dates may be aligned to the task plan, invoicing potential is recalculated.
         - On failure: The task, its events and the project re-save are committed before MapTDRTaskWithPayment; a failure there answers 500 while the task stays.
         - Changes are visible to the next read immediately.
-        - The task search table is updated in the request; the caller is NOT allocated to the new task, so the caller-scoped searches do not show it until an allocation exists.
 
         **Call first:** `GET /v1/project/get-all`, `GET /v1/contract`
 
@@ -5061,7 +5035,7 @@ paths:
 
             - **Code 37939** — The task's contract is task-driven revenue and PaymentProductNo is not a product number of the project's legal entity. Not checked on other contract models. — When: TDR contract and PaymentProductNo is not a product number of the project's legal entity. — Fix: Use an existing product number of the project's legal entity.
 
-            - **Code 37010** — TaskTypeID (> 0) is not a task type of the tenant. Raised by the create business rules inside the save; validate-new-task does not check it. — Fix: Use an existing task type ID, or omit it.
+            - **Code 37010** — TaskTypeID (> 0) is not a task type of the account. Raised by the create business rules inside the save; validate-new-task does not check it. — Fix: Use an existing task type ID, or omit it.
 
             - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: Other task / project save rules: task Validate(), WBS depth, project time-tracking status, WBS structure.
           content:
@@ -5174,7 +5148,7 @@ paths:
 
             - **Code 37939** — The task's contract is task-driven revenue and PaymentProductNo is not a product number of the project's legal entity. Not checked on other contract models. — When: TDR contract and PaymentProductNo is not a product number of the project's legal entity. — Fix: Use an existing product number of the project's legal entity.
 
-            - **Code 37010** — TaskTypeID (> 0) is not a task type of the tenant. Raised by the create business rules inside the save; validate-new-task does not check it. — Fix: Use an existing task type ID, or omit it.
+            - **Code 37010** — TaskTypeID (> 0) is not a task type of the account. Raised by the create business rules inside the save; validate-new-task does not check it. — Fix: Use an existing task type ID, or omit it.
 
             - **Code 102** — The request is well-formed but violates a TimeLog business rule. — When: Other save rules, e.g. the parent may not get sub-tasks (TaskCanBeCreatedUnderParentTask: allocations / invoices on the parent), WBS depth exceeded.
           content:
@@ -5196,9 +5170,9 @@ paths:
       operationId: getTasksByFilter
       summary: Search tasks by filter
       description: |-
-        Searches all tasks of the tenant by project, task, status, active / billable flag and plan dates.
+        Searches all tasks of the account by project, task, status, active / billable flag and plan dates.
 
-        A paged task search over EVERY task of the tenant, returning the extended task model (status, dates, project number, parent). Filter semantics worth knowing: - startDate / endDate select tasks that lie INSIDE the window (start >= startDate, end <= endDate) — not tasks that overlap it. Tasks without a start (or end) date never match a startDate (endDate) filter. - isBillable filters the task's NonBillable column (inverted); the response shows default_billable as IsDefaultBillable — a different column. - taskStatus takes the INTEGER 0-4; the response returns the status NAME.
+        A paged task search over EVERY task of the account, returning the extended task model (status, dates, project number, parent). Filter semantics worth knowing: - startDate / endDate select tasks that lie INSIDE the window (start >= startDate, end &lt;= endDate) — not tasks that overlap it. Tasks without a start (or end) date never match a startDate (endDate) filter. - taskStatus takes the INTEGER 0-4; the response returns the status NAME.
 
         **Use it to:**
         - Incremental task sync by project: ?projectId=… (each page re-read with $page)
@@ -5210,7 +5184,6 @@ paths:
         - One task by integer ID with its project object → `GET /v1/task/{taskID}`
 
         **Rules across fields:**
-        - R1: All supplied filters combine with AND. projectId, taskId or taskGuid switch the procedure to its selective strategy; the result is the same.
 
         **Behaviour:**
         - Idempotent.
@@ -5298,7 +5271,7 @@ paths:
             operators:
             - eq
         description: |-
-          true = tasks whose NonBillable flag is 0, false = NonBillable 1; omitted = both. Filters the NonBillable column, NOT the IsDefaultBillable value returned.
+          true = tasks whose NonBillable flag is 0, false = NonBillable 1; omitted = both.
 
           Filters on `TaskExtendedRead.IsDefaultBillable` (eq).
       - name: startDate
@@ -5618,7 +5591,7 @@ paths:
       description: |-
         Searches the caller's allocated tasks by the name, nickname or number of their customer.
 
-        Returns tasks the CALLER is allocated to whose customer's name, nickname or number contains searchText — but only for customers whose status type is Customer (system ID 1) or Partner (3); tasks of supplier, import or multi-customer-project customers are never returned, even with an empty searchText. searchAll=true drops the allocation filter and needs RegistrationAllTasks. IsFavourite is always null (the procedure has no favourite column).
+        Returns tasks the CALLER is allocated to whose customer's name, nickname or number contains searchText — but only for customers whose status type is Customer (system ID 1) or Partner (3); tasks of supplier, import or multi-customer-project customers are never returned, even with an empty searchText. searchAll=true drops the allocation filter and needs RegistrationAllTasks. IsFavourite is always null.
 
         **Use it to:**
         - "Type the customer, get the tasks" picker in a time-tracking client
@@ -5891,7 +5864,7 @@ paths:
       description: |-
         Searches the tasks the caller is allocated to by task name or number, newest task first.
 
-        The task picker of a time-tracking client: tasks the CALLER is allocated to whose name or number contains searchText. searchAll=true drops the allocation filter (every task in the task search table) and needs the privilege RegistrationAllTasks. includeFavouriteOnly=true keeps only the caller's favourites; IsFavourite is filled. Unlike the project-header sibling, this search IS scoped to the caller.
+        The task picker of a time-tracking client: tasks the CALLER is allocated to whose name or number contains searchText. searchAll=true drops the allocation filter and needs the privilege RegistrationAllTasks. includeFavouriteOnly=true keeps only the caller's favourites; IsFavourite is filled. Unlike the project-header sibling, this search IS scoped to the caller.
 
         **Use it to:**
         - Type-ahead task picker before POST /v1/task/registration or POST /v1/time-registration
@@ -6735,7 +6708,7 @@ paths:
       description: |-
         Searches the caller's allocated tasks of one project by task name or number, travel-time tasks first.
 
-        Task picker for registering travel time: the tasks of projectID the CALLER is allocated to whose name or number contains searchText, with travel-time tasks (IsTravelTimeTask) before the others. projectID is required (omitted → 404, captured). searchAll=true drops the allocation filter (every task of the project in the task search table) — and, unlike every other task search, checks no privilege. IsFavourite is not computed (null). Within each group the order is undefined.
+        Task picker for registering travel time: the tasks of projectID the CALLER is allocated to whose name or number contains searchText, with travel-time tasks (IsTravelTimeTask) before the others. projectID is required (omitted → 404, captured). searchAll=true drops the allocation filter — and, unlike every other task search, checks no privilege. IsFavourite is not computed (null). Within each group the order is undefined.
 
         **Use it to:**
         - Pick the task to book travel time on, after choosing the project
@@ -7185,7 +7158,7 @@ paths:
       description: |-
         Checks whether a root task with this body could be created on the project, without creating it.
 
-        Same body as `POST /v1/task`. Runs the body rules, the project / contract / hourly-rate / TDR product-number checks and the task save rules (contract valid for the project, hourly rate on the contract, parent may take sub-tasks), then answers 200 with `null`. It writes nothing. It is weaker than create: it does not check that TaskTypeID exists, the WBS depth or task.Validate(), and it ignores ParentTaskID (always a root task) — so a 200 does not guarantee that create or create-sub-task succeeds.
+        Same body as `POST /v1/task`. Runs the body rules, the project / contract / hourly-rate / TDR product-number checks and the task save rules (contract valid for the project, hourly rate on the contract, parent may take sub-tasks), then answers 200 with `null`. It writes nothing.
 
         **Use it to:**
         - Pre-check a task import row before calling `POST /v1/task`
@@ -7203,7 +7176,6 @@ paths:
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - On failure: A failing save rule invalidates the application's project cache; no data is written.
         - Changes are visible to the next read immediately.
 
         **Call first:** `GET /v1/project/get-all`, `GET /v1/contract`
@@ -7288,12 +7260,12 @@ paths:
 
         **Behaviour:**
         - Not idempotent.
-        - Safe to retry only under a condition. A second DELETE answers 500 / 37001. After a 500 or a timeout, GET /v1/task/{taskID}: a 500 / 37001 there means the task is gone.
+        - Safe to retry only under a condition. A second DELETE answers 500 / 37001. After a 500 or a timeout, GET /v1/task/&#123;taskID&#125;: a 500 / 37001 there means the task is gone.
         - Side effect: Deletes every allocation on the task (audit log + e-mail event per allocation) and clears the task's HasAllocations flag.
         - Side effect: Time-and-material-basic tasks (not fixed price) and TDR fixed-price-payment tasks: deletes the task's instalments from the billing plan. TDR overall-payment-plan tasks: releases the payment linked to the task.
         - Side effect: Deletes the task row and its task search row; notifies invoicing; deletes Task external-ID mappings.
         - Side effect: Renumbers the project plan (RemoveTaskOnProject). When the parent has no children left, rebuilds the parent's payment; when the task was the last child of a contract sub-group, the group flag is cleared.
-        - Side effect: Re-saves the project (SourceInterface.WebApi): project dates may be re-aligned to the plan, invoicing potential recalculated, billing plan saved.
+        - Side effect: Re-saves the project: project dates may be re-aligned to the plan, invoicing potential recalculated, billing plan saved.
         - Side effect: Left untouched (by design, XML remark): baselines, help-desk cases and forecast lines pointing at the task.
         - On failure: If the project save after the delete throws, the task is deleted, the remaining tasks keep their old WBS numbers and the call answers 500 (logged as a warning).
         - Changes are visible to the next read immediately.
@@ -7323,7 +7295,7 @@ paths:
                 type: 'null'
         '400':
           description: |-
-            - **Code 400** — The task is a parent (has sub-tasks or milestones). The API refuses because the delete procedure removes only this row and would orphan the children. — Fix: Delete the sub-tasks / milestones first (bottom-up).
+            - **Code 400** — The task is a parent (has sub-tasks or milestones).
 
             - **Code 400** — A payment (instalment) of the task fails the billing-plan delete rules (invoiced or booked). — Fix: Credit the invoice in TimeLog first, or keep the task (set Status Cancelled with PUT).
 
@@ -7477,13 +7449,12 @@ paths:
 
         **Behaviour:**
         - Not idempotent.
-        - Re-sending the same field values is a no-op for those fields (the adapter only marks changed values dirty) and the same ParentTaskID is skipped; a status already reached is skipped. The project is still re-saved.
+        - Re-sending the same field values is a no-op for those fields and the same ParentTaskID is skipped; a status already reached is skipped. The project is still re-saved.
         - Safe to retry only under a condition. Safe after a 4xx from the dry-run stage (nothing written). After a 500 or a timeout, GET the task (and list the project's tasks) before retrying: the move and status writes may have happened.
         - Side effect: ParentTaskID: the task (with its sub-tree) is moved and the project saved immediately; WBS numbers are renumbered; the old parent's payment is rebuilt when it lost its last child. The task keeps its contract.
         - Side effect: Status: closing / reopening runs TimeLog's task status processing — allocations set completed / not completed, the contract reopened when a closed task is reopened, vouchers reopened when leaving Completed, completion processing ('causes invoicing') when completing, the status pushed to sub-tasks of a parent; recurring tasks notify hard bookings.
-        - On failure: A rejected status change (400) or a later 500 leaves an earlier move saved; status-change writes done before a failure stay. The cached project is invalidated so unsaved in-memory changes do not leak into later saves.
+        - On failure: A rejected status change (400) or a later 500 leaves an earlier move saved; status-change writes done before a failure stay.
         - Changes are visible to the next read immediately.
-        - The response is read through the task read model in the same request.
 
         **Call first:** `GET /v1/task`, `GET /v1/task/{taskID}`
 
@@ -7670,7 +7641,7 @@ paths:
       description: |-
         Creates an allocation of one user on a task, with planned hours, hourly rate and optional period, and returns it.
 
-        Plans a user on a task: AllocatedHours, the contract hourly rate (omit HourlyRateID to let TimeLog resolve the user's default rate) and, when the tenant feature 'Enable start and end date on allocations' is on, a period (a missing date defaults to the task's). One allocation per user and task: a second one is refused with 409, pointing to the existing allocation ID. The user is added to the project's resource group when missing. Answers 200 with the new allocation as AllocationRead. Requires project privileges on the task's project. Not idempotent and not atomic.
+        Plans a user on a task: AllocatedHours, the contract hourly rate (omit HourlyRateID to let TimeLog resolve the user's default rate) and, when the account feature 'Enable start and end date on allocations' is on, a period (a missing date defaults to the task's). One allocation per user and task: a second one is refused with 409, pointing to the existing allocation ID. The user is added to the project's resource group when missing. Answers 200 with the new allocation as AllocationRead. Requires project privileges on the task's project. Not idempotent and not atomic.
 
         **Use it to:**
         - Staff a project from a resource-planning or PSA tool: allocate people with planned hours
@@ -7690,7 +7661,6 @@ paths:
         - Side effect: Inserts the allocation (status NotCompleted; recurring tasks get a recurring allocation without period) with an audit-log + e-mail event, and sets the task's HasAllocations flag.
         - Side effect: Adds the user's employee to the project's resource group when missing (resource hourly rate 0).
         - Side effect: Notifies the allocation search table, so the task appears in the user's caller-scoped task / project searches.
-        - Side effect: With ChangeTaskDateBasedAllocation on (non-recurring task) and an allocation span that differs from the task dates, the task is marked dirty so its dates follow the allocations in the project save.
         - Side effect: Re-saves the project.
         - Side effect: Dates sent, no task date sync, not recurring: sends the 'allocation exceeds task dates' notification when the period goes beyond the task.
         - Changes are visible to the next read immediately.
@@ -7741,7 +7711,7 @@ paths:
           description: |-
             - **Code 200** — The request body or parameters failed input validation. — When: UserID 0, AllocatedHours null / negative, HourlyRateID <= 0, dates with the feature off, EndDate < StartDate. — Fix: Fix every item listed in Details and resend.
 
-            - **Code 400** — Empty or JSON null body (it bypasses the property rules). Checked before the task. — Fix: Send at least UserID and AllocatedHours.
+            - **Code 400** — Empty or JSON null body. Checked before the task. — Fix: Send at least UserID and AllocatedHours.
 
             - **Code 400** — Dates were sent for a recurring task, or the effective period (a missing date taken from the task) ends before it starts. — Fix: Omit the dates on recurring tasks; otherwise send a consistent period (or both dates).
 
@@ -7851,7 +7821,7 @@ paths:
           description: |-
             - **Code 200** — The request body or parameters failed input validation. — When: Body rules of TaskAllocationCreate. — Fix: Fix every item listed in Details and resend.
 
-            - **Code 400** — Empty or JSON null body (it bypasses the property rules). Checked before the task. — Fix: Send at least UserID and AllocatedHours.
+            - **Code 400** — Empty or JSON null body. Checked before the task. — Fix: Send at least UserID and AllocatedHours.
 
             - **Code 400** — Dates were sent for a recurring task, or the effective period (a missing date taken from the task) ends before it starts. — Fix: Omit the dates on recurring tasks; otherwise send a consistent period (or both dates).
 
@@ -8009,7 +7979,7 @@ paths:
                 $ref: '#/components/schemas/MessageError'
         '500':
           description: |-
-            - **Code 37045** — externalSystemID (query) or ExternalSystemID (body) is not an external system of the tenant. Checked before the project / task exists. — When: (single) externalSystemID is not an external system (37045) — checked first — Fix: Use an ExternalSystemID from the external-systems list (not curated yet), or create the external system first.
+            - **Code 37045** — externalSystemID (query) or ExternalSystemID (body) is not an external system of the account. Checked before the project / task exists. — When: (single) externalSystemID is not an external system (37045) — checked first — Fix: Use an ExternalSystemID from the external-systems list, or create the external system first.
 
             - **Code 37001** — The taskID in the path (external keys) or TaskId in the body (allocation) is not an existing task. Not a 404. — When: The task does not exist (37001); NOT 404 — Fix: Use an existing task ID.
 
@@ -8104,7 +8074,7 @@ paths:
                 $ref: '#/components/schemas/MessageError'
         '500':
           description: |-
-            - **Code 37045** — externalSystemID (query) or ExternalSystemID (body) is not an external system of the tenant. Checked before the project / task exists. — When: ExternalSystemID is not an external system (37045) — checked before the task — Fix: Use an ExternalSystemID from the external-systems list (not curated yet), or create the external system first.
+            - **Code 37045** — externalSystemID (query) or ExternalSystemID (body) is not an external system of the account. Checked before the project / task exists. — When: ExternalSystemID is not an external system (37045) — checked before the task — Fix: Use an ExternalSystemID from the external-systems list, or create the external system first.
 
             - **Code 37001** — The taskID in the path (external keys) or TaskId in the body (allocation) is not an existing task. Not a 404. — When: The task does not exist (37001); NOT 404 — Fix: Use an existing task ID.
           content:
@@ -8157,7 +8127,7 @@ paths:
                 type: 'null'
         '400':
           description: |-
-            - **Code 400** — The task is a parent (has sub-tasks or milestones). The API refuses because the delete procedure removes only this row and would orphan the children. — Fix: Delete the sub-tasks / milestones first (bottom-up).
+            - **Code 400** — The task is a parent (has sub-tasks or milestones).
 
             - **Code 400** — A payment (instalment) of the task fails the billing-plan delete rules (invoiced or booked). — Fix: Credit the invoice in TimeLog first, or keep the task (set Status Cancelled with PUT).
 
@@ -8216,7 +8186,6 @@ paths:
         - Idempotent.
         - Safe to retry.
         - Changes are visible to the next read immediately.
-        - Reads the project through GetDetachedByProjectID, so the preview never reaches the application cache.
 
         **Call first:** `GET /v1/task`
 
@@ -8317,8 +8286,6 @@ components:
             Integer identifier of the allocation.
 
             Identifier of this object, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         TaskID:
           type: integer
           format: int32
@@ -8464,7 +8431,7 @@ components:
           description: |-
             New first day of the allocation period.
 
-            **Conditional.** Accepted only when the tenant feature AllocationDates ('Enable start and end date on allocations') is on, and never for an allocation on a recurring task (it has no period).
+            **Conditional.** Accepted only when the account feature AllocationDates ('Enable start and end date on allocations') is on, and never for an allocation on a recurring task (it has no period).
 
             Null: null / omitted = unchanged.
 
@@ -8498,8 +8465,8 @@ components:
 
             - Any time of day — Truncated to the date (.Date).
       description: 'The fields of an existing allocation that can be changed: planned hours, contract hourly rate and (with
-        the tenant feature ''Enable start and end date on allocations'') the allocation period. Only the fields you send are
-        changed; null or omitted fields keep their current value. An object with none of the four fields is refused (400).'
+        the account feature ''Enable start and end date on allocations'') the allocation period. Only the fields you send
+        are changed; null or omitted fields keep their current value. An object with none of the four fields is refused (400).'
     ContractCreate.create.createFixedPriceBasicContract:
       type: object
       properties:
@@ -8665,9 +8632,9 @@ components:
             role: reference
           default: 0
           description: |-
-            Tenant-defined contract type (a classification independent of the contract model). 0 = none. When > 0 it must exist (37958). When the tenant feature ContractTypeIsRequired is on, a value >= 1 is required (37957).
+            Account-defined contract type (a classification independent of the contract model). 0 = none. When > 0 it must exist (37958). When the account feature ContractTypeIsRequired is on, a value >= 1 is required (37957).
 
-            **Conditional.** Required (>= 1) when the tenant feature ContractTypeIsRequired is active; otherwise optional (0 = none).
+            **Conditional.** Required (>= 1) when the account feature ContractTypeIsRequired is active; otherwise optional (0 = none).
 
             Can be set on create only.
 
@@ -8877,8 +8844,8 @@ components:
         | o | · | · | | TargetHourlyRate, PaymentPlanAmount, RevenueExprAmount, RevenueTravelAmount, IsExpensesLinked, IsTravelLinked
         | · | o | · | · | o | | IsFixedHourlyRate, HourlyRatePrice | · | · | · | o | · | | HourlyRateName | · | · | · | R
         | · | Amounts are in the project''s currency (the project''s sales price list), and every amount, hour and percentage
-        must not have more decimals than the tenant setting InvoiceSetting_NumberOfDecimals (400). There is no field for contract
-        dates, customers, hourly-rate selection (except PS), recurrence or minimum time: those keep their defaults.'
+        must not have more decimals than the account setting InvoiceSetting_NumberOfDecimals (400). There is no field for
+        contract dates, customers, hourly-rate selection (except PS), recurrence or minimum time: those keep their defaults.'
     ContractCreate.create.createPrepaidServicesContract:
       type: object
       properties:
@@ -9044,9 +9011,9 @@ components:
             role: reference
           default: 0
           description: |-
-            Tenant-defined contract type (a classification independent of the contract model). 0 = none. When > 0 it must exist (37958). When the tenant feature ContractTypeIsRequired is on, a value >= 1 is required (37957).
+            Account-defined contract type (a classification independent of the contract model). 0 = none. When > 0 it must exist (37958). When the account feature ContractTypeIsRequired is on, a value >= 1 is required (37957).
 
-            **Conditional.** Required (>= 1) when the tenant feature ContractTypeIsRequired is active; otherwise optional (0 = none).
+            **Conditional.** Required (>= 1) when the account feature ContractTypeIsRequired is active; otherwise optional (0 = none).
 
             Can be set on create only.
 
@@ -9257,8 +9224,8 @@ components:
         | o | · | · | | TargetHourlyRate, PaymentPlanAmount, RevenueExprAmount, RevenueTravelAmount, IsExpensesLinked, IsTravelLinked
         | · | o | · | · | o | | IsFixedHourlyRate, HourlyRatePrice | · | · | · | o | · | | HourlyRateName | · | · | · | R
         | · | Amounts are in the project''s currency (the project''s sales price list), and every amount, hour and percentage
-        must not have more decimals than the tenant setting InvoiceSetting_NumberOfDecimals (400). There is no field for contract
-        dates, customers, hourly-rate selection (except PS), recurrence or minimum time: those keep their defaults.'
+        must not have more decimals than the account setting InvoiceSetting_NumberOfDecimals (400). There is no field for
+        contract dates, customers, hourly-rate selection (except PS), recurrence or minimum time: those keep their defaults.'
     ContractCreate.create.createTaskDrivenRevenueContract:
       type: object
       properties:
@@ -9424,9 +9391,9 @@ components:
             role: reference
           default: 0
           description: |-
-            Tenant-defined contract type (a classification independent of the contract model). 0 = none. When > 0 it must exist (37958). When the tenant feature ContractTypeIsRequired is on, a value >= 1 is required (37957).
+            Account-defined contract type (a classification independent of the contract model). 0 = none. When > 0 it must exist (37958). When the account feature ContractTypeIsRequired is on, a value >= 1 is required (37957).
 
-            **Conditional.** Required (>= 1) when the tenant feature ContractTypeIsRequired is active; otherwise optional (0 = none).
+            **Conditional.** Required (>= 1) when the account feature ContractTypeIsRequired is active; otherwise optional (0 = none).
 
             Can be set on create only.
 
@@ -9636,8 +9603,8 @@ components:
         | o | · | · | | TargetHourlyRate, PaymentPlanAmount, RevenueExprAmount, RevenueTravelAmount, IsExpensesLinked, IsTravelLinked
         | · | o | · | · | o | | IsFixedHourlyRate, HourlyRatePrice | · | · | · | o | · | | HourlyRateName | · | · | · | R
         | · | Amounts are in the project''s currency (the project''s sales price list), and every amount, hour and percentage
-        must not have more decimals than the tenant setting InvoiceSetting_NumberOfDecimals (400). There is no field for contract
-        dates, customers, hourly-rate selection (except PS), recurrence or minimum time: those keep their defaults.'
+        must not have more decimals than the account setting InvoiceSetting_NumberOfDecimals (400). There is no field for
+        contract dates, customers, hourly-rate selection (except PS), recurrence or minimum time: those keep their defaults.'
     ContractCreate.create.createTimeMaterialAccountEndBalancingContract:
       type: object
       properties:
@@ -9803,9 +9770,9 @@ components:
             role: reference
           default: 0
           description: |-
-            Tenant-defined contract type (a classification independent of the contract model). 0 = none. When > 0 it must exist (37958). When the tenant feature ContractTypeIsRequired is on, a value >= 1 is required (37957).
+            Account-defined contract type (a classification independent of the contract model). 0 = none. When > 0 it must exist (37958). When the account feature ContractTypeIsRequired is on, a value >= 1 is required (37957).
 
-            **Conditional.** Required (>= 1) when the tenant feature ContractTypeIsRequired is active; otherwise optional (0 = none).
+            **Conditional.** Required (>= 1) when the account feature ContractTypeIsRequired is active; otherwise optional (0 = none).
 
             Can be set on create only.
 
@@ -10015,8 +9982,8 @@ components:
         | o | · | · | | TargetHourlyRate, PaymentPlanAmount, RevenueExprAmount, RevenueTravelAmount, IsExpensesLinked, IsTravelLinked
         | · | o | · | · | o | | IsFixedHourlyRate, HourlyRatePrice | · | · | · | o | · | | HourlyRateName | · | · | · | R
         | · | Amounts are in the project''s currency (the project''s sales price list), and every amount, hour and percentage
-        must not have more decimals than the tenant setting InvoiceSetting_NumberOfDecimals (400). There is no field for contract
-        dates, customers, hourly-rate selection (except PS), recurrence or minimum time: those keep their defaults.'
+        must not have more decimals than the account setting InvoiceSetting_NumberOfDecimals (400). There is no field for
+        contract dates, customers, hourly-rate selection (except PS), recurrence or minimum time: those keep their defaults.'
     ContractCreate.create.createTimeMaterialBasicContract:
       type: object
       properties:
@@ -10182,9 +10149,9 @@ components:
             role: reference
           default: 0
           description: |-
-            Tenant-defined contract type (a classification independent of the contract model). 0 = none. When > 0 it must exist (37958). When the tenant feature ContractTypeIsRequired is on, a value >= 1 is required (37957).
+            Account-defined contract type (a classification independent of the contract model). 0 = none. When > 0 it must exist (37958). When the account feature ContractTypeIsRequired is on, a value >= 1 is required (37957).
 
-            **Conditional.** Required (>= 1) when the tenant feature ContractTypeIsRequired is active; otherwise optional (0 = none).
+            **Conditional.** Required (>= 1) when the account feature ContractTypeIsRequired is active; otherwise optional (0 = none).
 
             Can be set on create only.
 
@@ -10394,8 +10361,8 @@ components:
         | o | · | · | | TargetHourlyRate, PaymentPlanAmount, RevenueExprAmount, RevenueTravelAmount, IsExpensesLinked, IsTravelLinked
         | · | o | · | · | o | | IsFixedHourlyRate, HourlyRatePrice | · | · | · | o | · | | HourlyRateName | · | · | · | R
         | · | Amounts are in the project''s currency (the project''s sales price list), and every amount, hour and percentage
-        must not have more decimals than the tenant setting InvoiceSetting_NumberOfDecimals (400). There is no field for contract
-        dates, customers, hourly-rate selection (except PS), recurrence or minimum time: those keep their defaults.'
+        must not have more decimals than the account setting InvoiceSetting_NumberOfDecimals (400). There is no field for
+        contract dates, customers, hourly-rate selection (except PS), recurrence or minimum time: those keep their defaults.'
     ContractCreate.create.validateFixedPriceBasicContract:
       type: object
       properties:
@@ -10559,7 +10526,7 @@ components:
             role: reference
           default: 0
           description: |-
-            Tenant-defined contract type (a classification independent of the contract model). 0 = none. When > 0 it must exist (37958). When the tenant feature ContractTypeIsRequired is on, a value >= 1 is required (37957).
+            Account-defined contract type (a classification independent of the contract model). 0 = none. When > 0 it must exist (37958). When the account feature ContractTypeIsRequired is on, a value >= 1 is required (37957).
 
             Can be set on create only.
 
@@ -10769,8 +10736,8 @@ components:
         | o | · | · | | TargetHourlyRate, PaymentPlanAmount, RevenueExprAmount, RevenueTravelAmount, IsExpensesLinked, IsTravelLinked
         | · | o | · | · | o | | IsFixedHourlyRate, HourlyRatePrice | · | · | · | o | · | | HourlyRateName | · | · | · | R
         | · | Amounts are in the project''s currency (the project''s sales price list), and every amount, hour and percentage
-        must not have more decimals than the tenant setting InvoiceSetting_NumberOfDecimals (400). There is no field for contract
-        dates, customers, hourly-rate selection (except PS), recurrence or minimum time: those keep their defaults.'
+        must not have more decimals than the account setting InvoiceSetting_NumberOfDecimals (400). There is no field for
+        contract dates, customers, hourly-rate selection (except PS), recurrence or minimum time: those keep their defaults.'
     ContractCreate.create.validatePrepaidServicesContract:
       type: object
       properties:
@@ -10934,7 +10901,7 @@ components:
             role: reference
           default: 0
           description: |-
-            Tenant-defined contract type (a classification independent of the contract model). 0 = none. When > 0 it must exist (37958). When the tenant feature ContractTypeIsRequired is on, a value >= 1 is required (37957).
+            Account-defined contract type (a classification independent of the contract model). 0 = none. When > 0 it must exist (37958). When the account feature ContractTypeIsRequired is on, a value >= 1 is required (37957).
 
             Can be set on create only.
 
@@ -11145,8 +11112,8 @@ components:
         | o | · | · | | TargetHourlyRate, PaymentPlanAmount, RevenueExprAmount, RevenueTravelAmount, IsExpensesLinked, IsTravelLinked
         | · | o | · | · | o | | IsFixedHourlyRate, HourlyRatePrice | · | · | · | o | · | | HourlyRateName | · | · | · | R
         | · | Amounts are in the project''s currency (the project''s sales price list), and every amount, hour and percentage
-        must not have more decimals than the tenant setting InvoiceSetting_NumberOfDecimals (400). There is no field for contract
-        dates, customers, hourly-rate selection (except PS), recurrence or minimum time: those keep their defaults.'
+        must not have more decimals than the account setting InvoiceSetting_NumberOfDecimals (400). There is no field for
+        contract dates, customers, hourly-rate selection (except PS), recurrence or minimum time: those keep their defaults.'
     ContractCreate.create.validateTaskDrivenRevenueContract:
       type: object
       properties:
@@ -11310,7 +11277,7 @@ components:
             role: reference
           default: 0
           description: |-
-            Tenant-defined contract type (a classification independent of the contract model). 0 = none. When > 0 it must exist (37958). When the tenant feature ContractTypeIsRequired is on, a value >= 1 is required (37957).
+            Account-defined contract type (a classification independent of the contract model). 0 = none. When > 0 it must exist (37958). When the account feature ContractTypeIsRequired is on, a value >= 1 is required (37957).
 
             Can be set on create only.
 
@@ -11520,8 +11487,8 @@ components:
         | o | · | · | | TargetHourlyRate, PaymentPlanAmount, RevenueExprAmount, RevenueTravelAmount, IsExpensesLinked, IsTravelLinked
         | · | o | · | · | o | | IsFixedHourlyRate, HourlyRatePrice | · | · | · | o | · | | HourlyRateName | · | · | · | R
         | · | Amounts are in the project''s currency (the project''s sales price list), and every amount, hour and percentage
-        must not have more decimals than the tenant setting InvoiceSetting_NumberOfDecimals (400). There is no field for contract
-        dates, customers, hourly-rate selection (except PS), recurrence or minimum time: those keep their defaults.'
+        must not have more decimals than the account setting InvoiceSetting_NumberOfDecimals (400). There is no field for
+        contract dates, customers, hourly-rate selection (except PS), recurrence or minimum time: those keep their defaults.'
     ContractCreate.create.validateTimeMaterialAccountEndBalancingContract:
       type: object
       properties:
@@ -11685,7 +11652,7 @@ components:
             role: reference
           default: 0
           description: |-
-            Tenant-defined contract type (a classification independent of the contract model). 0 = none. When > 0 it must exist (37958). When the tenant feature ContractTypeIsRequired is on, a value >= 1 is required (37957).
+            Account-defined contract type (a classification independent of the contract model). 0 = none. When > 0 it must exist (37958). When the account feature ContractTypeIsRequired is on, a value >= 1 is required (37957).
 
             Can be set on create only.
 
@@ -11895,8 +11862,8 @@ components:
         | o | · | · | | TargetHourlyRate, PaymentPlanAmount, RevenueExprAmount, RevenueTravelAmount, IsExpensesLinked, IsTravelLinked
         | · | o | · | · | o | | IsFixedHourlyRate, HourlyRatePrice | · | · | · | o | · | | HourlyRateName | · | · | · | R
         | · | Amounts are in the project''s currency (the project''s sales price list), and every amount, hour and percentage
-        must not have more decimals than the tenant setting InvoiceSetting_NumberOfDecimals (400). There is no field for contract
-        dates, customers, hourly-rate selection (except PS), recurrence or minimum time: those keep their defaults.'
+        must not have more decimals than the account setting InvoiceSetting_NumberOfDecimals (400). There is no field for
+        contract dates, customers, hourly-rate selection (except PS), recurrence or minimum time: those keep their defaults.'
     ContractCreate.create.validateTimeMaterialBasicContract:
       type: object
       properties:
@@ -12060,7 +12027,7 @@ components:
             role: reference
           default: 0
           description: |-
-            Tenant-defined contract type (a classification independent of the contract model). 0 = none. When > 0 it must exist (37958). When the tenant feature ContractTypeIsRequired is on, a value >= 1 is required (37957).
+            Account-defined contract type (a classification independent of the contract model). 0 = none. When > 0 it must exist (37958). When the account feature ContractTypeIsRequired is on, a value >= 1 is required (37957).
 
             Can be set on create only.
 
@@ -12270,8 +12237,8 @@ components:
         | o | · | · | | TargetHourlyRate, PaymentPlanAmount, RevenueExprAmount, RevenueTravelAmount, IsExpensesLinked, IsTravelLinked
         | · | o | · | · | o | | IsFixedHourlyRate, HourlyRatePrice | · | · | · | o | · | | HourlyRateName | · | · | · | R
         | · | Amounts are in the project''s currency (the project''s sales price list), and every amount, hour and percentage
-        must not have more decimals than the tenant setting InvoiceSetting_NumberOfDecimals (400). There is no field for contract
-        dates, customers, hourly-rate selection (except PS), recurrence or minimum time: those keep their defaults.'
+        must not have more decimals than the account setting InvoiceSetting_NumberOfDecimals (400). There is no field for
+        contract dates, customers, hourly-rate selection (except PS), recurrence or minimum time: those keep their defaults.'
     ContractModelRead:
       type: object
       properties:
@@ -12323,8 +12290,8 @@ components:
           readOnly: true
           description: The enum member name, e.g. "TimeMaterialBasic". Not localised and not the UI title.
       description: 'A contract (payment) model: how a contract on a project is invoiced. The list is code-defined (enum ContractModelType),
-        filtered to the models whose tenant feature is on. ContractModelID is the enum value and Name is the enum member name
-        (not a translated title).'
+        filtered to the models whose account feature is on. ContractModelID is the enum value and Name is the enum member
+        name (not a translated title).'
     ContractPaymentPlanAmountUpdate.update:
       type: object
       properties:
@@ -12397,8 +12364,6 @@ components:
             Integer identifier of the contract. Use it as ProjectSubContractID on payments, expenses and mileage.
 
             Identifier of this object, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         ContractGuid:
           type: string
           format: uuid
@@ -12414,8 +12379,6 @@ components:
             Alternate key, globally unique.
 
             No REST v1 operation looks a contract up by GUID.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         ContractModelType:
           type: integer
           format: int32
@@ -12461,7 +12424,7 @@ components:
             | `6` | TaskDrivenRevenue | Fixed price with revenue requested per task (TDR). Created by create-task-driven-revenue-contract. |
             | `7` | ContinuousService | Fixed price with revenue requested per period (continuous service, recurring contract). No REST v1 create. |
             | `8` | ContinuousItemInvoicing | Fixed price volume invoicing (FPVI, recurring contract). No REST v1 create. |
-            | `20` | RecurringProductContract | System contract that carries expenses generated from recurring product sales. Not creatable and not listed by GET /v1/ContractModel, but a project's contract list returns it when the project has one (the procedure does not filter by model). |
+            | `20` | RecurringProductContract | System contract that carries expenses generated from recurring product sales. Not creatable and not listed by GET /v1/ContractModel, but a project's contract list returns it when the project has one. |
         ProjectID:
           type: integer
           format: int32
@@ -12532,10 +12495,8 @@ components:
           - boolean
           - 'null'
           readOnly: true
-          description: |-
-            true when this is the project's default contract for expenses (at most one per project: setting it on one contract clears it on the others). null when never set.
-
-            Null: null = column NULL (never set); treat as false.
+          description: 'true when this is the project''s default contract for expenses (at most one per project: setting it
+            on one contract clears it on the others). null when never set.'
         ContractTypeID:
           type: integer
           format: int32
@@ -12543,21 +12504,17 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            Tenant-defined contract type, a classification independent of the contract model. 0 when none.
+            Account-defined contract type, a classification independent of the contract model. 0 when none.
 
             Refers to `ContractTypeRead.ContractTypeID`.
-
-            > **Not yet documented:** identity → references.
         ContractTypeName:
           type: string
           readOnly: true
           description: Name of the contract type; empty string when ContractTypeID is 0.
       description: 'A contract of a project: HOW the work on the project is invoiced. A project has one or more contracts;
-        each has a contract model (time and material, fixed price, prepaid, ...), a status and an optional tenant-defined
-        contract type. Tasks, payments (instalments), expenses and mileage are booked on a contract. This read model is deliberately
-        thin: it carries no budgets, amounts, dates or owner — only identity, model, status and the expense/mileage defaults.
-        The TAF self link points to GET /v1/contract/{ContractID}; each entity also lists the ten contract TAF actions (five
-        creates, five validates).'
+        each has a contract model (time and material, fixed price, prepaid, ...), a status and an optional account-defined
+        contract type. Tasks, payments (instalments), expenses and mileage are booked on a contract. The TAF self link points
+        to GET /v1/contract/{ContractID}; each entity also lists the ten contract TAF actions (five creates, five validates).'
     CustomerRead:
       type: object
       properties:
@@ -12607,7 +12564,7 @@ components:
             id_format: string
           maxLength: 255
           description: |-
-            Customer number. Unique only when the tenant feature UniqueCustomerNumber is on, and then only by an application check (no database constraint). When the customer-number series (auto number) is active and create sends no number, the next number in the series is assigned.
+            Customer number. Unique only when the account feature UniqueCustomerNumber is on, and then only by an application check. When the customer-number series (auto number) is active and create sends no number, the next number in the series is assigned.
 
             Alternate key, unique per TimeLog site.
 
@@ -12625,11 +12582,11 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            The customer's status. Statuses are tenant-defined; their group (customer, supplier, lead, multi-customer project) is CustomerStatusRead.CustomerStatusType. There is no status filter: list and get return suppliers and partners too.
+            The customer's status. Statuses are account-defined; their group (customer, supplier, lead, multi-customer project) is CustomerStatusRead.CustomerStatusType. There is no status filter: list and get return suppliers and partners too.
 
             Refers to `CustomerStatusRead.CustomerStatusID`. Look up valid values with `GET /v1/customerstatus`.
 
-            The "Multi customer project" pseudo-customer carries a status (AssociationFlags 16) that GET /v1/customerstatus does not list, so its CustomerStatusID cannot be resolved through the API. A NULL status in the database is returned as 0.
+            The "Multi customer project" pseudo-customer carries a status (AssociationFlags 16) that GET /v1/customerstatus does not list, so its CustomerStatusID cannot be resolved through the API.
 
             Valid values come from `GET /v1/customerstatus`.
         VATNo:
@@ -12642,9 +12599,7 @@ components:
           readOnly: true
           maxLength: 255
           description: Company registration number.
-      description: 'A customer as the REST v1 API returns it: the identifiers, name, number, status and tax numbers only.
-        Every row of the customer table is a "customer" here, whatever its status: suppliers, partners, the tenant''s own
-        company and the system "Multi customer project" row are included (see CustomerStatusID).'
+      description: 'A customer as the REST v1 API returns it: the identifiers, name, number, status and tax numbers only.'
     EmployeeExpenseCreate:
       type: object
       properties:
@@ -12746,7 +12701,7 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            How the employee paid (e.g. own card, company card).
+            How the employee paid.
 
             Refers to `PaymentMethodRead.PaymentMethodID`. Look up valid values with `GET /v1/payment-method/{status}`.
         ProjectID:
@@ -13011,7 +12966,7 @@ components:
           description: |-
             Whether the mileage is billable to the customer.
 
-            - tenant features Billable AND BillableExpense are on — applied
+            - account features Billable AND BillableExpense are on — applied
 
             - either feature is off — Replaced by the resolved contract's IsMileageBillable.
 
@@ -13083,8 +13038,6 @@ components:
             **Conditional.** Must be 0 unless the contract is TaskDrivenRevenue (400 "TaskID can only be added when importing on a Task Driven Revenue Contract.").
 
             Refers to `TaskRead.TaskID`.
-
-            > **Not yet documented:** identity → references.
         ProductNumber:
           type: string
           x-timelog-identity:
@@ -13097,8 +13050,6 @@ components:
             - Feature InvoiceSetting_ProductNoActive is off — Stored as empty.
 
             - Empty and feature on — defaulted
-
-            > **Not yet documented:** identity → references.
         DiscountPercentage:
           type: number
           format: double
@@ -13116,8 +13067,6 @@ components:
             The contract. Must belong to ProjectID (37042, raised inside model validation) and be FixedPriceBasic, TimeMaterialAccountEndBalancing, PrepaidServices or TaskDrivenRevenue (400 "The selected contract does not support import of payment.").
 
             Refers to `ContractRead.ProjectSubContractID`.
-
-            > **Not yet documented:** identity → references.
         Quantity:
           type: number
           format: double
@@ -13161,7 +13110,7 @@ components:
           description: |-
             Unit of Quantity.
 
-            - Value not in the enum (e.g. 5) — 400 (IsInEnum).
+            - Value not in the enum (e.g. 5) — 400.
 
             Allowed values:
 
@@ -13207,8 +13156,6 @@ components:
             Identifier of this object, unique per TimeLog site.
 
             The list is ordered by PaymentID ascending.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         PaymentGuid:
           type: string
           format: uuid
@@ -13222,8 +13169,6 @@ components:
             The payment's GUID.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         Comment:
           type: string
           readOnly: true
@@ -13297,8 +13242,6 @@ components:
             The task the instalment is linked to (task-driven-revenue contracts); 0 = none.
 
             Refers to `TaskRead.TaskID`.
-
-            > **Not yet documented:** identity → references.
         ProductNumberID:
           type: integer
           format: int32
@@ -13309,8 +13252,6 @@ components:
             ID of the product number on the instalment (resolved from the stored product-number text); 0 = none. GET by ID resolves it within the project's legal entity; the list does not, and can return a different ID or duplicate the row when the same number exists in several legal entities.
 
             Refers to `ProductNumberRead.ProductNumberID`.
-
-            > **Not yet documented:** identity → references.
         Discount:
           type: number
           format: double
@@ -13333,8 +13274,6 @@ components:
             Filterable via `contractID` (eq).
 
             Filter of GET /v1/payment (required there).
-
-            > **Not yet documented:** identity → references.
         Quantity:
           type: number
           format: double
@@ -13379,7 +13318,7 @@ components:
             | `2` | Minutes | Minutes. |
             | `3` | Days | Days. |
             | `4` | Km | Kilometres. |
-            | `6` | Pieces | Pieces. (Value 5, Miles, is commented out of the enum.) |
+            | `6` | Pieces | Pieces. |
             | `7` | Liters | Litres. |
             | `8` | Meters | Metres. |
             | `9` | Kilograms | Kilograms. |
@@ -13499,7 +13438,7 @@ components:
           type: string
           readOnly: true
           maxLength: 500
-          description: Category name. Empty string when the column is NULL.
+          description: Category name.
         IsActive:
           type: boolean
           readOnly: true
@@ -13525,9 +13464,7 @@ components:
             Category GUID. Not accepted as input by the project operations.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
-      description: A tenant-defined project category used to classify projects.
+      description: A account-defined project category used to classify projects.
     ProjectCreate.create:
       type: object
       properties:
@@ -13545,8 +13482,6 @@ components:
             Default: the number the template mapping produces
 
             > **Not yet documented:** default.
-
-            > **Not yet documented:** identity → role.
         CustomerID:
           type: integer
           format: int32
@@ -13570,8 +13505,6 @@ components:
             The project template to copy.
 
             Refers to `ProjectTemplateRead.ProjectTemplateID`.
-
-            > **Not yet documented:** identity → references.
         ProjectManagerID:
           type: integer
           format: int32
@@ -13610,8 +13543,6 @@ components:
             Project type.
 
             Refers to `ProjectTypeRead.ProjectTypeID`.
-
-            > **Not yet documented:** identity → references.
         ProjectCategoryID:
           type: integer
           format: int32
@@ -13622,8 +13553,6 @@ components:
             Project category; 0 = none.
 
             Refers to `ProjectCategoryRead.ProjectCategoryID`.
-
-            > **Not yet documented:** identity → references.
         CurrencyID:
           type: integer
           format: int32
@@ -13641,7 +13570,7 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            Legal entity of the project; 0 = the tenant's default legal entity.
+            Legal entity of the project; 0 = the account's default legal entity.
 
             Refers to `LegalEntityRead.LegalEntityID`. Look up valid values with `GET /v1/legal-entity`.
 
@@ -13789,8 +13718,6 @@ components:
             Integer identifier of the project. Use it as ProjectID on the two POST operations of this controller.
 
             Identifier of this object, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         ID:
           type: string
           format: uuid
@@ -13804,33 +13731,29 @@ components:
             The project's GUID.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         Name:
           type: string
           readOnly: true
           description: |-
-            Project name. Null in the database is returned as "".
+            Project name.
 
             Filterable via `searchText` (contains).
         'No':
           type: string
           readOnly: true
           description: |-
-            Project number. Null in the database is returned as "".
+            Project number.
 
             Filterable via `searchText` (contains).
-
-            > **Not yet documented:** identity → role.
         ExpenseIsBillable:
           type:
           - boolean
           - 'null'
           readOnly: true
-          description: |-
-            The billable default for an expense or mileage registration on this project. Meaning depends on the operation: on the time-tracking searches and the allocation-scoped expense/travel search it is the IsBillable of the first ACTIVE contract (status 2) in this order — the default-for-expenses contract, else the project's main contract, else the active contract with the lowest ID; null when the project has no active contract. On the expense/travel search with searchAll=true it is the project's own ExpenseIsBillable column instead.
-
-            Null: No active contract on the project (contract-derived variants), or NULL column (searchAll expense/travel variant).
+          description: 'The billable default for an expense or mileage registration on this project. Meaning depends on the
+            operation: on the time-tracking searches and the allocation-scoped expense/travel search it is the IsBillable
+            of the first ACTIVE contract (status 2) in this order — the default-for-expenses contract, else the project''s
+            main contract, else the active contract with the lowest ID; null when the project has no active contract.'
         CustomerID:
           type: integer
           format: int32
@@ -13866,13 +13789,10 @@ components:
             A contract (ProjectSubContractID) of the project. Meaning depends on the operation: on the time-tracking "order-by-recent-registration" searches (with or without searchAll) and on the expense/travel searches without searchAll, it is the contract an expense would default to — the ACTIVE default-for-expenses contract, else the main contract if active, else the active contract with the lowest ID (0 when there is none). On search-for-time-tracking, search-for-time-tracking-by-customer-id and the expense/travel searches with searchAll=true it is the project's stored main contract, whatever its status.
 
             Refers to `ContractRead.ProjectSubContractID`.
-
-            > **Not yet documented:** identity → references.
       description: 'A short project representation for pickers: the project''s IDs, name and number, its customer, and the
-        contract and billable default an expense or mileage registration on the project would get. It is not the full project
-        (rest.v1 project GET, not curated yet). The TAF self link points to GET /v1/project/{ProjectID}; every entity also
-        carries two TAF actions, create-employee-expense and create-mileage-registration, that describe the two POST operations
-        of this controller.'
+        contract and billable default an expense or mileage registration on the project would get. It is not the full project.
+        The TAF self link points to GET /v1/project/{ProjectID}; every entity also carries two TAF actions, create-employee-expense
+        and create-mileage-registration, that describe the two POST operations of this controller.'
     ProjectRead:
       type: object
       properties:
@@ -13889,8 +13809,6 @@ components:
             Integer identifier of the project. Path parameter of GET/PUT /v1/project/{projectID}.
 
             Identifier of this object, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         ID:
           type: string
           format: uuid
@@ -13904,21 +13822,17 @@ components:
             The project's GUID.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         Name:
           type: string
           readOnly: true
-          description: Project name. NULL in the database is returned as "".
+          description: Project name.
         'No':
           type: string
           readOnly: true
           description: |-
-            Project number. NULL is returned as "". get-all is ordered by this column.
+            Project number.
 
             Not sortable by the caller, but it is the fixed sort key of get-all (ascending).
-
-            > **Not yet documented:** identity → role.
         ExpenseIsBillable:
           type: boolean
           readOnly: true
@@ -13959,8 +13873,6 @@ components:
             The project's customer contact; 0 = none.
 
             Refers to `ContactRead.ContactID`.
-
-            > **Not yet documented:** identity → references.
         Description:
           type: string
           readOnly: true
@@ -13978,7 +13890,7 @@ components:
 
             Refers to `DepartmentRead.DepartmentID`. Look up valid values with `GET /v1/department`.
 
-            Null: No department (NULL or 0 in the database).
+            Null: No department.
 
             > **Not yet documented:** description.
         ProjectManagerID:
@@ -14023,8 +13935,6 @@ components:
             Refers to `EmployeeRead.EmployeeID`.
 
             Null: No partner.
-
-            > **Not yet documented:** identity → references.
         ProjectTypeID:
           type:
           - integer
@@ -14039,8 +13949,6 @@ components:
             Refers to `ProjectTypeRead.ProjectTypeID`.
 
             Null: No project type.
-
-            > **Not yet documented:** identity → references.
         ProjectCategoryID:
           type:
           - integer
@@ -14055,8 +13963,6 @@ components:
             Refers to `ProjectCategoryRead.ProjectCategoryID`.
 
             Null: No category.
-
-            > **Not yet documented:** identity → references.
         BudgetWorkHours:
           type: number
           format: double
@@ -14173,10 +14079,6 @@ components:
             Template GUID. Not accepted as input by create-from-template (which takes ProjectTemplateID).
 
             Alternate key, unique per TimeLog site.
-
-            The column is NULLable (default NEWID()); the DAO casts it without a NULL check, so one template row with a NULL GUID fails the whole list.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         ProjectTemplateID:
           type: integer
           readOnly: true
@@ -14206,9 +14108,7 @@ components:
             Active flag. Inactive templates are listed too.
 
             > **Not yet documented:** notes.
-      description: 'A project template: the blueprint that create-from-template copies into a new project. This read model
-        carries only identity, name, description and the active flag; the template''s budgets, dates and settings are not
-        exposed.'
+      description: 'A project template: the blueprint that create-from-template copies into a new project.'
     ProjectTypeRead:
       type: object
       properties:
@@ -14255,8 +14155,6 @@ components:
             Project type GUID. Not accepted as input by the project operations.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
       description: '"Business area A" or "Internal time". The value set for ProjectTypeID on project create / update.'
     ProjectUpdate.update:
       type: object
@@ -14587,8 +14485,6 @@ components:
 
             > **Not yet documented:** values → lookup op.
 
-            > **Not yet documented:** identity → references → schema.
-
             > **Not yet documented:** behaviour.
         StartDate:
           type:
@@ -14600,7 +14496,7 @@ components:
           description: |-
             First day of the allocation period.
 
-            **Conditional.** Only allowed when the tenant feature 'Enable start and end date on allocations' (AllocationDates) is active, and never on a recurring task. Optional then; omitted = the task's StartDate.
+            **Conditional.** Only allowed when the account feature 'Enable start and end date on allocations' (AllocationDates) is active, and never on a recurring task. Optional then; omitted = the task's StartDate.
 
             Time zone: none — the time part is dropped (.Date)
 
@@ -14631,7 +14527,7 @@ components:
       - UserID
       - AllocatedHours
       description: 'A new allocation of one user on the task named in the path: how many hours the user is planned for, at
-        which contract hourly rate, and (when the tenant feature allows it) for which period. One allocation per (user, task).'
+        which contract hourly rate, and (when the account feature allows it) for which period. One allocation per (user, task).'
     TaskCreate.create.createSubTask:
       type: object
       properties:
@@ -14777,8 +14673,6 @@ components:
             - TDR contract and HourlyRateID != 0 — TaskHourlyRate must then be 0 (400 'Hourly rate must be 0 when HourlyRateID is selected.').
 
             > **Not yet documented:** values → lookup op.
-
-            > **Not yet documented:** identity → references → schema.
         BudgetHours:
           type: number
           format: double
@@ -14825,7 +14719,7 @@ components:
 
             - Unknown ID (create only) — 500 Code 102 / 37010 (rest.projectmanagement.task-type-not-found). validate-new-task does not check it.
 
-            - Null — Stored as 0 (no task type). The tenant's 'task type required' setting is deliberately not enforced by the save rules.
+            - Null — Stored as 0 (no task type). The account's 'task type required' setting is deliberately not enforced by the save rules.
 
             > **Not yet documented:** values → lookup op.
         PaymentRecognitionModel:
@@ -14908,8 +14802,6 @@ components:
             - TDR contract, unknown number — 500 Code 102 / 37939 (rest.projectmanagement.task-payment-product-number-not-found).
 
             > **Not yet documented:** values → lookup op.
-
-            > **Not yet documented:** identity → references → schema.
         PaymentName:
           type:
           - string
@@ -15097,8 +14989,6 @@ components:
             - TDR contract and HourlyRateID != 0 — TaskHourlyRate must then be 0 (400 'Hourly rate must be 0 when HourlyRateID is selected.').
 
             > **Not yet documented:** values → lookup op.
-
-            > **Not yet documented:** identity → references → schema.
         BudgetHours:
           type: number
           format: double
@@ -15145,7 +15035,7 @@ components:
 
             - Unknown ID (create only) — 500 Code 102 / 37010 (rest.projectmanagement.task-type-not-found). validate-new-task does not check it.
 
-            - Null — Stored as 0 (no task type). The tenant's 'task type required' setting is deliberately not enforced by the save rules.
+            - Null — Stored as 0 (no task type). The account's 'task type required' setting is deliberately not enforced by the save rules.
 
             > **Not yet documented:** values → lookup op.
         PaymentRecognitionModel:
@@ -15228,8 +15118,6 @@ components:
             - TDR contract, unknown number — 500 Code 102 / 37939 (rest.projectmanagement.task-payment-product-number-not-found).
 
             > **Not yet documented:** values → lookup op.
-
-            > **Not yet documented:** identity → references → schema.
         PaymentName:
           type:
           - string
@@ -15416,8 +15304,6 @@ components:
             - TDR contract and HourlyRateID != 0 — TaskHourlyRate must then be 0 (400 'Hourly rate must be 0 when HourlyRateID is selected.').
 
             > **Not yet documented:** values → lookup op.
-
-            > **Not yet documented:** identity → references → schema.
         BudgetHours:
           type: number
           format: double
@@ -15464,7 +15350,7 @@ components:
 
             - Unknown ID (create only) — 500 Code 102 / 37010 (rest.projectmanagement.task-type-not-found). validate-new-task does not check it.
 
-            - Null — Stored as 0 (no task type). The tenant's 'task type required' setting is deliberately not enforced by the save rules.
+            - Null — Stored as 0 (no task type). The account's 'task type required' setting is deliberately not enforced by the save rules.
 
             > **Not yet documented:** values → lookup op.
         PaymentRecognitionModel:
@@ -15547,8 +15433,6 @@ components:
             - TDR contract, unknown number — 500 Code 102 / 37939 (rest.projectmanagement.task-payment-product-number-not-found).
 
             > **Not yet documented:** values → lookup op.
-
-            > **Not yet documented:** identity → references → schema.
         PaymentName:
           type:
           - string
@@ -15682,7 +15566,7 @@ components:
         IsFixedPrice:
           type: boolean
           readOnly: true
-          description: The task's IsFixedPrice column (as on TaskRead).
+          description: ''
         StartDate:
           type: string
           format: date-time
@@ -15710,11 +15594,11 @@ components:
         IsDefaultBillable:
           type: boolean
           readOnly: true
-          description: The task's default_billable column (as on TaskRead). NOT the column the isBillable filter reads.
+          description: ''
         AdditionalTextIsRequired:
           type: boolean
           readOnly: true
-          description: The task's AdditionalTextIsRequired column (as on TaskRead).
+          description: ''
         ID:
           type: string
           format: uuid
@@ -15750,9 +15634,8 @@ components:
           type: boolean
           readOnly: true
           description: The task's IsTravelTimeTask flag (as on TaskRead).
-      description: 'A task with its plan data: identity, names and numbers, status, active flag, dates, the project''s number,
-        its parent, and the billing flags that shape registrations on it. Returned by the task search `GET /v1/task/filter`.
-        Unlike TaskRead it carries status and dates, but no project object and no TAF actions.'
+      description: Returned by the task search `GET /v1/task/filter`. Unlike TaskRead it carries status and dates, but no
+        project object and no TAF actions.
     TaskRead:
       type: object
       properties:
@@ -15769,8 +15652,6 @@ components:
             Integer identifier of the task. Use it as TaskID when registering time (POST /v1/task/registration, POST /v1/time-registration).
 
             Identifier of this object, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
         ID:
           type: string
           format: uuid
@@ -15784,10 +15665,6 @@ components:
             The task's GUID.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
-
-            > **Not yet documented:** identity → role.
         Name:
           type: string
           readOnly: true
@@ -15801,11 +15678,9 @@ components:
           type: string
           readOnly: true
           description: |-
-            Task number. Null in the database is returned as "".
+            Task number.
 
             Filterable via `searchText` (contains).
-
-            > **Not yet documented:** identity → role.
         IsFixedPrice:
           type: boolean
           readOnly: true
@@ -15815,17 +15690,11 @@ components:
         IsDefaultBillable:
           type: boolean
           readOnly: true
-          description: |-
-            The task's default_billable column.
-
-            > **Not yet documented:** description.
+          description: '> **Not yet documented:** description.'
         AdditionalTextIsRequired:
           type: boolean
           readOnly: true
-          description: |-
-            The task's AdditionalTextIsRequired column.
-
-            > **Not yet documented:** description.
+          description: '> **Not yet documented:** description.'
         ParentFullName:
           type: string
           readOnly: true
@@ -15855,7 +15724,7 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            The task's project as ProjectHeaderRead, only with $expand=project (otherwise null). With $expand=project the project's Customer is filled too. On this read ExpenseIsBillable is the project's own ExpenseIsBillable column and MainContractId the project's stored main contract (not the contract-derived values of some /project-header searches).
+            The task's project as ProjectHeaderRead, only with $expand=project (otherwise null). With $expand=project the project's Customer is filled too.
 
             Refers to `ProjectHeaderRead.ProjectID`.
 
@@ -15886,7 +15755,7 @@ components:
           - 'null'
           readOnly: true
           description: |-
-            Whether the CALLER has marked the task as a favourite. Filled (true / false) by search-for-time-tracking, search-for-time-tracking-by-customer-id and get-recently-registered; null on every other operation, whose procedures do not return the column.
+            Whether the CALLER has marked the task as a favourite.
 
             Null: The operation does not compute favourites — not 'not a favourite'.
 
@@ -16071,7 +15940,7 @@ components:
           type: string
           readOnly: true
           maxLength: 255
-          description: Task type name. Empty string when the column is NULL.
+          description: Task type name.
         IsActive:
           type: boolean
           readOnly: true
@@ -16094,11 +15963,9 @@ components:
             uniqueness_enforced: unknown
             id_format: guid
           description: |-
-            Task type GUID. The column is nullable; a NULL makes the whole list fail.
+            Task type GUID.
 
             Alternate key, unique per TimeLog site.
-
-            > **Not yet documented:** identity → uniqueness enforced.
       description: Analysis" or "3. Production". The value set for TaskTypeID on task create / update.
     TaskUpdate.update:
       type: object
@@ -16125,7 +15992,7 @@ components:
 
             Null: null / omitted = unchanged.
 
-            - The tenant's task-number setting auto-generates or hides task numbers — Passed to Task.ChangeNo with the ShowTaskNo setting; per the model's comment the value is then ignored.
+            - The account's task-number setting auto-generates or hides task numbers — Passed to Task.ChangeNo with the ShowTaskNo setting; per the model's comment the value is then ignored.
 
             > **Not yet documented:** behaviour.
         Description:
@@ -16235,8 +16102,6 @@ components:
             - Applied BEFORE the budget fields — The adapter applies HourlyRateID first, so BudgetHours / BudgetAmount in the same request are judged against the NEW rate.
 
             > **Not yet documented:** values → lookup op.
-
-            > **Not yet documented:** identity → references → schema.
         TaskTypeID:
           type:
           - integer
@@ -16278,7 +16143,7 @@ components:
 
             Null: null / omitted = unchanged.
 
-            - Not a member — 400 (IsInEnum).
+            - Not a member — 400.
 
             - Planning task and a status other than NotStarted / Completed — Violation 'A planning task can only be "not started" or "completed"'.
 

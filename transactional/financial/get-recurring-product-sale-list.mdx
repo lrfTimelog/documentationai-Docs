@@ -1,0 +1,246 @@
+---
+title: "GetRecurringProductSaleList"
+description: "Financial service 1.4: List a project's recurring product sales in a period"
+---
+
+| | |
+|---|---|
+| Service | Financial 1.4 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc` |
+| SOAPAction | `http://www.timelog.com/api/tlp/v1_4/FinancialService/GetRecurringProductSaleList` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | No |
+| Safe to retry | Yes |
+
+## How it works
+
+For the project projectID, returns every instance of its recurring project products dated between startDate and endDate. Despite the 'future' naming the window can reach into the past: instances already turned into expenses are included with the expense's purchase date and IsInvoiced = true when invoiced. Only active recurring products are listed, except that already-billed instances of inactive products are still returned. Template projects return nothing. There is no ID of the instance, product or project in the result, and no defined order.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="projectID" field-type="integer" required="true">
+Integer ID of the project; must exist.
+
+</ResponseField>
+
+<ResponseField name="startDate" field-type="dateTime" required="true">
+Start of the window, inclusive.
+
+</ResponseField>
+
+<ResponseField name="endDate" field-type="dateTime" required="true">
+End of the window, inclusive - send the end of the last day if instance dates carry a time.
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/api/tlp/v1_4/FinancialService/GetRecurringProductSaleList"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:financial="http://www.timelog.com/api/tlp/v1_4"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <financial:GetRecurringProductSaleList>
+      <financial:projectID>{projectID}</financial:projectID>
+      <financial:startDate>{startDate}</financial:startDate>
+      <financial:endDate>{endDate}</financial:endDate>
+      <financial:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </financial:token>
+    </financial:GetRecurringProductSaleList>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/api/tlp/v1_4/FinancialService/GetRecurringProductSaleList"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/Financial/V1_4/FinancialServiceSecure.svc"
+SOAP_ACTION = '"http://www.timelog.com/api/tlp/v1_4/FinancialService/GetRecurringProductSaleList"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:financial="http://www.timelog.com/api/tlp/v1_4"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <financial:GetRecurringProductSaleList>
+      <financial:projectID>{projectID}</financial:projectID>
+      <financial:startDate>{startDate}</financial:startDate>
+      <financial:endDate>{endDate}</financial:endDate>
+      <financial:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </financial:token>
+    </financial:GetRecurringProductSaleList>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="RecurringProjectProductFutureInstance[]">
+Response&lt;RecurringProjectProductFutureInstance>: Return = instances dated in the window; unordered. Existing project without recurring products in the window: Return empty, ResponseState Success.
+
+<Expandable title="RecurringProjectProductFutureInstance fields">
+
+<ResponseField name="CostPerUnit" field-type="double">
+ 
+</ResponseField>
+
+<ResponseField name="CurrencyOfCost" field-type="string">
+Currency abbreviation of CostPerUnit / TotalCostAmount: the catalogue product's currency when the project product came from a catalogue product, otherwise the project's currency.
+</ResponseField>
+
+<ResponseField name="CurrencyOfSalesPrice" field-type="string">
+Currency abbreviation of PricePerUnit / TotalSalesAmount: the project's currency.
+</ResponseField>
+
+<ResponseField name="Discount" field-type="double">
+Discount of the instance, as a percentage; applied when > 0.
+</ResponseField>
+
+<ResponseField name="InvoiceDate" field-type="dateTime">
+Planned date of the instance; for an instance already turned into an expense, the expense's purchase date. Filtered by startDate / endDate.
+</ResponseField>
+
+<ResponseField name="IsInvoiced" field-type="boolean">
+True when the instance has been turned into an expense that is marked invoiced; false for planned instances.
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+Name of the project product.
+</ResponseField>
+
+<ResponseField name="PricePerUnit" field-type="double">
+ 
+</ResponseField>
+
+<ResponseField name="ProductNumber" field-type="string">
+Accounting product number of the project product; '' when none.
+</ResponseField>
+
+<ResponseField name="Quantity" field-type="integer">
+Fractional quantities are lost and the totals are computed from the rounded value.
+</ResponseField>
+
+<ResponseField name="TotalCostAmount" field-type="double">
+Quantity x CostPerUnit, then reduced by Discount % - the SALES discount is applied to the cost too. In CurrencyOfCost.
+</ResponseField>
+
+<ResponseField name="TotalSalesAmount" field-type="double">
+Quantity x PricePerUnit x / 100, in CurrencyOfSalesPrice. Unrounded double.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetRecurringProductSaleListResponse xmlns="http://www.timelog.com/api/tlp/v1_4">
+      <GetRecurringProductSaleListResult xmlns:a="http://api.timelog.com"
+                                         xmlns:b="http://schemas.datacontract.org/2004/07/TimeLog.TLP.API.Proxy.Financial.V1_4"
+                                         xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:RecurringProjectProductFutureInstance>
+            <b:CostPerUnit>0</b:CostPerUnit>
+            <b:CurrencyOfCost>DKK</b:CurrencyOfCost>
+            <b:CurrencyOfSalesPrice>DKK</b:CurrencyOfSalesPrice>
+            <b:Discount>0</b:Discount>
+            <b:InvoiceDate>2026-10-01T00:00:00</b:InvoiceDate>
+            <b:IsInvoiced>false</b:IsInvoiced>
+            <b:Name>Example </b:Name>
+            <b:PricePerUnit>0</b:PricePerUnit>
+            <b:ProductNumber>1001</b:ProductNumber>
+            <b:Quantity>0</b:Quantity>
+            <b:TotalCostAmount>0</b:TotalCostAmount>
+            <b:TotalSalesAmount>0</b:TotalSalesAmount>
+          </b:RecurringProjectProductFutureInstance>
+        </a:Return>
+        <a:ReturnTypeDescription>RecurringProjectProductFutureInstance</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </GetRecurringProductSaleListResult>
+    </GetRecurringProductSaleListResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Error | 40001 | Error during call on TimeLog.API, Message 'Invalid project ID' | No project has this ID. | Check the project ID. |

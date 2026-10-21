@@ -1,0 +1,446 @@
+---
+title: "GetInvoicesRaw"
+description: "Reporting API: Returns invoice headers filtered by invoice, customer, state and invoice date."
+---
+
+| | |
+|---|---|
+| API | Reporting API (raw extracts) |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/Service.asmx` |
+| SOAPAction | `http://www.timelog.com/ws/tlp/v4_4/GetInvoicesRaw` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | `siteCode`, `apiID` and `apiPassword` as the first three parameters. See [Authentication](/reporting/guides/authentication) |
+| Changes data | No. Safe to retry. |
+| Paging | No: the whole result comes in one response. Narrow it with the filters. |
+
+## How it works
+
+Filters: invoiceID, customerID, status and an invoice-date window given as STRINGS. The window compares InvoiceDate as an exact timestamp: an endDate without a time excludes invoices dated later that day, while the line / detail extracts widen to whole days. No caching, no chunking. INVOICE AMOUNTS; attention contact and customer reference are personal data.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="siteCode" field-type="string" required="true">
+Your account's site code, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiID" field-type="string" required="true">
+The Reporting API ID, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiPassword" field-type="string" required="true">
+The Reporting API password, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="invoiceID" field-type="integer" required="true">
+Invoice id. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="customerID" field-type="integer" required="true">
+Customer id. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="status" field-type="integer" required="true">
+Use `-1` for no filter. Invoice state. 0 = drafts only; 1 = state >= 1; 2 = state >= 2; 3 = checked; >= 4 = nothing.
+</ResponseField>
+
+<ResponseField name="startDate" field-type="string">
+**Optional.** InvoiceDate >= value. Send yyyy-MM-dd.
+</ResponseField>
+
+<ResponseField name="endDate" field-type="string">
+**Optional.** Unparseable = no upper limit.
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/Service.asmx HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetInvoicesRaw"
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetInvoicesRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:invoiceID>0</tlp:invoiceID>
+      <tlp:customerID>0</tlp:customerID>
+      <tlp:status>-1</tlp:status>
+      <tlp:startDate>{startDate}</tlp:startDate>
+      <tlp:endDate>{endDate}</tlp:endDate>
+    </tlp:GetInvoicesRaw>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/Service.asmx" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetInvoicesRaw"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/Service.asmx"
+SOAP_ACTION = '"http://www.timelog.com/ws/tlp/v4_4/GetInvoicesRaw"'
+
+envelope = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetInvoicesRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:invoiceID>0</tlp:invoiceID>
+      <tlp:customerID>0</tlp:customerID>
+      <tlp:status>-1</tlp:status>
+      <tlp:startDate>{startDate}</tlp:startDate>
+      <tlp:endDate>{endDate}</tlp:endDate>
+    </tlp:GetInvoicesRaw>
+  </soap:Body>
+</soap:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=300,
+)
+rows = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The result is an XML document inside `GetInvoicesRawResult`: a `tlp:Invoices` root with one `tlp:Invoice` element per record. Check the [response format](/reporting/guides/responses-and-errors) first: the same slot also carries the empty result and errors.
+
+Order: InvoiceNo ascending.
+
+<ResponseField name="tlp:Invoice" field-type="InvoiceRaw[]">
+One element per record. Fields without a value are left out of the element, so treat every field as optional.
+
+<Expandable title="Invoice fields">
+
+<ResponseField name="ID" field-type="integer (attribute)">
+**Invoice ID.** InvoiceID.
+</ResponseField>
+
+<ResponseField name="GUID" field-type="string (attribute)">
+**Invoice GUID.**
+</ResponseField>
+
+<ResponseField name="InvoiceNo" field-type="string">
+**Invoice number.**
+</ResponseField>
+
+<ResponseField name="Header" field-type="string">
+**Header.** Invoice header text, cleaned of XML-forbidden characters.
+</ResponseField>
+
+<ResponseField name="Text" field-type="string">
+**Text.** NOT cleaned of XML-forbidden characters.
+</ResponseField>
+
+<ResponseField name="InvoiceDate" field-type="string">
+**Invoice date.** Invoice date. The startDate / endDate filter compares this value as an exact timestamp.
+</ResponseField>
+
+<ResponseField name="DueDate" field-type="string">
+**Due date.** Payment due date.
+</ResponseField>
+
+<ResponseField name="Amount" field-type="decimal">
+**Amount.** Invoice currency - inferred from AmountSystemCurrency = Amount x CurrencyRate / 100. Whether it is gross or net of VAT is not stated. HIGH sensitivity.
+</ResponseField>
+
+<ResponseField name="AmountSystemCurrency" field-type="decimal">
+**Amount (system currency).** Computed: Amount x CurrencyRate / 100, DECIMAL.
+</ResponseField>
+
+<ResponseField name="Status" field-type="integer">
+**Status.** Invoice state.
+</ResponseField>
+
+<ResponseField name="Type" field-type="integer">
+**Type.** Invoice type.
+</ResponseField>
+
+<ResponseField name="CustomerID" field-type="integer">
+**Customer ID.** Invoiced customer.
+</ResponseField>
+
+<ResponseField name="CustomerName" field-type="string">
+**Customer name.** Customer name from the invoice snapshot; falls back to the customer's CURRENT company name when the snapshot has none.
+</ResponseField>
+
+<ResponseField name="CustomerNo" field-type="string">
+**Customer number.** The customer's CURRENT customer number, not a snapshot.
+</ResponseField>
+
+<ResponseField name="CustomerAddress1" field-type="string">
+**Customer address 1.** Taken from the invoice's own customer snapshot - the address as printed on the invoice, not the customer's current address.
+</ResponseField>
+
+<ResponseField name="CustomerAddress2" field-type="string">
+**Customer address 2.** Taken from the invoice's own customer snapshot - the address as printed on the invoice, not the customer's current address.
+</ResponseField>
+
+<ResponseField name="CustomerAddress3" field-type="string">
+**Customer address 3.** Taken from the invoice's own customer snapshot - the address as printed on the invoice, not the customer's current address.
+</ResponseField>
+
+<ResponseField name="CustomerZipCode" field-type="string">
+**Customer zip code.** Taken from the invoice's own customer snapshot - the address as printed on the invoice, not the customer's current address.
+</ResponseField>
+
+<ResponseField name="CustomerCity" field-type="string">
+**Customer city.** Taken from the invoice's own customer snapshot - the address as printed on the invoice, not the customer's current address.
+</ResponseField>
+
+<ResponseField name="CustomerState" field-type="string">
+**Customer state.** Taken from the invoice's own customer snapshot - the address as printed on the invoice, not the customer's current address.
+</ResponseField>
+
+<ResponseField name="CustomerCountry" field-type="string">
+**Customer country.** Taken from the invoice's own customer snapshot - the address as printed on the invoice, not the customer's current address. Country NAME.
+</ResponseField>
+
+<ResponseField name="CustomerCountryID" field-type="integer">
+**Customer country ID.** The customer's CURRENT country id - may disagree with the snapshot CustomerCountry.
+</ResponseField>
+
+<ResponseField name="PaymentTermID" field-type="integer">
+**Payment term ID.** Payment term; omitted when none.
+</ResponseField>
+
+<ResponseField name="PaymentTermText" field-type="string">
+**Payment term text.**
+</ResponseField>
+
+<ResponseField name="CurrencyAbb" field-type="string">
+**Currency.** Invoice currency code.
+</ResponseField>
+
+<ResponseField name="CurrencyRate" field-type="decimal">
+**Currency rate.**
+</ResponseField>
+
+<ResponseField name="DefaultVAT" field-type="decimal">
+**Default VAT.** Default VAT rate of the invoice, DECIMAL.
+</ResponseField>
+
+<ResponseField name="AddVAT" field-type="integer">
+**Add VAT.**
+</ResponseField>
+
+<ResponseField name="NetAmount" field-type="decimal">
+**Net amount.**
+</ResponseField>
+
+<ResponseField name="NetAmountSystemCurrency" field-type="decimal">
+**Net amount (system currency).**
+</ResponseField>
+
+<ResponseField name="VATIncluded" field-type="decimal">
+**VAT included.**
+</ResponseField>
+
+<ResponseField name="VATIncludedSystemCurrency" field-type="decimal">
+**VAT included (system currency).**
+</ResponseField>
+
+<ResponseField name="ProjectID" field-type="integer">
+**Project ID.** Invoice-level project.
+</ResponseField>
+
+<ResponseField name="ProjectNo" field-type="string">
+**Project number.** Project number stored on the invoice.
+</ResponseField>
+
+<ResponseField name="PurchaseNo" field-type="string">
+**Purchase number.** Customer purchase-order number, cleaned of XML-forbidden characters.
+</ResponseField>
+
+<ResponseField name="ContactFullName" field-type="string">
+**Attention contact.** Name of the attention contact from the invoice snapshot. Personal data of an external person.
+</ResponseField>
+
+<ResponseField name="DepartmentID" field-type="integer">
+**Department ID.** Invoice department.
+</ResponseField>
+
+<ResponseField name="DepartmentTree" field-type="string">
+**Department path.** Full department path.
+</ResponseField>
+
+<ResponseField name="ExternalInvoiceNo" field-type="string">
+**External invoice number.** Number in the external finance system; '' when none.
+</ResponseField>
+
+<ResponseField name="CustomerReference" field-type="string">
+**Customer reference.**
+</ResponseField>
+
+<ResponseField name="ExternalInvoiceStatus" field-type="string">
+**External invoice status.** Status in the external finance system, mapped to text. NULL or any other value -> 'Unknown'.
+</ResponseField>
+
+<ResponseField name="RelatesToInvoiceID" field-type="integer">
+**Related invoice ID.** What the relation means is not stated in the read path.
+</ResponseField>
+
+<ResponseField name="InternalNote" field-type="string">
+**Internal note.** Not meant for the customer.
+</ResponseField>
+
+<ResponseField name="LegalEntityID" field-type="integer">
+**Legal entity ID.** Issuing legal entity.
+</ResponseField>
+
+<ResponseField name="InvoiceTemplateID" field-type="integer">
+**Invoice template ID.** Layout template used.
+</ResponseField>
+
+<ResponseField name="IsIgnoredWhenTransfer" field-type="integer">
+**Ignored when transferred.** bit: invoice is ignored by the finance transfer.
+</ResponseField>
+
+<ResponseField name="IsReadyForInvoicing" field-type="integer">
+**Ready for invoicing.** bit, default 0.
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - data,HTTP 200 - no rows" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetInvoicesRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetInvoicesRawResult>
+        <tlp:Invoices xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v5_0">
+          <tlp:Invoice ID="1001" GUID="3F2504E0-4F89-41D3-9A0C-0305E82C3312">
+            <tlp:InvoiceNo>1001</tlp:InvoiceNo>
+            <tlp:Header>Example text</tlp:Header>
+            <tlp:Text>Example text</tlp:Text>
+            <tlp:InvoiceDate>2026-10-01T00:00:00</tlp:InvoiceDate>
+            <tlp:DueDate>2026-10-01T00:00:00</tlp:DueDate>
+            <tlp:Amount>950.0000</tlp:Amount>
+            <tlp:AmountSystemCurrency>950.0000</tlp:AmountSystemCurrency>
+            <tlp:Status>1</tlp:Status>
+            <tlp:Type>0</tlp:Type>
+            <tlp:CustomerID>12</tlp:CustomerID>
+            <tlp:CustomerName>Example Customer A/S</tlp:CustomerName>
+            <tlp:CustomerNo>1001</tlp:CustomerNo>
+            <tlp:CustomerAddress1>Example text</tlp:CustomerAddress1>
+            <tlp:CustomerAddress2>Example text</tlp:CustomerAddress2>
+            <tlp:CustomerAddress3>Example text</tlp:CustomerAddress3>
+            <tlp:CustomerZipCode>1000</tlp:CustomerZipCode>
+            <tlp:CustomerCity>Copenhagen</tlp:CustomerCity>
+            <tlp:CustomerState>Example text</tlp:CustomerState>
+            <tlp:CustomerCountry>Example text</tlp:CustomerCountry>
+            <tlp:CustomerCountryID>12</tlp:CustomerCountryID>
+            <tlp:PaymentTermID>12</tlp:PaymentTermID>
+            <tlp:PaymentTermText>Example text</tlp:PaymentTermText>
+            <tlp:CurrencyAbb>DKK</tlp:CurrencyAbb>
+            <tlp:CurrencyRate>950.0000</tlp:CurrencyRate>
+            <tlp:DefaultVAT>0.0000</tlp:DefaultVAT>
+            <tlp:AddVAT>0</tlp:AddVAT>
+            <tlp:NetAmount>950.0000</tlp:NetAmount>
+            <tlp:NetAmountSystemCurrency>950.0000</tlp:NetAmountSystemCurrency>
+            <tlp:VATIncluded>0.0000</tlp:VATIncluded>
+            <tlp:VATIncludedSystemCurrency>0.0000</tlp:VATIncludedSystemCurrency>
+            <tlp:ProjectID>12</tlp:ProjectID>
+            <tlp:ProjectNo>1001</tlp:ProjectNo>
+            <tlp:PurchaseNo>1001</tlp:PurchaseNo>
+            <tlp:ContactFullName>Anna Example</tlp:ContactFullName>
+            <tlp:DepartmentID>12</tlp:DepartmentID>
+            <tlp:DepartmentTree>Example text</tlp:DepartmentTree>
+            <tlp:ExternalInvoiceNo>1001</tlp:ExternalInvoiceNo>
+            <tlp:CustomerReference>Example text</tlp:CustomerReference>
+            <tlp:ExternalInvoiceStatus>Example text</tlp:ExternalInvoiceStatus>
+            <tlp:RelatesToInvoiceID>12</tlp:RelatesToInvoiceID>
+            <tlp:InternalNote>Example text</tlp:InternalNote>
+            <tlp:LegalEntityID>12</tlp:LegalEntityID>
+            <tlp:InvoiceTemplateID>12</tlp:InvoiceTemplateID>
+            <tlp:IsIgnoredWhenTransfer>0</tlp:IsIgnoredWhenTransfer>
+            <tlp:IsReadyForInvoicing>0</tlp:IsReadyForInvoicing>
+          </tlp:Invoice>
+        </tlp:Invoices>
+      </GetInvoicesRawResult>
+    </GetInvoicesRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetInvoicesRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetInvoicesRawResult>
+        <tlp:Invoices resultEmpty="true" xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4"></tlp:Invoices>
+      </GetInvoicesRawResult>
+    </GetInvoicesRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</CodeGroup>
+
+### Example error
+
+Wrong credentials, or a call over plain HTTP:
+
+<CodeGroup tabs="HTTP 401 - access denied" show-lines={true}>
+
+```xml
+HTTP/1.1 401 Unauthorized
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetInvoicesRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetInvoicesRawResult>
+        <tlp:Errors xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Error>Access denied. Check siteCode, apiID, apiPassword and SSL settings</tlp:Error>
+        </tlp:Errors>
+      </GetInvoicesRawResult>
+    </GetInvoicesRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
+
+## Errors
+
+The errors every method can return (access denied, operation failed, invalid request) are listed once in [Responses and errors](/reporting/guides/responses-and-errors#errors).
+
+This method has no errors of its own beyond the shared ones.

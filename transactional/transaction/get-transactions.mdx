@@ -1,0 +1,229 @@
+---
+title: "GetTransactions"
+description: "Transaction service 1.0: Returns up to maxResults External transaction log entries of one integration whose transaction date lies in a range, highest transaction number first."
+---
+
+| | |
+|---|---|
+| Service | Transaction 1.0 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/Transaction/V1_0/TransactionServiceSecure.svc` |
+| SOAPAction | `GetTransactionsRequest` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | No |
+| Safe to retry | Yes |
+
+## How it works
+
+Reads the External transaction log. Filters: systemName = the INTEGRATION HANDLER NAME, and TransactionDate between `from` and `to`, both inclusive. Omitting systemName returns entries of EVERY integration of the account. Each entry's SystemName is the handler's name. Entries written under an unresolved name are never returned.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="systemName" field-type="string">
+**Optional.** Integration HANDLER name, exact match.
+
+</ResponseField>
+
+<ResponseField name="from" field-type="dateTime" required="true">
+Start of the range, compared with the TransactionDate the integration wrote, as stored.
+
+</ResponseField>
+
+<ResponseField name="to" field-type="dateTime" required="true">
+End of the range.
+
+</ResponseField>
+
+<ResponseField name="maxResults" field-type="integer" required="true">
+Maximum number of entries. No upper limit.
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/WebServices/Transaction/V1_0/TransactionServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "GetTransactionsRequest"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:transactio="http://www.timelog.com/api/tlp/v1_0"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <transactio:GetTransactions>
+      <transactio:systemName>{systemName}</transactio:systemName>
+      <transactio:from>{from}</transactio:from>
+      <transactio:to>{to}</transactio:to>
+      <transactio:maxResults>{maxResults}</transactio:maxResults>
+      <transactio:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </transactio:token>
+    </transactio:GetTransactions>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/Transaction/V1_0/TransactionServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "GetTransactionsRequest"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/Transaction/V1_0/TransactionServiceSecure.svc"
+SOAP_ACTION = '"GetTransactionsRequest"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:transactio="http://www.timelog.com/api/tlp/v1_0"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <transactio:GetTransactions>
+      <transactio:systemName>{systemName}</transactio:systemName>
+      <transactio:from>{from}</transactio:from>
+      <transactio:to>{to}</transactio:to>
+      <transactio:maxResults>{maxResults}</transactio:maxResults>
+      <transactio:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </transactio:token>
+    </transactio:GetTransactions>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="ExternalTransaction[]">
+Response&lt;ExternalTransaction>: Return = the matching entries. Only the duration message is added. ResponseState Success with an empty Return when nothing matches.
+
+<Expandable title="ExternalTransaction fields">
+
+<ResponseField name="SystemName" field-type="string">
+Which integration the entry belongs to. ON WRITE the value is looked up as an EXTERNAL SYSTEM NAME and the entry is stored under the integration handler linked to that external system. ON READ the parameter is compared with the INTEGRATION HANDLER NAME, and the value returned here is the handler name - not what was written.
+</ResponseField>
+
+<ResponseField name="TransactionID" field-type="integer">
+The integration's own number for the run / transaction. It also defines what 'latest' means: GetLatestTransaction returns the entry with the HIGHEST TransactionID, not the most recent one.
+</ResponseField>
+
+<ResponseField name="Status" field-type="string">
+The transaction's outcome as reported by the integration. Member NAME on the wire. Allowed values: `Pending`, `Partial`, `Failed`, `Success`.
+</ResponseField>
+
+<ResponseField name="Header" field-type="string">
+Short free-text title of the entry, written by the integration. Shown unencoded in the report.
+</ResponseField>
+
+<ResponseField name="Message" field-type="string">
+Free-text message of the entry. Searchable in the report UI, not through the API.
+</ResponseField>
+
+<ResponseField name="TransactionDate" field-type="dateTime">
+When the transaction happened, as the integration says. Stored as sent. GetTransactions' from / to filter applies to this value.
+</ResponseField>
+
+<ResponseField name="Created" field-type="dateTime">
+Read only.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetTransactionsResponse xmlns="http://www.timelog.com/api/tlp/v1_0">
+      <GetTransactionsResult xmlns:a="http://api.timelog.com"
+                             xmlns:b="http://schemas.datacontract.org/2004/07/TimeLog.TLP.API.Proxy.Transaction.V1_0"
+                             xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:ExternalTransaction>
+            <b:SystemName>Example system</b:SystemName>
+            <b:TransactionID>1001</b:TransactionID>
+            <b:Status>Pending</b:Status>
+            <b:Header>Example</b:Header>
+            <b:Message>Example</b:Message>
+            <b:TransactionDate>2026-10-01T00:00:00</b:TransactionDate>
+            <b:Created>2026-10-01T00:00:00</b:Created>
+          </b:ExternalTransaction>
+        </a:Return>
+        <a:ReturnTypeDescription>ExternalTransaction</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </GetTransactionsResult>
+    </GetTransactionsResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Error | 40001 | Error during call on TimeLog.API, Message 'Unable to retrieve External Transaction Log by System Name \{systemName\}\r\nIn Stored Procedure: \{procedure\}' | Known triggers on GetTransactions: `from` or `to` omitted or before 1753-01-01 and a negative maxResults. | Send both dates within 1753-9999 and maxResults >= 1. |
+| Error | — | — | A returned entry has Status 0. | Always send Status. |

@@ -1,0 +1,81 @@
+---
+title: "Tools and SDKs"
+description: "Clients you can use to try the TimeLog APIs without writing code, and the .NET SDKs on GitHub."
+---
+
+You do not need to write code to see how an API behaves. Pick a client below, make a few calls, then build.
+
+## Bruno collections (recommended)
+
+Ready-to-run collections for [Bruno](https://www.usebruno.com), a free, open-source API client. Every request is
+already built and has a test that tells you whether the call worked.
+
+<Columns cols={2}>
+  <Card title="Transactional API collection" icon="download" href="/transactional/guides/try-it-with-bruno">
+    One folder per service, split into reads and writes. The token is handled for you.
+  </Card>
+  <Card title="Reporting API collection" icon="download" href="/reporting/guides/try-it-with-bruno">
+    One folder per entity, split into raw extracts and short lists.
+  </Card>
+</Columns>
+
+For the REST API, use the playground on each operation page in the [REST API](/rest/overview) tab, or any HTTP client
+with a bearer token.
+
+## SoapUI
+
+SoapUI builds every request of a SOAP API from its service description (WSDL).
+
+<Steps>
+  <Step title="Build the WSDL URL" icon="link">
+    Transactional: the service endpoint followed by `?wsdl`, for example
+    `https://app{server-number}.timelog.com/{account}/WebServices/Security/V1_2/SecurityServiceSecure.svc?wsdl`.
+    Reporting: `https://app{server-number}.timelog.com/{account}/Service.asmx?WSDL`.
+  </Step>
+  <Step title="Create a SOAP project" icon="folder-plus">
+    In SoapUI, choose **SOAP** in the toolbar, enter a project name and the WSDL URL, and click **OK**. SoapUI creates
+    the endpoints and operations from the WSDL.
+  </Step>
+  <Step title="Create a request" icon="file-plus">
+    Right-click an operation and choose **New Request**. SoapUI generates the request body.
+  </Step>
+  <Step title="Fill in and send" icon="send">
+    Enter the parameters, including the credentials (Reporting) or the token (Transactional), and click the run button.
+    The answer appears in the **Response** pane.
+  </Step>
+</Steps>
+
+## Postman
+
+**Reporting API.** Postman can import the WSDL directly:
+
+1. Choose **Import**, open the **Link** tab, enter `…/Service.asmx?WSDL` and click **Continue**, then **Import**.
+2. Open an operation from the new collection, fill in `siteCode`, `apiID`, `apiPassword` and the other parameters in
+   the body, and click **Send**.
+
+**Transactional API.** Build the request by hand:
+
+1. Create a `POST` request to the service endpoint, for example `…/SecurityServiceSecure.svc`.
+2. Add the headers `Content-Type: text/xml; charset=utf-8` and `SOAPAction` with the operation's SOAPAction. Each
+   operation page lists it.
+3. In **Body**, choose **raw** and **XML**, and paste the request envelope from the operation page.
+4. Click **Send**, and check `ResponseState` in the answer.
+
+**REST API.** In the request's **Authorization** tab, choose **Bearer Token** and paste your personal access token.
+
+## .NET SDKs
+
+TimeLog publishes .NET SDKs for the Transactional and Reporting APIs on GitHub, in
+[TimeLog/TimeLogApiSdk](https://github.com/TimeLog/TimeLogApiSdk). The APIs do not need .NET: the SDKs are a
+convenience, and their source shows constructs you can copy to other languages.
+
+| Project | What it is |
+|---|---|
+| `TimeLog.TransactionalAPI.SDK` | Transactional API client, including token handling across services. |
+| `TimeLog.ReportingAPI.SDK` | Reporting API client, with typed default values for parameters. |
+| `TimeLog.ReportingApi.Exporter` | A console application that exports Reporting API data to XML or CSV without code. |
+| `TimeLog.API.ConsoleApp` | Simple examples that use both SDKs. |
+
+Ready-built libraries are in the repository's `Deploy` folder.
+
+To be notified when the APIs or their documentation change, choose **Watch** on the GitHub repository.

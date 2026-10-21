@@ -1,0 +1,382 @@
+---
+title: "CreateProject"
+description: "Project management service 1.8: Create a project"
+---
+
+| | |
+|---|---|
+| Service | Project management 1.8 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc` |
+| SOAPAction | `CreateProjectRequest` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Permissions | The system service user always passes. This is the ONLY project operation of the service that checks a privilege. |
+| Changes data | Yes |
+| Safe to retry | Look the project up by GUID / external key before resending. |
+
+## How it works
+
+If the project picked up a legacy default hourly rate it is mapped to the main contract's rate. Finally the project is moved to the account's default project status for external projects. MainContractID selects the main contract MODEL on create (1 time & material... 8 continuous item invoicing; any other value = time & material) - see the Project schema.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="project" field-type="Project" required="true">
+The Project to send. Its fields are listed below.
+
+<Expandable title="Project fields">
+
+<ResponseField name="IsCustomFieldsLoaded" field-type="boolean">
+**Optional.** Set to `true` to save the `CustomFields` you send.
+</ResponseField>
+
+<ResponseField name="CustomFields" field-type="CustomField[]">
+**Optional.** Custom field values. Saved only when `IsCustomFieldsLoaded` is `true`.
+</ResponseField>
+
+<ResponseField name="IsExternalKeysLoaded" field-type="boolean">
+**Optional.** Set to `true` to save the `ExternalKeys` you send.
+</ResponseField>
+
+<ResponseField name="ExternalKeys" field-type="ExternalSystemContext[]">
+**Optional.** The record's IDs in other systems. Saved only when `IsExternalKeysLoaded` is `true`.
+</ResponseField>
+
+<ResponseField name="ID" field-type="guid">
+**Optional.**
+</ResponseField>
+
+<ResponseField name="CustomerID" field-type="integer">
+**Conditional.** Integer ID of the customer the project belongs to.
+</ResponseField>
+
+<ResponseField name="Name" field-type="string" required="true">
+The project's name.
+</ResponseField>
+
+<ResponseField name="No" field-type="string">
+**Conditional.**
+</ResponseField>
+
+<ResponseField name="Description" field-type="string">
+**Optional.** Free-text project description.
+</ResponseField>
+
+<ResponseField name="Link" field-type="string">
+**Optional.** A URL stored on the project.
+</ResponseField>
+
+<ResponseField name="StartDate" field-type="dateTime">
+**Optional.** The project's start date.
+</ResponseField>
+
+<ResponseField name="EndDate" field-type="dateTime">
+**Optional.** The project's contract end date.
+</ResponseField>
+
+<ResponseField name="IsInternalProject" field-type="boolean">
+**Optional.**
+</ResponseField>
+
+<ResponseField name="ProjectManagerID" field-type="integer" required="true">
+ 
+</ResponseField>
+
+<ResponseField name="AccountManagerID" field-type="integer">
+**Optional.**
+</ResponseField>
+
+<ResponseField name="DepartmentHandledByID" field-type="integer">
+**Optional.** Integer ID of the department that handles the project.
+</ResponseField>
+
+<ResponseField name="DepartmentOrderedByID" field-type="integer">
+**Optional.** Integer ID of the ordering department.
+</ResponseField>
+
+<ResponseField name="TypeID" field-type="integer">
+**Optional.** ID of the project type.
+</ResponseField>
+
+<ResponseField name="CategoryID" field-type="integer">
+**Optional.** ID of the project category.
+</ResponseField>
+
+<ResponseField name="StageID" field-type="integer">
+**Optional.** ID of the project stage.
+</ResponseField>
+
+<ResponseField name="LegalEntityID" field-type="integer">
+**Optional.** Integer ID of the legal entity the project belongs to.
+</ResponseField>
+
+<ResponseField name="PriceGroupID" field-type="integer">
+**Optional.** Integer ID of the price group / currency list of the project's legal entity.
+</ResponseField>
+
+<ResponseField name="CurrencyID" field-type="integer">
+**Optional.** Integer ID of the project currency.
+</ResponseField>
+
+<ResponseField name="MainContractID" field-type="integer">
+**Optional.** Create: the contract MODEL of the project's main contract. Update: the ID of an existing contract of the project to make the main contract.
+</ResponseField>
+
+<ResponseField name="BudgetWorkHoursFixedPriceProject" field-type="double">
+**Optional.**
+</ResponseField>
+
+<ResponseField name="BudgetWorkHoursFixedPriceTasks" field-type="double">
+**Optional.**
+</ResponseField>
+
+<ResponseField name="BudgetWorkHoursTimeAndMaterial" field-type="double">
+**Optional.** Budgeted work hours under the time & material model.
+</ResponseField>
+
+<ResponseField name="BudgetWorkAmountFixedPriceProject" field-type="double">
+**Optional.**
+</ResponseField>
+
+<ResponseField name="BudgetWorkAmountFixedPriceTasks" field-type="double">
+**Optional.**
+</ResponseField>
+
+<ResponseField name="BudgetWorkAmountTimeAndMaterial" field-type="double">
+**Optional.** Budgeted work amount under the time & material model.
+</ResponseField>
+
+<ResponseField name="BudgetAmountExpenses" field-type="double">
+**Optional.** Budgeted expense amount.
+</ResponseField>
+
+<ResponseField name="BudgetAmountTravelExpenses" field-type="double">
+**Optional.** Budgeted travel-expense amount.
+</ResponseField>
+
+<ResponseField name="ProjectContactID" field-type="integer">
+**Optional.** Integer ID of the customer contact person for the project.
+</ResponseField>
+
+<ResponseField name="PurchaseOrderNumber" field-type="string">
+**Optional.** The customer's purchase order number for the project.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "CreateProjectRequest"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:pm="http://www.timelog.com/api/tlp/v1_8"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <pm:CreateProject>
+      <pm:project>
+        <pm:CustomerID>{CustomerID}</pm:CustomerID>
+        <pm:Name>{Name}</pm:Name>
+        <pm:No>{No}</pm:No>
+        <pm:ProjectManagerID>{ProjectManagerID}</pm:ProjectManagerID>
+        <!-- more fields: see Parameters -->
+      </pm:project>
+      <pm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </pm:token>
+    </pm:CreateProject>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "CreateProjectRequest"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc"
+SOAP_ACTION = '"CreateProjectRequest"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:pm="http://www.timelog.com/api/tlp/v1_8"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <pm:CreateProject>
+      <pm:project>
+        <pm:CustomerID>{CustomerID}</pm:CustomerID>
+        <pm:Name>{Name}</pm:Name>
+        <pm:No>{No}</pm:No>
+        <pm:ProjectManagerID>{ProjectManagerID}</pm:ProjectManagerID>
+        <!-- more fields: see Parameters -->
+      </pm:project>
+      <pm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </pm:token>
+    </pm:CreateProject>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="BatchContainerOfProjectApiReadModel[]">
+The result. Always a list: read the first item for operations that return one object.
+
+<Expandable title="BatchContainerOfProjectApiReadModel fields">
+
+<ResponseField name="Item" field-type="ProjectApiReadModel">
+ 
+</ResponseField>
+
+<ResponseField name="Status" field-type="string">
+Allowed values: `NotSet`, `Success`, `Invalid`, `Error`.
+</ResponseField>
+
+<ResponseField name="Message" field-type="string">
+ 
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <CreateProjectResponse xmlns="http://www.timelog.com/api/tlp/v1_8">
+      <CreateProjectResult xmlns:a="http://www.timelog.com/api/tlp/v1_2"
+                           xmlns:b="http://api.timelog.com"
+                           xmlns:c="http://www.timelog.com/api/tlp/v1_8"
+                           xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <a:BatchContainerOfProjectApiReadModel>
+            <a:Item>
+              <b:Action>Original</b:Action>
+              <b:IsCustomFieldsLoaded>false</b:IsCustomFieldsLoaded>
+              <b:CustomFields i:nil="true"/>
+              <b:IsExternalKeysLoaded>false</b:IsExternalKeysLoaded>
+              <b:ExternalKeys i:nil="true"/>
+              <c:ID>3f2504e0-4f89-41d3-9a0c-305000000001</c:ID>
+              <c:ProjectID>1001</c:ProjectID>
+              <c:CustomerID>1001</c:CustomerID>
+              <c:Name>Example </c:Name>
+              <c:No>1001</c:No>
+              <c:Description>Example</c:Description>
+              <c:Link>Example</c:Link>
+              <c:StartDate>2026-10-01T00:00:00</c:StartDate>
+              <c:EndDate>2026-10-01T00:00:00</c:EndDate>
+              <c:IsInternalProject>false</c:IsInternalProject>
+              <c:ProjectManagerID>1001</c:ProjectManagerID>
+              <c:AccountManagerID>1001</c:AccountManagerID>
+              <c:DepartmentHandledByID>1001</c:DepartmentHandledByID>
+              <c:DepartmentOrderedByID>1001</c:DepartmentOrderedByID>
+              <c:TypeID>1001</c:TypeID>
+              <c:CategoryID>1001</c:CategoryID>
+              <c:StageID>1001</c:StageID>
+              <c:LegalEntityID>1001</c:LegalEntityID>
+              <c:PriceGroupID>1001</c:PriceGroupID>
+              <c:ExchangeRate>0</c:ExchangeRate>
+              <c:CurrencyID>1001</c:CurrencyID>
+              <c:MainContractID>1001</c:MainContractID>
+              <c:BudgetWorkHoursFixedPriceProject>0</c:BudgetWorkHoursFixedPriceProject>
+              <c:BudgetWorkHoursFixedPriceTasks>0</c:BudgetWorkHoursFixedPriceTasks>
+              <c:BudgetWorkHoursTimeAndMaterial>0</c:BudgetWorkHoursTimeAndMaterial>
+              <c:BudgetWorkAmountFixedPriceProject>0</c:BudgetWorkAmountFixedPriceProject>
+              <c:BudgetWorkAmountFixedPriceTasks>0</c:BudgetWorkAmountFixedPriceTasks>
+              <c:BudgetWorkAmountTimeAndMaterial>0</c:BudgetWorkAmountTimeAndMaterial>
+              <c:BudgetAmountExpenses>0</c:BudgetAmountExpenses>
+              <c:BudgetAmountTravelExpenses>0</c:BudgetAmountTravelExpenses>
+              <c:ProjectContactID>1001</c:ProjectContactID>
+              <c:PurchaseOrderNumber>1001</c:PurchaseOrderNumber>
+            </a:Item>
+            <a:Status>Success</a:Status>
+            <a:Message>Example</a:Message>
+          </a:BatchContainerOfProjectApiReadModel>
+        </a:Return>
+        <a:ReturnTypeDescription>BatchContainerOfProjectApiReadModel</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <b:APIMessage>
+            <b:Message>Duration of call was 0,0421337 sec.</b:Message>
+            <b:Severity>Message</b:Severity>
+            <b:ErrorCode>0</b:ErrorCode>
+          </b:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </CreateProjectResult>
+    </CreateProjectResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Error | 40001 | Error during call on TimeLog.API, Message 'Missing Role: User can create project!' | The user may not create this project. | Give the integration user a role with project create rights covering the project. |
+| Error | 30171 | Error during call on TimeLog.API, Message 'Project number cannot be empty' | No empty, no number series, empty numbers not allowed. | Send the project number on every create / update. |
+| Error | 37885 | Error during call on TimeLog.API, Message 'The standard hourly rate on project is invalid.' | The legacy default hourly rate cannot be mapped - the project IS created. | — |
+| Error | 40001 | Error during call on TimeLog.API, Message 'This API endpoint is disabled due to the Currency Matrix feature being turned on. Please upgrade your Project API version to 1_8 or later.' | — | Move to the version named in the message. |

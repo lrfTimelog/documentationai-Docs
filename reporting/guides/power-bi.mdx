@@ -1,0 +1,79 @@
+---
+title: "Power BI"
+description: "Load data from the Reporting API into Microsoft Power BI Desktop with a short Power Query script."
+---
+
+Power BI Desktop can read the Reporting API directly, so you can build your own reports on TimeLog data. This guide
+loads one method, the account's employees, into a table. Use the same pattern for other methods.
+
+<Callout kind="info">TimeLog can help you understand the data in the API and how it fits together. Building Power BI
+reports is outside what TimeLog does: for larger reports, work with a Power BI consultant.</Callout>
+
+## Before you start
+
+- [Power BI Desktop](https://powerbi.microsoft.com/en-us/desktop/).
+- Your base URL, `https://app{server-number}.timelog.com/{account}`. See [Find your base URL](/base-url).
+- The Reporting API `siteCode`, `apiID` and `apiPassword`. See [Authentication](/reporting/guides/authentication).
+
+## How Power BI calls the API
+
+Power BI does not speak SOAP. Every Reporting method also accepts a plain form post at
+`…/Service.asmx/{Method}`, with the parameters in the request body. The answer is the same XML document as over SOAP.
+
+<Callout kind="tip">Send the parameters in the body with a POST, as below. Do not put them in the URL: the credentials
+would then end up in logs and browser history.</Callout>
+
+## Load the employees
+
+<Steps>
+  <Step title="Open a blank query" icon="table">
+    In Power BI Desktop, close the welcome screen, choose **Enter data**, then **Edit**, then **Advanced Editor**.
+  </Step>
+  <Step title="Paste the script" icon="clipboard">
+    Paste the script below and replace the four placeholders. Click **Done**.
+  </Step>
+  <Step title="Connect" icon="plug">
+    If Power BI asks for credentials, choose **Edit credentials**, then **Anonymous** and the root URL, and click
+    **Connect**. The API credentials travel in the request body, not in Power BI's credential store.
+  </Step>
+  <Step title="Apply" icon="check">
+    Click **Close & Apply**. The employees are now a table in your report.
+  </Step>
+</Steps>
+
+```text
+let
+    PostContents = "siteCode={siteCode}&apiID={apiID}&apiPassword={apiPassword}&employeeID=0&initials=&departmentID=0&status=-1",
+    GetEmployeesRaw = Web.Contents(
+        "https://app{server-number}.timelog.com/{account}/Service.asmx/GetEmployeesRaw",
+        [
+            Headers = [#"Content-Type" = "application/x-www-form-urlencoded"],
+            Content = Text.ToBinary(PostContents)
+        ]
+    ),
+    ImportedXml = Xml.Document(GetEmployeesRaw),
+    #"Removed Other Columns" = Table.SelectColumns(ImportedXml, {"Value"}),
+    #"Expanded Value" = Table.ExpandTableColumn(#"Removed Other Columns", "Value", {"Name", "Namespace", "Value", "Attributes"}, {"Name", "Namespace", "Value.1", "Attributes"}),
+    #"Removed Other Columns1" = Table.SelectColumns(#"Expanded Value", {"Value.1", "Attributes"}),
+    #"Expanded Attributes" = Table.ExpandTableColumn(#"Removed Other Columns1", "Attributes", {"Value"}, {"Value"}),
+    #"Renamed Columns" = Table.RenameColumns(#"Expanded Attributes", {{"Value", "EmployeeID"}}),
+    #"Reordered Columns" = Table.ReorderColumns(#"Renamed Columns", {"EmployeeID", "Value.1"}),
+    #"Expanded Value.1" = Table.ExpandTableColumn(#"Reordered Columns", "Value.1", {"Name", "Value"}, {"Name", "Value"}),
+    #"Pivoted Column" = Table.Pivot(#"Expanded Value.1", List.Distinct(#"Expanded Value.1"[Name]), "Name", "Value")
+in
+    #"Pivoted Column"
+```
+
+`employeeID=0`, `initials=` (empty) and `departmentID=0` mean "no filter", and `status=-1` returns active and inactive
+employees. See [GetEmployeesRaw](/reporting/methods/get-employees-raw) for every parameter.
+
+## Other methods
+
+Change the method name at the end of the URL and the parameters in `PostContents`. Every method takes `siteCode`,
+`apiID` and `apiPassword` first, and its page lists the rest. Send every parameter, also the ones you do not filter on.
+
+For large data sets, such as time registrations, do not reload the full history on every refresh. See
+[Sync to a data warehouse](/reporting/guides/sync-to-data-warehouse).
+
+<Callout kind="info">Anyone who opens the report file can see the credentials in the query. Share the published
+report, not the `.pbix` file, and keep in mind that the data covers the whole account, including personal data.</Callout>

@@ -1,0 +1,87 @@
+---
+title: "Responses and errors"
+description: "How Reporting API results are shaped, how to tell data from an empty result or an error, and what each error means."
+---
+
+<Callout kind="alert">**Check the HTTP status.** Unlike the Transactional API, the Reporting API uses the status code:
+**200** for data or an empty result, **401** when the credentials are refused, **500** when the call failed.</Callout>
+
+## The result document
+
+Every data method returns an **XML document** inside `{Method}Result`. The document has a root element with one child
+element per record, for example `tlp:Employees` with one `tlp:Employee` per employee. The namespace is
+`http://www.timelog.com/XML/Schema/tlp/v4_4` (prefix `tlp`). Each method page lists the record's fields.
+
+The same slot carries three different answers. Tell them apart by the **root element**:
+
+| Root element | Meaning |
+|---|---|
+| `tlp:{Records}` with child elements | Data: one child per record. |
+| `tlp:{Records} resultEmpty="true"` | No records matched. HTTP 200. |
+| `tlp:Errors` | The call failed. The reason is in `tlp:Error`. |
+
+## Values
+
+| | |
+|---|---|
+| Missing values | A field without a value is **left out** of the record. Treat every field as optional. |
+| IDs | Usually XML attributes on the record (`<tlp:Employee ID="1001">`). The method pages mark them *(attribute)*. |
+| Dates | ISO 8601 without a time-zone offset: `2026-10-01T00:00:00`. The API does not convert time zones. |
+| Yes / no | `1` or `0`. |
+| GUIDs | Upper case. |
+| Decimals | A dot as decimal separator: `950.0000`. |
+| Status and type numbers | See [Enumerations](/reporting/guides/enumerations) for what each number means. |
+
+## Currencies
+
+Amounts follow a naming rule, unless the method page says otherwise for a field:
+
+| Amount field name | Currency |
+|---|---|
+| Ends with `SystemCurrency` | The account's system currency. |
+| Ends with `Currency` (for example `…ProjectCurrency`) | The currency of the project, contract or invoice the amount belongs to. |
+| No currency in the name | The account's system currency. |
+
+Each method page states the currency in the field's label, for example *Billable amount (project currency)*.
+
+## Large results
+
+Most methods return **all matching records in one response**: there is no paging and no row limit. Narrow the
+result with the method's filters (IDs, status, date range). A call that takes too long fails with HTTP 500. For time
+registrations, use the paged extract for large accounts.
+
+## Checking the result in code
+
+```python
+import xml.etree.ElementTree as ET
+
+TLP = "{http://www.timelog.com/XML/Schema/tlp/v4_4}"
+
+def parse_result(response):
+    """Return the records of a Reporting API call, [] when nothing matched; raise on errors."""
+    if response.status_code == 401:
+        raise PermissionError("Access denied: check siteCode, apiID, apiPassword and https")
+    root = ET.fromstring(response.content)          # raises if the document is cut off
+    result = next(el for el in root.iter() if el.tag.endswith("Result"))
+    if result.text in ("true", "false") and len(result) == 0:
+        return result.text                            # ValidateCredentials
+    doc = result[0]
+    if doc.tag == f"{TLP}Errors":
+        raise RuntimeError(f"HTTP {response.status_code}: " + "; ".join(e.text for e in doc))
+    if doc.get("resultEmpty") == "true":
+        return []
+    return list(doc)
+```
+
+## Errors
+
+These errors can come back from **any** method. Each method page lists the errors specific to it.
+
+| HTTP status | What you get | What it means | What to do |
+|---|---|---|---|
+| 401 | `tlp:Errors`: *Access denied. Check siteCode, apiID, apiPassword and SSL settings* | The credentials were not accepted, or the call did not use HTTPS. | See [Authentication](/reporting/guides/authentication). |
+| 500 | `tlp:Errors`: *An exception occurred. Please check input parameters. Details: …* | The credentials were accepted but the method failed, often because the request took too long. | Narrow the request (filters, date range) and try again. If the same call keeps failing, contact TimeLog support with the time of the call. |
+| 500 | A SOAP fault instead of a result | The request itself was not understood: malformed XML, a wrong `SOAPAction`, or text in a number parameter. | Send every parameter, `0` for "no filter" numbers, dates as ISO 8601, and the `SOAPAction` from the method page. |
+
+<Callout kind="tip">Some SOAP client libraries throw an exception on HTTP 401 and 500 before you can read the body.
+Catch it, and read the response body if your library allows it.</Callout>

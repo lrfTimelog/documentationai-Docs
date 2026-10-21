@@ -1,0 +1,310 @@
+---
+title: "GetSalaryAccountEmployeePostingsRaw"
+description: "Reporting API: Returns every posting on employees' salary accounts in a date window - payroll data per person."
+---
+
+| | |
+|---|---|
+| API | Reporting API (raw extracts) |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/Service.asmx` |
+| SOAPAction | `http://www.timelog.com/ws/tlp/v4_4/GetSalaryAccountEmployeePostingsRaw` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | `siteCode`, `apiID` and `apiPassword` as the first three parameters. See [Authentication](/reporting/guides/authentication) |
+| Changes data | No. Safe to retry. |
+| Paging | No: the whole result comes in one response. Narrow it with the filters. |
+
+## How it works
+
+Filters: SalaryAccountID, EmployeeUserID.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="siteCode" field-type="string" required="true">
+Your account's site code, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiID" field-type="string" required="true">
+The Reporting API ID, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiPassword" field-type="string" required="true">
+The Reporting API password, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="SalaryAccountID" field-type="integer" required="true">
+Salary account. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="EmployeeUserID" field-type="integer" required="true">
+Employee USER id. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="FromDate" field-type="dateTime" required="true">
+Posting Date >= this date. REQUIRED in practice.
+</ResponseField>
+
+<ResponseField name="ToDate" field-type="dateTime" required="true">
+Posting Date &lt;= this date at midnight. REQUIRED in practice.
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/Service.asmx HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetSalaryAccountEmployeePostingsRaw"
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetSalaryAccountEmployeePostingsRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:SalaryAccountID>0</tlp:SalaryAccountID>
+      <tlp:EmployeeUserID>0</tlp:EmployeeUserID>
+      <tlp:FromDate>{FromDate}</tlp:FromDate>
+      <tlp:ToDate>{ToDate}</tlp:ToDate>
+    </tlp:GetSalaryAccountEmployeePostingsRaw>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/Service.asmx" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetSalaryAccountEmployeePostingsRaw"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/Service.asmx"
+SOAP_ACTION = '"http://www.timelog.com/ws/tlp/v4_4/GetSalaryAccountEmployeePostingsRaw"'
+
+envelope = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetSalaryAccountEmployeePostingsRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:SalaryAccountID>0</tlp:SalaryAccountID>
+      <tlp:EmployeeUserID>0</tlp:EmployeeUserID>
+      <tlp:FromDate>{FromDate}</tlp:FromDate>
+      <tlp:ToDate>{ToDate}</tlp:ToDate>
+    </tlp:GetSalaryAccountEmployeePostingsRaw>
+  </soap:Body>
+</soap:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=300,
+)
+rows = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The result is an XML document inside `GetSalaryAccountEmployeePostingsRawResult`: a `tlp:SalaryAccountEmployeePostings` root with one `tlp:SalaryAccountEmployeePosting` element per record. Check the [response format](/reporting/guides/responses-and-errors) first: the same slot also carries the empty result and errors.
+
+Order: None.
+
+<ResponseField name="tlp:SalaryAccountEmployeePosting" field-type="SalaryAccountEmployeePostingRaw[]">
+One element per record. Fields without a value are left out of the element, so treat every field as optional.
+
+<Expandable title="SalaryAccountEmployeePosting fields">
+
+<ResponseField name="ID" field-type="integer (attribute)">
+**Posting ID.**
+</ResponseField>
+
+<ResponseField name="GUID" field-type="string (attribute)">
+**Posting GUID.**
+</ResponseField>
+
+<ResponseField name="EmployeeUserId" field-type="integer">
+**Employee user ID.** The employee's USER id, not the employee id. Published XSD spells EmployeeUserID.
+</ResponseField>
+
+<ResponseField name="EmployeeUsername" field-type="string">
+**Employee user name.** The employee's LOGIN user name. Personal data / account identifier.
+</ResponseField>
+
+<ResponseField name="EmployeeNo" field-type="string">
+**Employee number.**
+</ResponseField>
+
+<ResponseField name="SalaryAccountID" field-type="integer">
+**Salary account ID.** Account posted to.
+</ResponseField>
+
+<ResponseField name="SalaryAccountName" field-type="string">
+**Salary account name.** Account name.
+</ResponseField>
+
+<ResponseField name="Date" field-type="string">
+**Date.** Posting date.
+</ResponseField>
+
+<ResponseField name="EntityType" field-type="integer">
+**Source entity type.**
+</ResponseField>
+
+<ResponseField name="Hours" field-type="decimal">
+**Hours.** Posted hours, DECIMAL.
+</ResponseField>
+
+<ResponseField name="TotalHours" field-type="decimal">
+**Total hours.** TotalHours, DECIMAL.
+</ResponseField>
+
+<ResponseField name="Factor" field-type="decimal">
+**Factor.** Posting factor, DECIMAL.
+</ResponseField>
+
+<ResponseField name="PostingType" field-type="integer">
+**Posting type.**
+</ResponseField>
+
+<ResponseField name="Minutes" field-type="integer">
+**Minutes.** Posted minutes.
+</ResponseField>
+
+<ResponseField name="TotalMinutes" field-type="decimal">
+**Total minutes.** DECIMAL.
+</ResponseField>
+
+<ResponseField name="Days" field-type="decimal">
+**Days.** DECIMAL.
+</ResponseField>
+
+<ResponseField name="TotalDays" field-type="decimal">
+**Total days.** DECIMAL.
+</ResponseField>
+
+<ResponseField name="CommentToManager" field-type="string">
+**Comment to manager.** Personal data.
+</ResponseField>
+
+<ResponseField name="CommentToEmployee" field-type="string">
+**Comment to employee.** Personal data.
+</ResponseField>
+
+<ResponseField name="Created" field-type="string">
+**Created.** DATETIME2.
+</ResponseField>
+
+<ResponseField name="CreatedBy" field-type="integer">
+**Created by.** Creating user/employee id.
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - data,HTTP 200 - no rows" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetSalaryAccountEmployeePostingsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetSalaryAccountEmployeePostingsRawResult>
+        <tlp:SalaryAccountEmployeePostings xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:SalaryAccountEmployeePosting ID="1001" GUID="3F2504E0-4F89-41D3-9A0C-0305E82C3317">
+            <tlp:EmployeeUserId>12</tlp:EmployeeUserId>
+            <tlp:EmployeeUsername>anna.example</tlp:EmployeeUsername>
+            <tlp:EmployeeNo>1001</tlp:EmployeeNo>
+            <tlp:SalaryAccountID>12</tlp:SalaryAccountID>
+            <tlp:SalaryAccountName>Example salary account</tlp:SalaryAccountName>
+            <tlp:Date>2026-10-01T00:00:00</tlp:Date>
+            <tlp:EntityType>0</tlp:EntityType>
+            <tlp:Hours>7.5000</tlp:Hours>
+            <tlp:TotalHours>7.5000</tlp:TotalHours>
+            <tlp:Factor>0.0000</tlp:Factor>
+            <tlp:PostingType>0</tlp:PostingType>
+            <tlp:Minutes>0</tlp:Minutes>
+            <tlp:TotalMinutes>0.0000</tlp:TotalMinutes>
+            <tlp:Days>0.0000</tlp:Days>
+            <tlp:TotalDays>0.0000</tlp:TotalDays>
+            <tlp:CommentToManager>Example text</tlp:CommentToManager>
+            <tlp:CommentToEmployee>Example text</tlp:CommentToEmployee>
+            <tlp:Created>2026-10-01T00:00:00</tlp:Created>
+            <tlp:CreatedBy>0</tlp:CreatedBy>
+          </tlp:SalaryAccountEmployeePosting>
+        </tlp:SalaryAccountEmployeePostings>
+      </GetSalaryAccountEmployeePostingsRawResult>
+    </GetSalaryAccountEmployeePostingsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetSalaryAccountEmployeePostingsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetSalaryAccountEmployeePostingsRawResult>
+        <tlp:SalaryAccountEmployeePostings resultEmpty="true" xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4"></tlp:SalaryAccountEmployeePostings>
+      </GetSalaryAccountEmployeePostingsRawResult>
+    </GetSalaryAccountEmployeePostingsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</CodeGroup>
+
+### Example error
+
+Wrong credentials, or a call over plain HTTP:
+
+<CodeGroup tabs="HTTP 401 - access denied" show-lines={true}>
+
+```xml
+HTTP/1.1 401 Unauthorized
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetSalaryAccountEmployeePostingsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetSalaryAccountEmployeePostingsRawResult>
+        <tlp:Errors xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Error>Access denied. Check siteCode, apiID, apiPassword and SSL settings</tlp:Error>
+        </tlp:Errors>
+      </GetSalaryAccountEmployeePostingsRawResult>
+    </GetSalaryAccountEmployeePostingsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
+
+## Errors
+
+The errors every method can return (access denied, operation failed, invalid request) are listed once in [Responses and errors](/reporting/guides/responses-and-errors#errors).
+
+This method has no errors of its own beyond the shared ones.

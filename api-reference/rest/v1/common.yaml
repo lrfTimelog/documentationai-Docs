@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
-  title: Reference data and tenant settings — REST API v1
+  title: Reference data and account settings — REST API v1
   version: v1
   description: |-
-    Read the lookups other resources reference (countries, currencies, unit types) and the tenant settings a client needs at start-up.
+    Read the lookups other resources reference (countries, currencies, unit types) and the account settings a client needs at start-up.
 
     Enums are integers in v1.
 
@@ -17,10 +17,8 @@ info:
     > **Not yet documented:** rate limits.
 servers:
 - url: https://app{server-number}.timelog.com/{account}/api
-  description: 'Your TimeLog site, as in the browser address bar when you are signed in: `https://app[X].timelog.com/[account
-    name]`. `server-number` is the number after `app` (for example `3` in `app3.timelog.com`), `account` is the account name
-    you use to log in. If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
-    and API > Reporting API settings, under Your TimeLog API URL.'
+  description: If your browser shows `https://app.timelog.com`, find your site URL in System Administration > Integrations
+    and API > Reporting API settings, under Your TimeLog API URL.
   variables:
     server-number:
       default: '3'
@@ -36,7 +34,7 @@ paths:
       description: |-
         Lists the system countries with their ISO code, by name.
 
-        The value set for CountryID and InvoicingAddressCountryID on customer create and update. The list is system data, not tenant configuration. Names come from the base (Danish) column and are not translated to the caller's language; match on ISO instead.
+        The value set for CountryID and InvoicingAddressCountryID on customer create and update. The list is system data, not account configuration.
 
         **Use it to:**
         - Build a mapping ISO 3166 alpha-2 → CountryID before creating customers
@@ -66,7 +64,7 @@ paths:
         schema:
           type: integer
           default: 10
-        description: Page size. No maximum enforced in the API layer; 244 countries in the captured tenant, so $pagesize=300
+        description: Page size. No maximum enforced in the API layer; 244 countries in the captured account, so $pagesize=300
           returns all in one call.
       responses:
         '200':
@@ -124,9 +122,9 @@ paths:
       operationId: listCurrenciesByStatus
       summary: List currencies
       description: |-
-        Lists the tenant's currencies, optionally only active or inactive ones, with today's rate to the caller's legal-entity currency.
+        Lists the account's currencies, optionally only active or inactive ones, with today's rate to the caller's legal-entity currency.
 
-        The value set for CurrencyID on customer create/update. The {status} segment filters on IsActive; omit it (GET /v1/currency) for all currencies. Obsolete currencies are not excluded. Each row's CurrentRate is computed per call against the CALLER's legal-entity currency, so two users in different legal entities see different rates for the same currency.
+        The value set for CurrencyID on customer create/update. The &#123;status&#125; segment filters on IsActive; omit it (GET /v1/currency) for all currencies. Obsolete currencies are not excluded. Each row's CurrentRate is computed per call against the CALLER's legal-entity currency, so two users in different legal entities see different rates for the same currency.
 
         **Use it to:**
         - Map ISO currency codes (CurrencyABB) to CurrencyID before creating customers
@@ -137,9 +135,7 @@ paths:
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Side effect: Fills the application cache with the computed rate per (legal entity, today, currency, LE currency), long expiration.
-        - Side effect: Each uncached currency on the page triggers one outbound call to the exchange-rate service (with the tenant's retry count and timeout), sequentially — first call of the day for a large page can be slow.
-        - Consistency: Rates are cached per day; a rate change during the day is not reflected until the cache entry expires.
+        - Side effect: Each uncached currency on the page triggers one outbound call to the exchange-rate service (with the account's retry count and timeout), sequentially — first call of the day for a large page can be slow.
 
         **Next:** `POST /v1/customer/create`, `PUT /v1/customer/update`
 
@@ -165,7 +161,7 @@ paths:
             operators:
             - eq
         description: |-
-          ActiveStatus. Also bound from the member name (enum type converter; not tested live).
+          ActiveStatus. Also bound from the member name.
 
           Filters on `CurrencyRead.IsActive` (eq).
 
@@ -189,8 +185,7 @@ paths:
         schema:
           type: integer
           default: 10
-        description: Page size. No maximum enforced in the API layer. Large pages are slow when rates are not cached (see
-          behaviour).
+        description: Page size. No maximum enforced in the API layer.
       responses:
         '200':
           description: |-
@@ -200,7 +195,7 @@ paths:
 
             Order: CurrencyABB ascending
 
-            Empty result: 200 with TotalRecord "0" and no Entities (e.g. status=0 on a tenant without inactive currencies)
+            Empty result: 200 with TotalRecord "0" and no Entities (e.g. status=0 on a account without inactive currencies)
           content:
             application/json:
               schema:
@@ -254,12 +249,12 @@ paths:
       operationId: listUnitTypes
       summary: List unit types
       description: |-
-        Lists the unit types switched on for the tenant.
+        Lists the unit types switched on for the account.
 
-        Unit types are a fixed code list (Undefined, Hours, Minutes, Days, Km, Pieces, Liters, Meters, Kilograms); each is a tenant feature (UnitType<Name>) under invoice settings. Only the active ones are returned, in enum order, without paging. Nothing is read from the database.
+        Only the active ones are returned, in enum order, without paging.
 
         **Use it to:**
-        - Validate a unit before sending it on an invoice line or product (consumers not curated yet)
+        - Validate a unit before sending it on an invoice line or product
 
         **Behaviour:**
         - Idempotent.
@@ -345,22 +340,20 @@ paths:
       operationId: getUserSettings
       summary: Get user settings
       description: |-
-        Returns the tenant settings a time/expense client needs (duration format, billable and stopwatch features, system currency, approval mode …) plus a few caller-specific flags.
+        Returns the account settings a time/expense client needs (duration format, billable and stopwatch features, system currency, approval mode …) plus a few caller-specific flags.
 
-        One object, no parameters. Call it once at client start-up to decide which fields to show and which operations will work — e.g. StopwatchTimeTracking before using the time-tracker operations, SiteSettings.ShowUserDefinedComment / UserDefinedCommentName before sending an additional text field, CanUseTravelTimeTask before sending GroupType 6. Despite the name, almost everything is tenant-wide; only SystemCurrencyRate, Privileges.RegistrationAllTasks and SiteSettings.TimeRegistrationTimestamp depend on the caller.
+        One object, no parameters. Call it once at client start-up to decide which fields to show and which operations will work — e.g. StopwatchTimeTracking before using the time-tracker operations, SiteSettings.ShowUserDefinedComment / UserDefinedCommentName before sending an additional text field, CanUseTravelTimeTask before sending GroupType 6. Despite the name, almost everything is account-wide; only SystemCurrencyRate, Privileges.RegistrationAllTasks and SiteSettings.TimeRegistrationTimestamp depend on the caller.
 
         **Use it to:**
-        - Feature-detect a tenant before enabling time-tracker or travel-time flows
-        - Format durations and numbers the way the tenant's users see them
+        - Feature-detect a account before enabling time-tracker or travel-time flows
+        - Format durations and numbers the way the account's users see them
 
         **Not for:**
-        - The caller's personal preferences (language, views) — see REST v2 /user-settings (not curated)
+        - The caller's personal preferences (language, views) — see REST v2 /user-settings
 
         **Behaviour:**
         - Idempotent.
         - Safe to retry.
-        - Side effect: Caches the system-currency rate per (legal entity, today, currencies); may call the exchange-rate service once per day.
-        - Consistency: Feature/setting values are read from the configuration cache; a change made in TimeLog may take effect with the configuration cache's delay (not measured).
 
         **Next:** `POST /v1/time-registration`, `POST /v1/time-tracker/task/start-time-tracker`
 
@@ -430,16 +423,12 @@ components:
 
             Identifier of this object, globally unique.
 
-            The capture shows the same IDs as the seeded list (1 = Afghanistan); whether IDs are identical across all tenants is not proven.
-
-            > **Not yet documented:** identity → stable.
+            The capture shows the same IDs as the seeded list (1 = Afghanistan); whether IDs are identical across all accounts is not proven.
         Country:
           type: string
           readOnly: true
           maxLength: 255
-          description: 'Country name from the base (Danish) name column, e.g. "Albanien", "Algeriet". Not translated to the
-            caller''s language: the localised columns (Country_uk, _no, _de, _se) are not read. A NULL name is returned as
-            an empty string.'
+          description: '"Albanien", "Algeriet". A NULL name is returned as an empty string.'
         ISO:
           type: string
           readOnly: true
@@ -454,15 +443,15 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            Currency suggested for this country. 0 = none set (the table default); most countries are 0 in the captured tenant.
+            Currency suggested for this country. 0 = none set (the table default); most countries are 0 in the captured account.
 
             Refers to `CurrencyRead.CurrencyID`. Look up valid values with `GET /v1/currency/{status}`.
 
             Valid values come from `GET /v1/currency/{status}`.
 
             > **Not yet documented:** notes.
-      description: A country from the system country list. The list is the same for every tenant (seeded system data, no API
-        to change it). It is the value set for CountryID and InvoicingAddressCountryID on customer create/update.
+      description: A country from the system country list. The list is the same for every account (seeded system data, no
+        API to change it). It is the value set for CountryID and InvoicingAddressCountryID on customer create/update.
     CurrencyRead:
       type: object
       properties:
@@ -488,11 +477,9 @@ components:
             id_format: string
           maxLength: 10
           description: |-
-            Currency code, e.g. "EUR", "DKK". ISO 4217 for system currencies; a tenant-created currency can carry any unique code.
+            Currency code, e.g. "EUR", "DKK". ISO 4217 for system currencies; a account-created currency can carry any unique code.
 
             Alternate key, unique per TimeLog site.
-
-            Not accepted as input by any curated operation; map to CurrencyID on your side.
         DescriptiveName:
           type: string
           readOnly: true
@@ -503,15 +490,9 @@ components:
           format: double
           readOnly: true
           description: |-
-            Today's exchange rate between this currency and the caller's legal-entity currency, quoted per 100 (100 = same value as the legal-entity currency), rounded to the tenant's invoice decimals. Computed per request from the exchange-rate service (cached per legal entity, day and currency pair); for a tenant-created currency it is derived from the stored rates of both currencies.
+            Today's exchange rate between this currency and the caller's legal-entity currency, quoted per 100 (100 = same value as the legal-entity currency), rounded to the account's invoice decimals. Computed per request from the exchange-rate service; for a account-created currency it is derived from the stored rates of both currencies.
 
             Unit: rate per 100 units (100 = parity with the caller's legal-entity currency)
-
-            - Rate for (legal entity, today, currency, LE currency) already cached — Cached value is returned.
-
-            - Not cached, system currency — Exchange-rate service factor × 100; stored in the long-expiration cache.
-
-            - Not cached, currency created by the tenant — stored rate(currency) × 100 / stored rate(LE currency).
 
             - That stored rate is not computed against the legal-entity currency.
 
@@ -524,12 +505,12 @@ components:
           type: boolean
           readOnly: true
           description: |-
-            Whether the currency is active in the tenant. Filter with the {status} path segment.
+            Whether the currency is active in the account. Filter with the {status} path segment.
 
             Filterable via `status` (eq).
 
             Obsolete currencies are not excluded and the flag is not returned.
-      description: A currency of the tenant, with today's exchange rate towards the caller's legal-entity currency. The value
+      description: A currency of the account, with today's exchange rate towards the caller's legal-entity currency. The value
         set for CurrencyID on customer create/update.
     MessageError:
       type: object
@@ -610,11 +591,9 @@ components:
             uniqueness_enforced: true
             id_format: int
           description: |-
-            The InvoiceUnitTypes value. Stable across tenants (a code enum).
+            The InvoiceUnitTypes value. Stable across accounts (a code enum).
 
             Identifier of this object, globally unique.
-
-            Value 5 (Miles) is commented out in the enum and never returned.
 
             Allowed values:
 
@@ -635,7 +614,7 @@ components:
           description: The enum member name in English (e.g. "Hours", "Km"). Not localised — use it as a code, not a display
             label.
       description: A unit in which an invoiceable quantity is measured (hours, km, pieces …). Unit types are a fixed code
-        enum (InvoiceUnitTypes), not tenant data; each one is switched on or off per tenant by a feature. Only the switched-on
+        enum (InvoiceUnitTypes), not account data; each one is switched on or off per account by a feature. Only the switched-on
         ones are listed.
     UserSettingPrivilegesRead:
       type: object
@@ -650,22 +629,22 @@ components:
         ExpenseTravelRegistrationAllProjects:
           type: boolean
           readOnly: true
-          description: State of tenant feature EnableAllEmployeesRegisterOnAllActiveProjects (expense/travel can be registered
+          description: State of account feature EnableAllEmployeesRegisterOnAllActiveProjects (expense/travel can be registered
             on all active projects). Same for every caller.
       description: Nested in UserSettingRead. Despite the name, only RegistrationAllTasks is a privilege of the caller; ExpenseTravelRegistrationAllProjects
-        is a tenant feature.
+        is a account feature.
     UserSettingRead:
       type: object
       properties:
         CompanyName:
           type: string
           readOnly: true
-          description: Tenant company name (application value 'Firma').
+          description: Account company name (application value 'Firma').
         NumberCultureID:
           type: integer
           readOnly: true
-          description: Windows LCID of the tenant's number/page culture (application value 'PageLCID'), e.g. 1030 = Danish.
-            Use it to format numbers the way the tenant's users see them.
+          description: Windows LCID of the account's number/page culture (application value 'PageLCID'), e.g. 1030 = Danish.
+            Use it to format numbers the way the account's users see them.
         TimeFormat:
           type: integer
           enum:
@@ -676,7 +655,7 @@ components:
           - Durations shown as minutes.
           readOnly: true
           description: |-
-            How the tenant displays durations (setting TimeFormat).
+            How the account displays durations (setting TimeFormat).
 
             Allowed values:
 
@@ -738,7 +717,7 @@ components:
           x-timelog-identity:
             role: reference
           description: |-
-            The tenant's system (base) currency (application value 'BaseCurrencyID').
+            The account's system (base) currency (application value 'BaseCurrencyID').
 
             Refers to `CurrencyRead.CurrencyID`. Look up valid values with `GET /v1/currency/{status}`.
 
@@ -748,7 +727,7 @@ components:
           format: double
           readOnly: true
           description: |-
-            Today's rate between the system currency and the CALLER's legal-entity currency, per 100 (100 = parity), rounded to the tenant's invoice decimals. Same computation and same failure fallback as CurrencyRead.CurrentRate.
+            Today's rate between the system currency and the CALLER's legal-entity currency, per 100 (100 = parity), rounded to the account's invoice decimals. Same computation and same failure fallback as CurrencyRead.CurrentRate.
 
             Unit: rate per 100 units (100 = parity with the caller's legal-entity currency)
 
@@ -761,7 +740,7 @@ components:
         IsAbsenceActive:
           type: boolean
           readOnly: true
-          description: True unless the tenant's product type is Time (absence registration is available).
+          description: True unless the account's product type is Time (absence registration is available).
         RoundingOfBillableTime:
           type: boolean
           readOnly: true
@@ -769,7 +748,7 @@ components:
         IsMLEActive:
           type: boolean
           readOnly: true
-          description: State of feature MultiLegalEntities (the tenant has several legal entities).
+          description: State of feature MultiLegalEntities (the account has several legal entities).
         Privileges:
           $ref: '#/components/schemas/UserSettingPrivilegesRead'
           readOnly: true
@@ -777,12 +756,10 @@ components:
         SiteSettings:
           $ref: '#/components/schemas/UserSettingSiteSettingsRead'
           readOnly: true
-          description: Time and expense UI settings of the tenant.
-      description: A snapshot of the tenant configuration that a time/expense client needs to render its UI correctly, plus
+          description: Time and expense UI settings of the account.
+      description: A snapshot of the account configuration that a time/expense client needs to render its UI correctly, plus
         three caller-specific values (SystemCurrencyRate, Privileges.RegistrationAllTasks, SiteSettings.TimeRegistrationTimestamp).
-        Read-only, one object per call. Most booleans are the on/off state of a named tenant feature (FeatureConfiguration);
-        the feature name is given per field. Only CompanyName, NumberCultureID and the three SystemCurrency* fields come from
-        the stored procedure.
+        Read-only, one object per call.
     UserSettingSiteSettingsRead:
       type: object
       properties:
@@ -820,8 +797,8 @@ components:
         UserDefinedCommentName:
           type: string
           readOnly: true
-          description: Label the tenant gave the additional text field (setting AdditionalTextFieldLabel), e.g. "Support ticket
-            number".
+          description: Label the account gave the additional text field (setting AdditionalTextFieldLabel), e.g. "Support
+            ticket number".
         UserDefinedCommentDataType:
           type: string
           enum:
@@ -908,7 +885,5 @@ components:
             State of feature InvoiceCurrencySetting (expenses can be entered in another currency).
 
             > **Not yet documented:** description.
-      description: Nested in UserSettingRead. Tenant settings for time and expense clients. All values are the same for every
-        caller except TimeRegistrationTimestamp, which depends on the caller's employee card when the tenant activates timestamps
-        per employee.
+      description: Nested in UserSettingRead. Account settings for time and expense clients.
 x-timelog-service: Common

@@ -1,0 +1,336 @@
+---
+title: "GetContractPaymentsRaw"
+description: "Reporting API: Returns contract payments per contract customer in an invoice-date window, with amounts."
+---
+
+| | |
+|---|---|
+| API | Reporting API (raw extracts) |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/Service.asmx` |
+| SOAPAction | `http://www.timelog.com/ws/tlp/v4_4/GetContractPaymentsRaw` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | `siteCode`, `apiID` and `apiPassword` as the first three parameters. See [Authentication](/reporting/guides/authentication) |
+| Changes data | No. Safe to retry. |
+| Paging | No: the whole result comes in one response. Narrow it with the filters. |
+
+## How it works
+
+Filters: project, contract customer's customer, contract, plus the mandatory date window. Only payments linked to a contract customer are returned; all installment types are included. The contract is filterable but not returned - join via ProjectSubContractCustomerID to GetContractCustomersRaw. CONTRACT AMOUNTS.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="siteCode" field-type="string" required="true">
+Your account's site code, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiID" field-type="string" required="true">
+The Reporting API ID, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="apiPassword" field-type="string" required="true">
+The Reporting API password, from the Reporting API settings.
+</ResponseField>
+
+<ResponseField name="projectID" field-type="integer" required="true">
+The payment's project. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="customerID" field-type="integer" required="true">
+The contract customer's customer. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="projectSubContractID" field-type="integer" required="true">
+Contract ID. 0 = no filter.
+</ResponseField>
+
+<ResponseField name="startDate" field-type="dateTime" required="true">
+InvoiceDate >= value. An invalid value -> ASMX fault.
+</ResponseField>
+
+<ResponseField name="endDate" field-type="dateTime" required="true">
+InvoiceDate &lt;= value. Same typing as startDate - an OMITTED endDate becomes 0001-01-01 and the result is EMPTY.
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/Service.asmx HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetContractPaymentsRaw"
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetContractPaymentsRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:projectID>0</tlp:projectID>
+      <tlp:customerID>0</tlp:customerID>
+      <tlp:projectSubContractID>0</tlp:projectSubContractID>
+      <tlp:startDate>{startDate}</tlp:startDate>
+      <tlp:endDate>{endDate}</tlp:endDate>
+    </tlp:GetContractPaymentsRaw>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/Service.asmx" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/ws/tlp/v4_4/GetContractPaymentsRaw"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/Service.asmx"
+SOAP_ACTION = '"http://www.timelog.com/ws/tlp/v4_4/GetContractPaymentsRaw"'
+
+envelope = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tlp="http://www.timelog.com/ws/tlp/v4_4">
+  <soap:Body>
+    <tlp:GetContractPaymentsRaw>
+      <tlp:siteCode>{siteCode}</tlp:siteCode>
+      <tlp:apiID>{apiID}</tlp:apiID>
+      <tlp:apiPassword>{apiPassword}</tlp:apiPassword>
+      <tlp:projectID>0</tlp:projectID>
+      <tlp:customerID>0</tlp:customerID>
+      <tlp:projectSubContractID>0</tlp:projectSubContractID>
+      <tlp:startDate>{startDate}</tlp:startDate>
+      <tlp:endDate>{endDate}</tlp:endDate>
+    </tlp:GetContractPaymentsRaw>
+  </soap:Body>
+</soap:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=300,
+)
+rows = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The result is an XML document inside `GetContractPaymentsRawResult`: a `tlp:ContractPayments` root with one `tlp:ContractPayment` element per record. Check the [response format](/reporting/guides/responses-and-errors) first: the same slot also carries the empty result and errors.
+
+Order: InvoiceDate; ties not ordered.
+
+<ResponseField name="tlp:ContractPayment" field-type="ContractPaymentRaw[]">
+One element per record. Fields without a value are left out of the element, so treat every field as optional.
+
+<Expandable title="ContractPayment fields">
+
+<ResponseField name="ID" field-type="integer (attribute)">
+**Payment ID.**
+</ResponseField>
+
+<ResponseField name="GUID" field-type="string (attribute)">
+**Payment GUID.**
+</ResponseField>
+
+<ResponseField name="InvoiceDate" field-type="string">
+**Invoice date.** Planned invoice date. The startDate / endDate filter applies here.
+</ResponseField>
+
+<ResponseField name="Rate" field-type="decimal">
+**Rate.**
+</ResponseField>
+
+<ResponseField name="RateCurrency" field-type="decimal">
+**Rate (contract currency).**
+</ResponseField>
+
+<ResponseField name="Discount" field-type="decimal">
+**Discount.** Discount, unconverted.
+</ResponseField>
+
+<ResponseField name="InvoicelineID" field-type="integer">
+**Invoice line ID.** Invoice line the payment was invoiced on; omitted until invoiced.
+</ResponseField>
+
+<ResponseField name="Quantity" field-type="decimal">
+**Quantity.** Quantity.
+</ResponseField>
+
+<ResponseField name="Name" field-type="string">
+**Name.** Payment name, cleaned of XML-forbidden characters.
+</ResponseField>
+
+<ResponseField name="UnitType" field-type="integer">
+**Unit type.** Omitted when NULL.
+</ResponseField>
+
+<ResponseField name="Amount" field-type="decimal">
+**Amount.** Payment amount, DECIMAL; 0 when NULL.
+</ResponseField>
+
+<ResponseField name="AmountCurrency" field-type="decimal">
+**Amount (contract currency).** Payment amount in the contract currency, DECIMAL; 0 when NULL.
+</ResponseField>
+
+<ResponseField name="InvoicedAt" field-type="string">
+**Invoiced at.**
+</ResponseField>
+
+<ResponseField name="IsReadyForInvoicing" field-type="integer">
+**Ready for invoicing.** tinyint, NOT NULL, default 0.
+</ResponseField>
+
+<ResponseField name="CustomerID" field-type="integer">
+**Customer ID.** The contract customer this payment belongs to.
+</ResponseField>
+
+<ResponseField name="CustomerName" field-type="string">
+**Customer name.** Customer company name.
+</ResponseField>
+
+<ResponseField name="ProjectID" field-type="integer">
+**Project ID.** The payment's project.
+</ResponseField>
+
+<ResponseField name="ProjectName" field-type="string">
+**Project name.** Cleaned of XML-forbidden characters.
+</ResponseField>
+
+<ResponseField name="ProjectSubContractCustomerID" field-type="integer">
+**Contract customer ID.** The contract itself is filterable but NOT returned.
+</ResponseField>
+
+<ResponseField name="CreatedAt" field-type="string">
+**Created at.** Creation timestamp of the record.
+</ResponseField>
+
+<ResponseField name="CreatedByEmployeeId" field-type="integer">
+**Created by (ID).** Creating employee.
+</ResponseField>
+
+<ResponseField name="CreatedBy" field-type="string">
+**Created by (initials).** Initials of the creating employee.
+</ResponseField>
+
+<ResponseField name="LastModifiedAt" field-type="string">
+**Last modified at.** Last-modification timestamp.
+</ResponseField>
+
+<ResponseField name="LastModifiedByEmployeeId" field-type="integer">
+**Last modified by (ID).** Last modifying employee.
+</ResponseField>
+
+<ResponseField name="LastModifiedBy" field-type="string">
+**Last modified by (initials).** Initials of the last modifying employee.
+</ResponseField>
+
+</Expandable>
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - data,HTTP 200 - no rows" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetContractPaymentsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetContractPaymentsRawResult>
+        <tlp:ContractPayments xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:ContractPayment ID="1001" GUID="3F2504E0-4F89-41D3-9A0C-0305E82C3303">
+            <tlp:InvoiceDate>2026-10-01T00:00:00</tlp:InvoiceDate>
+            <tlp:Rate>950.0000</tlp:Rate>
+            <tlp:RateCurrency>950.0000</tlp:RateCurrency>
+            <tlp:Discount>0.0000</tlp:Discount>
+            <tlp:InvoicelineID>12</tlp:InvoicelineID>
+            <tlp:Quantity>0.0000</tlp:Quantity>
+            <tlp:Name>Example </tlp:Name>
+            <tlp:UnitType>0</tlp:UnitType>
+            <tlp:Amount>950.0000</tlp:Amount>
+            <tlp:AmountCurrency>950.0000</tlp:AmountCurrency>
+            <tlp:InvoicedAt>2026-10-01T00:00:00</tlp:InvoicedAt>
+            <tlp:IsReadyForInvoicing>0</tlp:IsReadyForInvoicing>
+            <tlp:CustomerID>12</tlp:CustomerID>
+            <tlp:CustomerName>Example Customer A/S</tlp:CustomerName>
+            <tlp:ProjectID>12</tlp:ProjectID>
+            <tlp:ProjectName>Example project</tlp:ProjectName>
+            <tlp:ProjectSubContractCustomerID>12</tlp:ProjectSubContractCustomerID>
+            <tlp:CreatedAt>2026-10-01T00:00:00</tlp:CreatedAt>
+            <tlp:CreatedByEmployeeId>12</tlp:CreatedByEmployeeId>
+            <tlp:CreatedBy>ABC</tlp:CreatedBy>
+            <tlp:LastModifiedAt>2026-10-01T00:00:00</tlp:LastModifiedAt>
+            <tlp:LastModifiedByEmployeeId>12</tlp:LastModifiedByEmployeeId>
+            <tlp:LastModifiedBy>ABC</tlp:LastModifiedBy>
+          </tlp:ContractPayment>
+        </tlp:ContractPayments>
+      </GetContractPaymentsRawResult>
+    </GetContractPaymentsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetContractPaymentsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetContractPaymentsRawResult>
+        <tlp:ContractPayments resultEmpty="true" xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4"></tlp:ContractPayments>
+      </GetContractPaymentsRawResult>
+    </GetContractPaymentsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</CodeGroup>
+
+### Example error
+
+Wrong credentials, or a call over plain HTTP:
+
+<CodeGroup tabs="HTTP 401 - access denied" show-lines={true}>
+
+```xml
+HTTP/1.1 401 Unauthorized
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <GetContractPaymentsRawResponse xmlns="http://www.timelog.com/ws/tlp/v4_4">
+      <GetContractPaymentsRawResult>
+        <tlp:Errors xmlns:tlp="http://www.timelog.com/XML/Schema/tlp/v4_4">
+          <tlp:Error>Access denied. Check siteCode, apiID, apiPassword and SSL settings</tlp:Error>
+        </tlp:Errors>
+      </GetContractPaymentsRawResult>
+    </GetContractPaymentsRawResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">**Data** and **No rows** are illustrative examples: the format follows the service's documented output, with made-up values (only one record shown). **Access denied** was recorded from a real call with wrong credentials (to GetCustomersShortList; every data method answers the same way).</Callout>
+
+## Errors
+
+The errors every method can return (access denied, operation failed, invalid request) are listed once in [Responses and errors](/reporting/guides/responses-and-errors#errors).
+
+This method has no errors of its own beyond the shared ones.

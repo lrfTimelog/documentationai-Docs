@@ -1,0 +1,290 @@
+---
+title: "GetExpensesByEmployee"
+description: "Expenses service 1.0: Returns the expenses of one employee whose purchase date lies in a period."
+---
+
+| | |
+|---|---|
+| Service | Expenses 1.0 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/Expenses/V1_0/ExpensesServiceSecure.svc` |
+| SOAPAction | `http://www.timelog.com/api/tlp/v1_0/ExpenseService/GetExpensesByEmployee` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | No |
+| Safe to retry | Yes |
+
+## How it works
+
+Returns every expense of the employee identified by initials whose PurchaseDate is between from and to, both INCLUSIVE, ordered by purchase date. No paging: the whole period comes back in one response. Approval / booking state is not on the wire.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="initials" field-type="string" required="true">
+Initials of the employee whose expenses to return. Unknown initials fail with Error 40001.
+
+</ResponseField>
+
+<ResponseField name="from" field-type="dateTime" required="true">
+Start of the period on PurchaseDate. Omitted -> 0001-01-01 -> data-layer error.
+
+</ResponseField>
+
+<ResponseField name="to" field-type="dateTime" required="true">
+End of the period on PurchaseDate. A to-value at midnight includes expenses dated that day only if they are stored without a time part.
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/WebServices/Expenses/V1_0/ExpensesServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "http://www.timelog.com/api/tlp/v1_0/ExpenseService/GetExpensesByEmployee"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:expenses="http://www.timelog.com/api/tlp/v1_0"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <expenses:GetExpensesByEmployee>
+      <expenses:initials>{initials}</expenses:initials>
+      <expenses:from>{from}</expenses:from>
+      <expenses:to>{to}</expenses:to>
+      <expenses:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </expenses:token>
+    </expenses:GetExpensesByEmployee>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/Expenses/V1_0/ExpensesServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "http://www.timelog.com/api/tlp/v1_0/ExpenseService/GetExpensesByEmployee"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/Expenses/V1_0/ExpensesServiceSecure.svc"
+SOAP_ACTION = '"http://www.timelog.com/api/tlp/v1_0/ExpenseService/GetExpensesByEmployee"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:expenses="http://www.timelog.com/api/tlp/v1_0"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <expenses:GetExpensesByEmployee>
+      <expenses:initials>{initials}</expenses:initials>
+      <expenses:from>{from}</expenses:from>
+      <expenses:to>{to}</expenses:to>
+      <expenses:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </expenses:token>
+    </expenses:GetExpensesByEmployee>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="Expense[]">
+Response&lt;Expense>: Return = the employee's expenses in the period, ordered by PurchaseDate. Success with an empty Return.
+
+<Expandable title="Expense fields">
+
+<ResponseField name="ID" field-type="guid">
+The expense's stable identifier. On insert: leave empty and the server generates one, or supply your own GUID. On update: identifies the expense to overwrite.
+</ResponseField>
+
+<ResponseField name="Comment" field-type="string">
+Free-text description of the expense; also part of the generated system text '&lt;type>: &lt;comment>'.
+</ResponseField>
+
+<ResponseField name="CurrencyISO" field-type="string">
+'DKK', 'EUR'). PurchasedAmountInCurrency and VATAmount are in this currency.
+</ResponseField>
+
+<ResponseField name="CurrencyRate" field-type="double">
+EUR to DKK = 746.0). It is stored as the expense's base-reference rate and drives the cost and the REIMBURSEMENT in the employee's currency; it is not validated against the account's exchange-rate table. Do not round-trip the read value into an update unless the employee's legal-entity currency is the system currency.
+</ResponseField>
+
+<ResponseField name="ExpenseNo" field-type="string">
+ 
+</ResponseField>
+
+<ResponseField name="EmployeeInitials" field-type="string">
+Initials of the employee the expense belongs to. On write this selects the employee; callers without the 'all registrations' privilege must send their OWN initials. Always filled on read.
+</ResponseField>
+
+<ResponseField name="ExpenseTypeID" field-type="guid">
+GUID of the expense type.
+</ResponseField>
+
+<ResponseField name="ExternalID" field-type="string">
+Your system's key for the expense.
+</ResponseField>
+
+<ResponseField name="InvoiceNo" field-type="string">
+Number of the supplier's invoice / receipt.
+</ResponseField>
+
+<ResponseField name="PaymentMethodID" field-type="integer">
+Integer ID of the payment method.
+</ResponseField>
+
+<ResponseField name="ProductNo" field-type="string">
+Read returns the stored value.
+</ResponseField>
+
+<ResponseField name="ProfitPercent" field-type="double">
+Markup on the cost used for the billable amount: sales amount = cost ×, cost = PurchasedAmountInCurrency - VATAmount converted to the system / project currency. Read returns 0.
+</ResponseField>
+
+<ResponseField name="ProjectNo" field-type="string">
+Number of the project the expense is booked on.
+</ResponseField>
+
+<ResponseField name="PurchaseDate" field-type="dateTime">
+Date of the purchase. Used for the exchange-rate look-ups and by GetExpensesByEmployee's period filter.
+</ResponseField>
+
+<ResponseField name="PurchasedAmountInCurrency" field-type="double">
+Gross amount paid, INCLUDING VAT, in the CurrencyISO currency. Negative amounts are accepted.
+</ResponseField>
+
+<ResponseField name="NonBillable" field-type="boolean">
+true = the expense is not to be invoiced to the customer.
+</ResponseField>
+
+<ResponseField name="VATAmount" field-type="double">
+The VAT part of PurchasedAmountInCurrency, as an AMOUNT in the CurrencyISO currency.
+</ResponseField>
+
+<ResponseField name="EmployeeNo" field-type="string">
+Alternative to EmployeeInitials on write. Never filled on read.
+</ResponseField>
+
+<ResponseField name="Category" field-type="string">
+Personal or company / project expense. Allowed values: `Employee`, `Project`.
+</ResponseField>
+
+<ResponseField name="ImageUrlList" field-type="anyURI[]">
+Output only; ignored on write.
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetExpensesByEmployeeResponse xmlns="http://www.timelog.com/api/tlp/v1_0">
+      <GetExpensesByEmployeeResult xmlns:a="http://api.timelog.com"
+                                   xmlns:b="http://api.timelog.com/services/expense/1_0"
+                                   xmlns:c="http://schemas.microsoft.com/2003/10/Serialization/Arrays"
+                                   xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <b:Expense>
+            <b:ID>3f2504e0-4f89-41d3-9a0c-305000000001</b:ID>
+            <b:Comment>Example</b:Comment>
+            <b:CurrencyISO>DKK</b:CurrencyISO>
+            <b:CurrencyRate>0</b:CurrencyRate>
+            <b:ExpenseNo>1001</b:ExpenseNo>
+            <b:EmployeeInitials>Example</b:EmployeeInitials>
+            <b:ExpenseTypeID>3f2504e0-4f89-41d3-9a0c-305000000002</b:ExpenseTypeID>
+            <b:ExternalID>Example</b:ExternalID>
+            <b:InvoiceNo>1001</b:InvoiceNo>
+            <b:PaymentMethodID>1001</b:PaymentMethodID>
+            <b:ProductNo>1001</b:ProductNo>
+            <b:ProfitPercent>0</b:ProfitPercent>
+            <b:ProjectNo>1001</b:ProjectNo>
+            <b:PurchaseDate>2026-10-01T00:00:00</b:PurchaseDate>
+            <b:PurchasedAmountInCurrency>0</b:PurchasedAmountInCurrency>
+            <b:NonBillable>false</b:NonBillable>
+            <b:VATAmount>0</b:VATAmount>
+            <b:EmployeeNo>1001</b:EmployeeNo>
+            <b:Category>Employee</b:Category>
+            <b:ImageUrlList>
+              <c:anyURI>Example</c:anyURI>
+            </b:ImageUrlList>
+          </b:Expense>
+        </a:Return>
+        <a:ReturnTypeDescription>Expense</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <a:APIMessage>
+            <a:Message>Duration of call was 0,0421337 sec.</a:Message>
+            <a:Severity>Message</a:Severity>
+            <a:ErrorCode>0</a:ErrorCode>
+          </a:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </GetExpensesByEmployeeResult>
+    </GetExpensesByEmployeeResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Error | 40001 | Error during call on TimeLog.API, Message 'The current user do not have the right privileges to get expenses for other users' | initials of another employee without the 'all registrations' privilege. | Ask for your own initials, or use a user with the 'all registrations' privilege. |
+| Error | 40001 | Error during call on TimeLog.API, Message 'Unable to retrieve result from … with ID \{employee id\}' | — | Send both dates. |

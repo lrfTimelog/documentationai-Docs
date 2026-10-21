@@ -1,0 +1,230 @@
+---
+title: "AddEmployeeToTask"
+description: "Project management service 1.8: Allocate an employee to a task"
+---
+
+| | |
+|---|---|
+| Service | Project management 1.8 |
+| Endpoint | `POST https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc` |
+| SOAPAction | `AddEmployeeToTaskRequest` |
+| Content-Type | `text/xml; charset=utf-8` |
+| Authentication | A token from [GetToken](/transactional/guides/authentication) |
+| Changes data | Yes |
+| Safe to retry | A retry after a lost response fails with 30008 when the first call created the allocation - treat 30008 as 'already allocated' and read it with GetAllocationsToEmployee. |
+
+## How it works
+
+Creates the allocation of employeeID on taskID with BudgetHours as planned hours. The server picks the hourly rate and gives the allocation the task's start and end dates. The employee is added to the project's resource group when missing, the task status is refreshed and the project is saved. Use CreateAllocation instead when you need to set the rate, the dates, the allocation's GUID or external keys. One employee can have only one allocation per task: a second call fails. There is no check that the caller may staff the project.
+
+## Parameters
+
+Each parameter has one label: **Required**, **Conditional** (required depending on other values) or **Optional**.
+Send them in the order shown.
+
+<ResponseField name="employeeID" field-type="integer" required="true">
+Integer ID of the employee to allocate.
+
+</ResponseField>
+
+<ResponseField name="taskID" field-type="integer" required="true">
+Integer ID of the task.
+
+</ResponseField>
+
+<ResponseField name="BudgetHours" field-type="double" required="true">
+Planned hours of the employee on the task; 0 when unknown.
+
+</ResponseField>
+
+<ResponseField name="token" field-type="SecurityToken" required="true">
+The token from [GetToken](/transactional/guides/authentication): `Initials`, `Expires` and `Hash`, sent back unchanged.
+
+</ResponseField>
+
+## Request
+
+<CodeGroup tabs="XML,cURL,Python" show-lines={true}>
+
+```xml
+POST /{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc HTTP/1.1
+Host: app{server-number}.timelog.com
+Content-Type: text/xml; charset=utf-8
+SOAPAction: "AddEmployeeToTaskRequest"
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:pm="http://www.timelog.com/api/tlp/v1_8"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <pm:AddEmployeeToTask>
+      <pm:employeeID>{employeeID}</pm:employeeID>
+      <pm:taskID>{taskID}</pm:taskID>
+      <pm:BudgetHours>{BudgetHours}</pm:BudgetHours>
+      <pm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </pm:token>
+    </pm:AddEmployeeToTask>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+```bash
+curl -X POST "https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc" \
+  -H "Content-Type: text/xml; charset=utf-8" \
+  -H 'SOAPAction: "AddEmployeeToTaskRequest"' \
+  --data-binary @request.xml
+```
+
+```python
+import requests
+
+URL = "https://app{server-number}.timelog.com/{account}/WebServices/ProjectManagement/V1_8/ProjectManagementServiceSecure.svc"
+SOAP_ACTION = '"AddEmployeeToTaskRequest"'
+
+envelope = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:pm="http://www.timelog.com/api/tlp/v1_8"
+                  xmlns:tok="http://www.timelog.com/api/tlp/v1_3">
+  <soapenv:Body>
+    <pm:AddEmployeeToTask>
+      <pm:employeeID>{employeeID}</pm:employeeID>
+      <pm:taskID>{taskID}</pm:taskID>
+      <pm:BudgetHours>{BudgetHours}</pm:BudgetHours>
+      <pm:token>
+        <tok:Initials>{Initials from GetToken}</tok:Initials>
+        <tok:Expires>{Expires from GetToken, unchanged}</tok:Expires>
+        <tok:Hash>{Hash from GetToken}</tok:Hash>
+      </pm:token>
+    </pm:AddEmployeeToTask>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+response = requests.post(
+    URL,
+    data=envelope.encode("utf-8"),
+    headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": SOAP_ACTION},
+    timeout=60,
+)
+result = parse_result(response)  # see "Responses and errors"
+```
+
+</CodeGroup>
+
+<Callout kind="tip">Replace every `{…}` placeholder with your own value.</Callout>
+
+## Response
+
+The call returns the standard [response envelope](/transactional/guides/responses-and-errors). **Check `ResponseState` first**: a failed call still returns HTTP 200.
+
+<ResponseField name="ResponseState" field-type="string" required="true">
+`Success`, `Invalid` or `Error`.
+</ResponseField>
+
+<ResponseField name="ErrorCode" field-type="integer">
+`0` on success, otherwise the error code. See [Errors](#errors).
+</ResponseField>
+
+<ResponseField name="Return" field-type="BatchContainerOfAllocation[]">
+New allocation created and returned', Item = the new allocation. On any failure Return is EMPTY and the envelope is Error - there is no per-item failure container.
+
+<Expandable title="BatchContainerOfAllocation fields">
+
+<ResponseField name="Item" field-type="Allocation">
+ 
+</ResponseField>
+
+<ResponseField name="Status" field-type="string">
+Allowed values: `NotSet`, `Success`, `Invalid`, `Error`.
+</ResponseField>
+
+<ResponseField name="Message" field-type="string">
+ 
+</ResponseField>
+
+</Expandable>
+
+</ResponseField>
+
+### Example response
+
+<CodeGroup tabs="HTTP 200 - success" show-lines={true}>
+
+```xml
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <AddEmployeeToTaskResponse xmlns="http://www.timelog.com/api/tlp/v1_8">
+      <AddEmployeeToTaskResult xmlns:a="http://www.timelog.com/api/tlp/v1_2"
+                               xmlns:b="http://api.timelog.com"
+                               xmlns:c="http://www.timelog.com/api/tlp/v1_7"
+                               xmlns:d="http://www.timelog.com/api/tlp/v1_5"
+                               xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:Return>
+          <a:BatchContainerOfAllocation>
+            <a:Item>
+              <b:Action>Original</b:Action>
+              <b:IsCustomFieldsLoaded>false</b:IsCustomFieldsLoaded>
+              <b:CustomFields i:nil="true"/>
+              <b:IsExternalKeysLoaded>false</b:IsExternalKeysLoaded>
+              <b:ExternalKeys i:nil="true"/>
+              <c:AllocationID>1001</c:AllocationID>
+              <c:ID>3f2504e0-4f89-41d3-9a0c-305000000001</c:ID>
+              <c:TaskID>1001</c:TaskID>
+              <c:HoursAllocated>0</c:HoursAllocated>
+              <c:HourlyRateID>1001</c:HourlyRateID>
+              <c:EmployeeID>1001</c:EmployeeID>
+              <c:StartDate>2026-10-01T00:00:00</c:StartDate>
+              <c:EndDate>2026-10-01T00:00:00</c:EndDate>
+              <c:Details>
+                <c:EmployeeHeader>
+                  <d:ID>3f2504e0-4f89-41d3-9a0c-305000000002</d:ID>
+                  <d:EmployeeID>1001</d:EmployeeID>
+                  <d:Initials>ABC</d:Initials>
+                  <d:FirstName>Example first</d:FirstName>
+                  <d:LastName>Example last</d:LastName>
+                  <d:EmployeeNo>1001</d:EmployeeNo>
+                  <d:Fullname>Example</d:Fullname>
+                </c:EmployeeHeader>
+              </c:Details>
+            </a:Item>
+            <a:Status>Success</a:Status>
+            <a:Message>Example</a:Message>
+          </a:BatchContainerOfAllocation>
+        </a:Return>
+        <a:ReturnTypeDescription>BatchContainerOfAllocation</a:ReturnTypeDescription>
+        <a:Request>…</a:Request>
+        <a:ResponseState>Success</a:ResponseState>
+        <a:Messages>
+          <b:APIMessage>
+            <b:Message>Duration of call was 0,0421337 sec.</b:Message>
+            <b:Severity>Message</b:Severity>
+            <b:ErrorCode>0</b:ErrorCode>
+          </b:APIMessage>
+        </a:Messages>
+        <a:ErrorCode>0</a:ErrorCode>
+        <a:IsReturnPaged>false</a:IsReturnPaged>
+        <a:TotalPageCount>0</a:TotalPageCount>
+      </AddEmployeeToTaskResult>
+    </AddEmployeeToTaskResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+</CodeGroup>
+
+<Callout kind="info">Illustrative example: built from the service description (WSDL) in the same format as a real response, with made-up values. The `Request` block is shortened.</Callout>
+
+## Errors
+
+All errors come back with **HTTP 200**: check `ResponseState`, `ErrorCode` and `Messages`. The errors every operation can return (expired or invalid token, API not enabled, HTTPS required, general errors) are listed once in [Responses and errors](/transactional/guides/responses-and-errors#error-codes).
+
+Errors specific to this operation:
+
+| ResponseState | ErrorCode | Message | What it means | What to do |
+|---|---|---|---|---|
+| Error | 30008 | Server unable to create allocation, Task and Employee relationship already exists on allocation:  | The employee is already allocated to the task. | Treat as 'already allocated': read the allocation and update it instead. |
+| Error | 30009 | Unable to validate allocation for creation: Allocation is associated with parent task. | taskID has sub-tasks. | Allocate the employee to a sub-task. |
+| Error | 37808 | Allocation cannot be added to cancelled or completed task. | The task is completed or cancelled. | Reopen the task or choose another task. |
