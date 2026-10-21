@@ -67,12 +67,12 @@ Dates and times use **ISO 8601** strings. Offset handling is not consistent acro
 
 What this means for your client:
 
-- **Send the date and time you want stored.** Send explicit local dates, in the form the tenant expects. Do not convert to UTC first: the API will not convert it back, so a registration made just after midnight local time can be stored on the previous day.
+- **Send the date and time you want stored.** Send explicit local dates, in the form the account expects. Do not convert to UTC first: the API will not convert it back, so a registration made just after midnight local time can be stored on the previous day.
 - **Do not assume UTC.** A value without an offset is not documented as UTC.
 - **Parse both forms.** Your parser must accept values with and without an offset.
 
 <Callout kind="alert">
-**Not yet documented.** Whether date and time values without an offset are in the tenant's timezone, the employee's timezone or UTC has not been established.
+**Not yet documented.** Whether date and time values without an offset are in the account's timezone, the employee's timezone or UTC has not been established.
 </Callout>
 
 ## Numbers and units

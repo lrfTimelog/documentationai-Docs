@@ -349,7 +349,7 @@
                     "pages": []
                   },
                   {
-                    "group": "Reference data and tenant settings",
+                    "group": "Reference data and account settings",
                     "icon": "database",
                     "expandable": true,
                     "openapi": "api-reference/rest/v1/common.yaml",

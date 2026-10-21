@@ -159,7 +159,7 @@ The examples use shell variables. Set `TIMELOG_TOKEN` and `TIMELOG_BASE` in step
     - **Date:** send the local date you want stored. No timezone conversion is applied. See [Dates and times](/rest/conventions/data-types#dates-and-times).
     - **Hours, not Minutes:** for project time, `Hours` always wins and `Minutes` is ignored. See [Numbers and units](/rest/conventions/data-types#numbers-and-units).
     - **Fixed-price tasks:** `Billable` defaults to `false`, and a registration on a fixed-price task cannot be non-billable (ErrorCode `37620`). If the task's `IsFixedPrice` is `true`, add `"Billable": true`.
-    - **Tenant settings:** some sites require a `Comment` or an `AdditionalComment`. The create then fails with ErrorCode `300116` or `30048` until you send it.
+    - **Account settings:** some sites require a `Comment` or an `AdditionalComment`. The create then fails with ErrorCode `300116` or `30048` until you send it.
 
     The other body fields (`Billable`, `BillableHours`, `Comment`, `StartTime` and more) are optional and described in the operation reference.
 
@@ -192,7 +192,7 @@ The examples use shell variables. Set `TIMELOG_TOKEN` and `TIMELOG_BASE` in step
 
     - **Use the integer ID.** A GUID does not match the route and returns `404`.
     - **An unknown ID returns `500` with `Code` `100`**, not `404`.
-    - **Some values can differ from what you sent.** For example, `IsBillable` can be set from the task, depending on tenant settings.
+    - **Some values can differ from what you sent.** For example, `IsBillable` can be set from the task, depending on account settings.
   </Step>
 
   <Step title="Clean up (optional)" icon="trash-2">

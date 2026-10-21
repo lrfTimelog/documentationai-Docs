@@ -83,7 +83,7 @@ Things to note:
 Things to note:
 
 - **Code 100 is not always a server fault.** It is also returned for several caller mistakes: a malformed `MonthlyPeriod`, a non-numeric `$page`, a missing record on some GET operations, and a missing record on `DELETE /v1/time-registration/{id}`.
-- **Code 103 does not always mean a missing permission.** On `POST /v1/customer/create` and `PUT /v1/customer/update`, a customer number that is already in use (when the tenant requires unique customer numbers) comes back as `403` Code 103 with the message `"Customer number is already in use"`. Read `Message` before you treat a 103 as a permissions problem.
+- **Code 103 does not always mean a missing permission.** On `POST /v1/customer/create` and `PUT /v1/customer/update`, a customer number that is already in use (when the account requires unique customer numbers) comes back as `403` Code 103 with the message `"Customer number is already in use"`. Read `Message` before you treat a 103 as a permissions problem.
 - **On task searches, Code 103 can be avoided.** Sending `searchAll=true` without the privilege to search all tasks returns `403` Code 103. Omit `searchAll` to search only the tasks the user is allocated to.
 
 ### Business-rule errors: 422 or 500
@@ -233,7 +233,7 @@ One useful case: `POST /v1/time-registration` with the same `ID` (GUID) is safe 
 
 These are the business-rule codes (`Details[].ErrorCode` in a Code 102 response) that integrations meet most often.
 The list is not complete. **Each operation's reference page lists its own errors.**
-Some rules only apply when a tenant setting or feature is switched on; the reference page says which.
+Some rules only apply when a account setting or feature is switched on; the reference page says which.
 
 ### Time registrations
 
@@ -265,8 +265,8 @@ Some rules only apply when a tenant setting or feature is switched on; the refer
 | `37001` | The task does not exist. Returned instead of a 404. | Use an existing task ID. |
 | `37042` | The contract does not exist or does not belong to the project. | Send a contract of the same project, or omit it where the operation then uses the project's default contract. |
 | `37944` | The hourly rate is not one of the rates of the task's contract. | Use an hourly rate of the chosen contract. |
-| `37957` | A contract type is required on this tenant, and `ContractTypeID` is 0 or missing. | Send the ID of one of the tenant's contract types. |
-| `37958` | `ContractTypeID` is not a contract type of the tenant. Nothing is written. | Use an existing contract type ID. |
+| `37957` | A contract type is required on this account, and `ContractTypeID` is 0 or missing. | Send the ID of one of the account's contract types. |
+| `37958` | `ContractTypeID` is not a contract type of the account. Nothing is written. | Use an existing contract type ID. |
 
 ### Users (all areas)
 
@@ -284,7 +284,7 @@ Some rules only apply when a tenant setting or feature is switched on; the refer
 | `38017` | Another customer has the same name and number (case-insensitive). | Change the name or the number. |
 | `30017` | `CountryID` or `InvoicingAddressCountryID` does not exist. The message says "ISO code", but the value is the country ID. | Send an existing country ID. |
 | `37011` | `ContactID` or `CustomerReferenceID` is not an existing contact. | Send an existing contact ID. |
-| `37697` | `UseEanNo` is true, but the tenant does not have the OIOXML feature. | Send `UseEanNo` false, or enable OIOXML. |
+| `37697` | `UseEanNo` is true, but the account does not have the OIOXML feature. | Send `UseEanNo` false, or enable OIOXML. |
 
 ### Employees and timesheets
 
@@ -292,8 +292,8 @@ Some rules only apply when a tenant setting or feature is switched on; the refer
 |---|---|---|
 | `37966` | Submitting a timesheet for another employee without the rights to do so. | Submit as the employee, or use a user with the 'all registrations' privilege or an approval privilege that covers the employee. |
 | `37992` | The employee has a running time tracker that started on one of the days being submitted. | Stop or delete the time tracker, then submit again. |
-| `37654` | The tenant does not allow closing a timesheet with zero hours, and the submitted days hold no hours. | Register time on the days first. |
-| `37655` | The tenant does not allow closing a timesheet below normal working time, and the days hold fewer hours. | Register the missing time or absence, then submit again. |
+| `37654` | The account does not allow closing a timesheet with zero hours, and the submitted days hold no hours. | Register time on the days first. |
+| `37655` | The account does not allow closing a timesheet below normal working time, and the days hold fewer hours. | Register the missing time or absence, then submit again. |
 | `38015` | Competences: the user has no privilege to edit skills for this employee. | Use a user whose role has the employee skills privilege for that employee. |
 
 ### Expenses and mileage

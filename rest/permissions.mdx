@@ -1,6 +1,6 @@
 ---
 title: Permissions and data scope
-description: Which user a REST API request acts as, how TimeLog checks that user's privileges and data scope per operation, how a privilege failure looks, and which tenant features an operation can depend on.
+description: Which user a REST API request acts as, how TimeLog checks that user's privileges and data scope per operation, how a privilege failure looks, and which account features an operation can depend on.
 ---
 
 ## Overview
@@ -72,10 +72,10 @@ If your integration only needs the user's own work, omit `searchAll`. You then n
 Project data is scoped by the user's **project privileges**. A project privilege covers one of these sets of projects:
 
 - all projects (`ProjectAllProjects`)
-- all projects in the user's legal entity (`ProjectAllInLegalEntityEmployees`, when the tenant uses multiple legal entities)
+- all projects in the user's legal entity (`ProjectAllInLegalEntityEmployees`, when the account uses multiple legal entities)
 - projects whose handling department is the user's department or below it (`ProjectProjectsInUserDepartmentAndSubDepartment`)
 - projects where the user is project manager (`ProjectProjectsWhereUserIsSetAsProjectManager`)
-- projects where the user is account manager (`ProjectProjectsWhereUserIsSetAsAccountManager`, when the tenant uses account managers)
+- projects where the user is account manager (`ProjectProjectsWhereUserIsSetAsAccountManager`, when the account uses account managers)
 
 The lists below are **filtered**: rows outside the user's project privileges are left out, and there is no `403`.
 
@@ -112,8 +112,8 @@ For **another user's**, the user needs one of these registration privileges:
 | Privilege | Covers |
 |---|---|
 | 'All registrations' (`RegistrationAllRegistrations`) | Every user |
-| `RegistrationEmployeesInMyOwnDepartmentAndSubDepartments` | Users in the caller's department or a department below it. Applies only when the tenant uses departments. |
-| `RegistrationEmployeesInMyOwnLegalEntity` | Users in the caller's legal entity. Applies only when the tenant uses multiple legal entities. |
+| `RegistrationEmployeesInMyOwnDepartmentAndSubDepartments` | Users in the caller's department or a department below it. Applies only when the account uses departments. |
+| `RegistrationEmployeesInMyOwnLegalEntity` | Users in the caller's legal entity. Applies only when the account uses multiple legal entities. |
 
 Which of these an operation accepts differs:
 
@@ -148,7 +148,7 @@ Otherwise the call returns `403` with the message `"User has insufficient privil
 
 | Operation | Needs |
 |---|---|
-| `POST /v1/user/validate-new-user` | An employee privilege that covers the new user — 'all employees', 'employees in my department and sub-departments' (when the tenant uses departments) or 'all employees in my legal entity' (when the tenant uses multiple legal entities) — with the Create or Edit action. Otherwise ErrorCode `20012`. |
+| `POST /v1/user/validate-new-user` | An employee privilege that covers the new user — 'all employees', 'employees in my department and sub-departments' (when the account uses departments) or 'all employees in my legal entity' (when the account uses multiple legal entities) — with the Create or Edit action. Otherwise ErrorCode `20012`. |
 | `POST /v2/employee-competences`, `POST /v2/employee-competences/bulk`, `PUT /v2/employee-competences`, `DELETE /v2/employee-competences/{id}`, `DELETE /v2/employee-competences/bulk` | The *Employee skills* create/edit privilege covering the employee, at one of three scopes: all employees; employees of the caller's legal entity; employees of the caller's department or a department directly under it (one level only). This also applies to the caller's own competences. The bulk create checks once, before any item, and writes nothing if it fails. The bulk delete returns `403` `Code` `103`; the others return ErrorCode `38015`. |
 | `POST /v2/competences`, `PUT /v2/competences`, `DELETE /v2/competences/{id}` | Access to the system-administration page *Employee competencies*. Otherwise ErrorCode `38013`. |
 | `POST /v2/competence-groups`, `PUT /v2/competence-groups`, `DELETE /v2/competence-groups/{id}` | Access to the system-administration page *Employee competencies*. Otherwise ErrorCode `38014`. |
@@ -175,9 +175,9 @@ To read another user's data with them, you need a token for that user.
 
 `GET /v2/search` is scoped differently: each result category needs access to the matching TimeLog page and a matching area privilege.
 
-## Licences, modules and tenant features
+## Licences, modules and account features
 
-Besides the user's privileges, an operation can depend on what the tenant has: its TimeLog product and licence plan, the user's licence, and the features switched on in TimeLog.
+Besides the user's privileges, an operation can depend on what the account has: its TimeLog product and licence plan, the user's licence, and the features switched on in TimeLog.
 
 For example, the time registration operations listed above (`DELETE /v1/time-registration/{id}`, `POST /v1/time-registration/update-time`, the absence updates and `POST /v1/time-registration/import`) also check the product, licence-plan, module, feature and user-licence policies of the action. The expense and mileage creates and the employee-expense delete check the product, licence-plan and user-licence policies.
 
@@ -185,13 +185,13 @@ These are the requirements documented so far:
 
 | Service | Requirement | Operations |
 |---|---|---|
-| Time registration | The tenant's product must include absence registration. On the Time product, absence updates fail with ErrorCode `70023`. | `POST /v1/time-registration/update-full-day-absence`, `POST /v1/time-registration/update-half-or-full-day-absence`, `POST /v1/time-registration/update-hours-absence` |
-| Expenses and mileage | The department rule needs the tenant feature *Departments*. The legal-entity rule needs *MultiLegalEntities*. | The on-behalf operations in [Registering on behalf of other employees](#registering-on-behalf-of-other-employees) |
-| Project management | The project-privilege rule for account managers needs the tenant feature *AccountManager*. The legal-entity rule needs *MultiLegalEntities*. | `GET /v1/project/{projectID}`, `PUT /v1/task/{taskID}` |
-| Project management | `StartDate` and `EndDate` on an allocation are accepted only when the tenant feature *AllocationDates* ("Enable start and end date on allocations") is on. | `PUT /v1/allocation/{allocationID}`, `POST /v1/task/{taskID}/allocation/validate-new-allocation` |
+| Time registration | The account's product must include absence registration. On the Time product, absence updates fail with ErrorCode `70023`. | `POST /v1/time-registration/update-full-day-absence`, `POST /v1/time-registration/update-half-or-full-day-absence`, `POST /v1/time-registration/update-hours-absence` |
+| Expenses and mileage | The department rule needs the account feature *Departments*. The legal-entity rule needs *MultiLegalEntities*. | The on-behalf operations in [Registering on behalf of other employees](#registering-on-behalf-of-other-employees) |
+| Project management | The project-privilege rule for account managers needs the account feature *AccountManager*. The legal-entity rule needs *MultiLegalEntities*. | `GET /v1/project/{projectID}`, `PUT /v1/task/{taskID}` |
+| Project management | `StartDate` and `EndDate` on an allocation are accepted only when the account feature *AllocationDates* ("Enable start and end date on allocations") is on. | `PUT /v1/allocation/{allocationID}`, `POST /v1/task/{taskID}/allocation/validate-new-allocation` |
 | Project management | A payment can be updated or deleted only when the contract model of its contract allows it. | `PUT /v1/payment/{paymentID}`, `DELETE /v1/payment/{paymentID}`, `POST /v1/payment/{paymentID}/validate-update-payment`, `POST /v1/payment/{paymentID}/validate-delete-payment` |
-| Employee | The system-administration page *Employee competencies* must be available on the tenant (its product, module and feature policies) and granted to the user's role. On a tenant without the page, the check fails. | `POST /v2/competences`, `PUT /v2/competences`, `DELETE /v2/competences/{id}`, `POST /v2/competence-groups`, `PUT /v2/competence-groups`, `DELETE /v2/competence-groups/{id}` |
-| Organization | The department rule needs the tenant feature *Departments*. The legal-entity rule needs *MultiLegalEntities*. | `POST /v1/user/validate-new-user` |
+| Employee | The system-administration page *Employee competencies* must be available on the account (its product, module and feature policies) and granted to the user's role. On a account without the page, the check fails. | `POST /v2/competences`, `PUT /v2/competences`, `DELETE /v2/competences/{id}`, `POST /v2/competence-groups`, `PUT /v2/competence-groups`, `DELETE /v2/competence-groups/{id}` |
+| Organization | The department rule needs the account feature *Departments*. The legal-entity rule needs *MultiLegalEntities*. | `POST /v1/user/validate-new-user` |
 
 <Callout kind="alert">**Not yet documented.** Licence, module and feature requirements of operations not listed here are not yet documented.</Callout>
 
